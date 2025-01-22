@@ -58,7 +58,13 @@ Detailed installation and configuration documentation is available at [xray-chec
 
 ## 📈 Project Statistics
 
-<iframe style="width:100%;height:auto;min-width:600px;min-height:400px;" src="https://star-history.com/embed#kutovoys/xray-checker&Date" frameBorder="0"></iframe>
+<a href="https://star-history.com/#kutovoys/xray-checker&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=kutovoys/xray-checker&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=kutovoys/xray-checker&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=kutovoys/xray-checker&type=Date" />
+ </picture>
+</a>
 
 ## 🤝 Contributing
 
