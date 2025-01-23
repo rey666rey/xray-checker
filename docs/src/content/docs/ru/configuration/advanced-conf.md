@@ -84,3 +84,75 @@ XRAY_START_PORT=20000
 # Изменение порта метрик
 METRICS_PORT=9090
 ```
+
+### Настройка на steal-from-yourself домене
+
+Если вы прикрываетесь своим собственным доменом в xray и настраиваете xray-checker на том же сервере, где работает xray и nginx-сервер для вашего домена, и хотите, чтобы мониторинг был доступен по пути, например, 
+ `your-stealing-domain.com/xray/monitor`, то настройка будет выглядеть так:
+
+Запустите docker-контейнер с xray checher на порту, например, 2112 так, чтобы он был доступен только с lockalhost'а:
+
+```bash
+docker run -d \
+  -e SUBSCRIPTION_URL=https://your-subscription-url/sub \
+  -p 127.0.0.1:2112:2112 \
+  kutovoys/xray-checker
+```
+
+Откройте конфиг nginx (`sudo nano /etc/nginx/your-stealing-domain.com`), найдите там главную секцию, она выглядит так:
+
+```
+server {
+    root /var/www/your-stealing-domain.com/html;
+
+    index index.html;
+    server_name your-stealing-domain.com;
+    ...
+}
+```
+
+Добавьте в неё 3 новых location для переадресации запросов на запущенный xray-checker:
+
+```config
+
+    # Обработка адреса /xray/monitor (без слеша в конце)
+    location = /xray/monitor {
+        return 301 https://$host$request_uri/;
+    }
+
+    # Обработка адреса  /xray/monitor/ - редирект на xray-checker
+    location /xray/monitor/ {
+        proxy_pass http://127.0.0.1:2112/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        rewrite ^/xray/monitor/(.*)$ /$1 break;
+    }
+
+    # Обработка ссылок, которые xray-checker использует для мониторинга: 
+    # https://your-stealing-domain.com/config/0-protocol-domain-port, 
+    # редиректим и их на xray-checker
+    location /config/ {
+        proxy_pass http://127.0.0.1:2112;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+```
+
+протестируйте и перезапустите nginx:
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+и проверьте, что мониторинг работает:
+
+```bash
+ curl -I -L https://your-stealing-domain.com/xray/monitor
+```
