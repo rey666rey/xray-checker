@@ -86,3 +86,75 @@ XRAY_START_PORT=20000
 # Change metrics port
 METRICS_PORT=9090
 ```
+
+### Configuration for steal-from-yourself domain
+
+If your xray checker docker and site domain which you steal from yourself
+running on the same machine, you can configire nginx to make monitoring  accessable by path, for example, `your-stealing-domain.com/xray/monitor`. 
+
+Run docker on port 2112 and made it accessable only from localhost:
+
+```bash
+docker run -d \
+  -e SUBSCRIPTION_URL=https://your-subscription-url/sub \
+  -p 127.0.0.1:2112:2112 \
+  kutovoys/xray-checker
+```
+
+Open nginx configuration file (`sudo nano /etc/nginx/your-stealing-domain.com`), find main section:
+
+```
+server {
+    root /var/www/your-stealing-domain.com/html;
+
+    index index.html;
+    server_name your-stealing-domain.com;
+    ...
+}
+```
+
+and paste there 3 new locations:
+
+```config
+
+    # Handle /xray/monitor without a trailing slash
+    location = /xray/monitor {
+        return 301 https://$host$request_uri/;
+    }
+
+    # Handle /xray/monitor/ - redirect to xray checker's docker port
+    location /xray/monitor/ {
+        proxy_pass http://127.0.0.1:2112/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        rewrite ^/xray/monitor/(.*)$ /$1 break;
+    }
+
+    # Handle monitoring URLs - links like 
+    # https://your-stealing-domain.com/config/0-protocol-domain-port, 
+    # redirects them to docker's port too
+    location /config/ {
+        proxy_pass http://127.0.0.1:2112;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+```
+
+then check and reload nginx:
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+and check availability of monitoring:
+
+```bash
+ curl -I -L https://your-stealing-domain.com/xray/monitor
+```
