@@ -121,7 +121,7 @@ func RegisterConfigEndpoints(proxies []*models.ProxyConfig, proxyChecker *checke
 	registeredEndpoints = make([]EndpointInfo, 0, len(proxies))
 
 	for _, proxy := range proxies {
-		endpoint := fmt.Sprintf("/config/%d-%s-%s-%d",
+		endpoint := fmt.Sprintf("./config/%d-%s-%s-%d",
 			proxy.Index,
 			proxy.Protocol,
 			proxy.Server,
