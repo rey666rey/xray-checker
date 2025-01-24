@@ -50,6 +50,7 @@ Minimum required configuration:
   --metrics-password=custom_pass \
   --metrics-instance=node-1 \
   --metrics-push-url="https://push.example.com" \
+  --metrics-base-url="/xray/monitor" \
   --run-once=false
 ```
 

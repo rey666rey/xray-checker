@@ -98,6 +98,7 @@ Run docker on port 2112 and made it accessable only from localhost:
 docker run -d \
   -e SUBSCRIPTION_URL=https://your-subscription-url/sub \
   -p 127.0.0.1:2112:2112 \
+  -e METRICS_BASE_URL="/xray/monitor \
   kutovoys/xray-checker
 ```
 
@@ -129,21 +130,7 @@ and paste there 3 new locations:
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-
-        rewrite ^/xray/monitor/(.*)$ /$1 break;
     }
-
-    # Handle monitoring URLs - links like 
-    # https://your-stealing-domain.com/config/0-protocol-domain-port, 
-    # redirects them to docker's port too
-    location /config/ {
-        proxy_pass http://127.0.0.1:2112;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
 ```
 
 then check and reload nginx:

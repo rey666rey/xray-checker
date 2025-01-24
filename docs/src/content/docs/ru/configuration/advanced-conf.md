@@ -96,6 +96,7 @@ METRICS_PORT=9090
 docker run -d \
   -e SUBSCRIPTION_URL=https://your-subscription-url/sub \
   -p 127.0.0.1:2112:2112 \
+  -e METRICS_BASE_URL="/xray/monitor \
   kutovoys/xray-checker
 ```
 
@@ -111,7 +112,7 @@ server {
 }
 ```
 
-Добавьте в неё 3 новых location для переадресации запросов на запущенный xray-checker:
+Добавьте в неё 2 новых location для переадресации запросов на запущенный xray-checker:
 
 ```config
 
@@ -127,21 +128,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-
-        rewrite ^/xray/monitor/(.*)$ /$1 break;
     }
-
-    # Обработка ссылок, которые xray-checker использует для мониторинга: 
-    # https://your-stealing-domain.com/config/0-protocol-domain-port, 
-    # редиректим и их на xray-checker
-    location /config/ {
-        proxy_pass http://127.0.0.1:2112;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
 ```
 
 протестируйте и перезапустите nginx:
