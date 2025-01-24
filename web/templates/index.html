@@ -432,7 +432,7 @@
       }
 
       function copyToClipboard(button, url) {
-        const fullUrl = new URL(url, window.location.origin).toString();
+        const fullUrl = new URL(url, window.location.origin + window.location.pathname).toString();
 
         if (!navigator.clipboard) {
           fallbackCopyTextToClipboard(fullUrl, button);
