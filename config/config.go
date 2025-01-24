@@ -47,7 +47,7 @@ type CLI struct {
 		Password       string `name:"metrics-password" help:"Password for metrics if protected by basic auth" default:"MetricsVeryHardPassword" env:"METRICS_PASSWORD"`
 		Instance       string `name:"metrics-instance" help:"Instance label for metrics" default:"" env:"METRICS_INSTANCE"`
 		PushURL        string `name:"metrics-push-url" help:"Prometheus pushgateway URL (e.g. https://user:pass@host:port)" default:"" env:"METRICS_PUSH_URL"`
-		MetricsBaseUrl string `name:"metrics-base-url" help:"URL path to metrics (e.g. /xray/monitoring/)" default:"/" env:"METRICS_BASE_URL"`
+		MetricsBaseUrl string `name:"metrics-base-url" help:"URL path to metrics (e.g. /xray/metrics)" default:"" env:"METRICS_BASE_URL"`
 	} `embed:"" prefix:""`
 
 	Version VersionFlag `name:"version" help:"Print version information and quit"`

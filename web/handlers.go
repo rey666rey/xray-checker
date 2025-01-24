@@ -3,6 +3,7 @@ package web
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 	"xray-checker/checker"
 	"xray-checker/config"
@@ -137,5 +138,39 @@ func RegisterConfigEndpoints(proxies []*models.ProxyConfig, proxyChecker *checke
 			Status:    status,
 			Latency:   latency,
 		})
+	}
+}
+
+// PrefixedMux is a custom ServeMux that handles only paths with a specific prefix.
+type PrefixServeMux struct {
+	prefix string
+	mux    *http.ServeMux
+}
+
+// NewPrefixedMux creates a new PrefixedMux with the given prefix.
+func NewPrefixServeMux(prefix string) (*PrefixServeMux, error) {
+	if strings.HasSuffix(prefix, "/") {
+		return nil, fmt.Errorf("served url path prefix '%s' should not ends with a '/'", prefix)
+	}
+	return &PrefixServeMux{
+		prefix: prefix,
+		mux:    http.NewServeMux(),
+	}, nil
+}
+
+// Handle registers a handler for a specific pattern, relative to the prefix.
+func (pm *PrefixServeMux) Handle(pattern string, handler http.Handler) {
+	// Combine the prefix with the pattern for routing.
+	pm.mux.Handle(pm.prefix+pattern, http.StripPrefix(pm.prefix, handler))
+}
+
+// ServeHTTP processes requests, ensuring only prefixed paths are handled.
+func (pm *PrefixServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Filter requests to match the prefix
+	if r.URL.Path == pm.prefix || strings.HasPrefix(r.URL.Path, pm.prefix+"/") {
+		pm.mux.ServeHTTP(w, r)
+	} else {
+		// Return 404 for non-matching paths.
+		http.NotFound(w, r)
 	}
 }
