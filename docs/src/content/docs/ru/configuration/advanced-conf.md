@@ -94,6 +94,23 @@ METRICS_PORT=9090
 (параметр `-p 127.0.0.1:2112:2112` означает, что прямой доступ 
 к нему будет только с самого сервера):
 
+:::caution
+Для публично доступной страницы с мониторингом настоятельно рекомендуется 
+включить авторизацию по логина и пароля. Включить её можно с помощью переменных окружения 
+`METRICS_PROTECTED`, `METRICS_USERNAME`, `METRICS_PASSWORD`.
+:::
+
+```bash
+docker run -d \
+  -e SUBSCRIPTION_URL=https://your-subscription-url/sub \
+  -p 127.0.0.1:2112:2112 \
+  -e METRICS_BASE_PATH=/xray/monitor \
+  -e METRICS_PROTECTED=true \
+  -e METRICS_USERNAME=custom_user \
+  -e METRICS_PASSWORD=custom_pass \
+  kutovoys/xray-checker
+```
+
 ```bash
 docker run -d \
   -e SUBSCRIPTION_URL=https://your-subscription-url/sub \

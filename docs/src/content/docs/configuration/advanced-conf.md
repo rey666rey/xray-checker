@@ -97,11 +97,21 @@ Run Xray Checker on the same server where your website is hosted.
 The parameter `-p 127.0.0.1:2112:2112` ensures that direct access 
 to it is only possible from the server itself:
 
+
+:::caution
+If the web interface is publicly accessible, it's recommended to use basic auth for protection. 
+You can enable this using the following environment variables: 
+`METRICS_PROTECTED`, `METRICS_USERNAME`, `METRICS_PASSWORD`.
+:::
+
 ```bash
 docker run -d \
   -e SUBSCRIPTION_URL=https://your-subscription-url/sub \
   -p 127.0.0.1:2112:2112 \
-  -e METRICS_BASE_PATH="/xray/monitor \
+  -e METRICS_BASE_PATH=/xray/monitor \
+  -e METRICS_PROTECTED=true \
+  -e METRICS_USERNAME=custom_user \
+  -e METRICS_PASSWORD=custom_pass \
   kutovoys/xray-checker
 ```
 
