@@ -157,6 +157,14 @@ URL, используемый для проверки статуса при `PRO
 
 URL Prometheus Pushgateway для отправки метрик. Формат: `https://user:pass@host:port`
 
+### METRICS_BASE_PATH
+
+- CLI: `--metrics-base-path`
+- Обязательно: Нет
+- По умолчанию: ""
+
+URL-путь, по которому будут доступны метрики и страница для их мониторинга. Формат: `/vpn/metrics`. Мониторинг будет доступен по адресу `http://localhost:port/metrics-base-path`
+
 ## Other
 
 ### RUN_ONCE

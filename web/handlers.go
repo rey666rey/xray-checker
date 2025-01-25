@@ -3,6 +3,7 @@ package web
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 	"xray-checker/checker"
 	"xray-checker/config"
@@ -121,7 +122,7 @@ func RegisterConfigEndpoints(proxies []*models.ProxyConfig, proxyChecker *checke
 	registeredEndpoints = make([]EndpointInfo, 0, len(proxies))
 
 	for _, proxy := range proxies {
-		endpoint := fmt.Sprintf("/config/%d-%s-%s-%d",
+		endpoint := fmt.Sprintf("./config/%d-%s-%s-%d",
 			proxy.Index,
 			proxy.Protocol,
 			proxy.Server,
@@ -137,5 +138,32 @@ func RegisterConfigEndpoints(proxies []*models.ProxyConfig, proxyChecker *checke
 			Status:    status,
 			Latency:   latency,
 		})
+	}
+}
+
+type PrefixServeMux struct {
+	prefix string
+	mux    *http.ServeMux
+}
+
+func NewPrefixServeMux(prefix string) (*PrefixServeMux, error) {
+	if strings.HasSuffix(prefix, "/") {
+		return nil, fmt.Errorf("served url path prefix '%s' should not ends with a '/'", prefix)
+	}
+	return &PrefixServeMux{
+		prefix: prefix,
+		mux:    http.NewServeMux(),
+	}, nil
+}
+
+func (pm *PrefixServeMux) Handle(pattern string, handler http.Handler) {
+	pm.mux.Handle(pm.prefix+pattern, http.StripPrefix(pm.prefix, handler))
+}
+
+func (pm *PrefixServeMux) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == pm.prefix || strings.HasPrefix(r.URL.Path, pm.prefix+"/") {
+		pm.mux.ServeHTTP(w, r)
+	} else {
+		http.NotFound(w, r)
 	}
 }

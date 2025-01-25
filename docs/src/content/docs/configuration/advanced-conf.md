@@ -86,3 +86,75 @@ XRAY_START_PORT=20000
 # Change metrics port
 METRICS_PORT=9090
 ```
+
+### Configuration for steal-from-yourself domain
+
+
+You have your own domain, your-domain.com, with a website running on it, 
+and you want to display monitoring at `your-domain.com/xray/monitor`.
+
+Run Xray Checker on the same server where your website is hosted. 
+The parameter `-p 127.0.0.1:2112:2112` ensures that direct access 
+to it is only possible from the server itself:
+
+
+:::caution
+If the web interface is publicly accessible, it's recommended to use basic auth for protection. 
+You can enable this using the following environment variables: 
+`METRICS_PROTECTED`, `METRICS_USERNAME`, `METRICS_PASSWORD`.
+:::
+
+```bash
+docker run -d \
+  -e SUBSCRIPTION_URL=https://your-subscription-url/sub \
+  -p 127.0.0.1:2112:2112 \
+  -e METRICS_BASE_PATH=/xray/monitor \
+  -e METRICS_PROTECTED=true \
+  -e METRICS_USERNAME=custom_user \
+  -e METRICS_PASSWORD=custom_pass \
+  kutovoys/xray-checker
+```
+
+Open nginx configuration file (`sudo nano /etc/nginx/your-domain.com`), find main section:
+
+```
+server {
+    root /var/www/your-domain.com/html;
+
+    index index.html;
+    server_name your-stealing-domain.com;
+    ...
+}
+```
+
+and paste there 3 new locations:
+
+```config
+
+    # Handle /xray/monitor without a trailing slash
+    location = /xray/monitor {
+        return 301 https://$host$request_uri/;
+    }
+
+    # Handle /xray/monitor/ - redirect to xray checker's docker port
+    location /xray/monitor/ {
+        proxy_pass http://127.0.0.1:2112/xray/monitor/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+```
+
+then check and reload nginx:
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+and check availability of monitoring:
+
+```bash
+ curl -I -L https://your-domain.com/xray/monitor
+```

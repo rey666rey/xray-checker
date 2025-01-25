@@ -110,7 +110,10 @@ func main() {
 		updateScheduler.StartAsync()
 	}
 
-	mux := http.NewServeMux()
+	mux, err := web.NewPrefixServeMux(config.CLIConfig.Metrics.BasePath)
+	if err != nil {
+		log.Fatalf("Error create web server: %v", err)
+	}
 	mux.Handle("/health", web.HealthHandler())
 
 	protectedHandler := http.NewServeMux()
@@ -121,16 +124,18 @@ func main() {
 	protectedHandler.Handle("/config/", web.ConfigStatusHandler(proxyChecker))
 
 	if config.CLIConfig.Metrics.Protected {
-		mux.Handle("/", web.BasicAuthMiddleware(
+		middlewareHandler := web.BasicAuthMiddleware(
 			config.CLIConfig.Metrics.Username,
 			config.CLIConfig.Metrics.Password,
-		)(protectedHandler))
+		)(protectedHandler)
+		mux.Handle("/", middlewareHandler)
 	} else {
 		mux.Handle("/", protectedHandler)
 	}
 
 	if !config.CLIConfig.RunOnce {
-		log.Printf("Starting server on :%s", config.CLIConfig.Metrics.Port)
+		log.Printf("Starting server on :%s",
+			config.CLIConfig.Metrics.Port+config.CLIConfig.Metrics.BasePath)
 		if err := http.ListenAndServe(":"+config.CLIConfig.Metrics.Port, mux); err != nil {
 			log.Fatalf("Error starting server: %v", err)
 		}
