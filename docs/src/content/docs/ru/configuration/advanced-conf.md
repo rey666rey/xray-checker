@@ -85,29 +85,32 @@ XRAY_START_PORT=20000
 METRICS_PORT=9090
 ```
 
-### Настройка на steal-from-yourself домене
+### Настройка на своём собственном домене
 
-Если вы прикрываетесь своим собственным доменом в xray и настраиваете xray-checker на том же сервере, где работает xray и nginx-сервер для вашего домена, и хотите, чтобы мониторинг был доступен по пути, например, 
- `your-stealing-domain.com/xray/monitor`, то настройка будет выглядеть так:
+У вас есть собственный домен `your-domain.com` и сайт на нём
+и вы хотите отображать мониторинг по адресу `your-domain.com/xray/monitor`.
 
-Запустите docker-контейнер с xray checher на порту, например, 2112 так, чтобы он был доступен только с lockalhost'а:
+Запустите xray checher на том же сервере, где запущен ваш сайт
+(параметр `-p 127.0.0.1:2112:2112` означает, что прямой доступ 
+к нему будет только с самого сервера):
 
 ```bash
 docker run -d \
   -e SUBSCRIPTION_URL=https://your-subscription-url/sub \
   -p 127.0.0.1:2112:2112 \
-  -e METRICS_BASE_URL="/xray/monitor \
+  -e METRICS_BASE_PATH="/xray/monitor \
   kutovoys/xray-checker
 ```
 
-Откройте конфиг nginx (`sudo nano /etc/nginx/your-stealing-domain.com`), найдите там главную секцию, она выглядит так:
+Откройте файл с настройками nginx (`sudo nano /etc/nginx/your-domain.com`), 
+найдите там главную секцию, она выглядит так:
 
 ```
 server {
-    root /var/www/your-stealing-domain.com/html;
+    root /var/www/your-domain.com/html;
 
     index index.html;
-    server_name your-stealing-domain.com;
+    server_name your-domain.com;
     ...
 }
 ```
@@ -131,15 +134,15 @@ server {
     }
 ```
 
-протестируйте и перезапустите nginx:
+Проверьте настройки nginx и перезапустите его:
 
 ```bash
 sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-и проверьте, что мониторинг работает:
+Проверьте, что мониторинг работает:
 
 ```bash
- curl -I -L https://your-stealing-domain.com/xray/monitor
+ curl -I -L https://your-domain.com/xray/monitor
 ```

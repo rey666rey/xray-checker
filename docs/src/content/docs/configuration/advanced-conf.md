@@ -89,24 +89,27 @@ METRICS_PORT=9090
 
 ### Configuration for steal-from-yourself domain
 
-If your xray checker docker and site domain which you steal from yourself
-running on the same machine, you can configire nginx to make monitoring  accessable by path, for example, `your-stealing-domain.com/xray/monitor`. 
 
-Run docker on port 2112 and made it accessable only from localhost:
+You have your own domain, your-domain.com, with a website running on it, 
+and you want to display monitoring at `your-domain.com/xray/monitor`.
+
+Run Xray Checker on the same server where your website is hosted. 
+The parameter `-p 127.0.0.1:2112:2112` ensures that direct access 
+to it is only possible from the server itself:
 
 ```bash
 docker run -d \
   -e SUBSCRIPTION_URL=https://your-subscription-url/sub \
   -p 127.0.0.1:2112:2112 \
-  -e METRICS_BASE_URL="/xray/monitor \
+  -e METRICS_BASE_PATH="/xray/monitor \
   kutovoys/xray-checker
 ```
 
-Open nginx configuration file (`sudo nano /etc/nginx/your-stealing-domain.com`), find main section:
+Open nginx configuration file (`sudo nano /etc/nginx/your-domain.com`), find main section:
 
 ```
 server {
-    root /var/www/your-stealing-domain.com/html;
+    root /var/www/your-domain.com/html;
 
     index index.html;
     server_name your-stealing-domain.com;
@@ -143,5 +146,5 @@ sudo systemctl reload nginx
 and check availability of monitoring:
 
 ```bash
- curl -I -L https://your-stealing-domain.com/xray/monitor
+ curl -I -L https://your-domain.com/xray/monitor
 ```

@@ -157,13 +157,13 @@ Instance label added to all metrics. Useful for distinguishing multiple Xray Che
 
 Prometheus Pushgateway URL for metric pushing. Format: `https://user:pass@host:port`
 
-### METRICS_BASE_URL
+### METRICS_BASE_PATH
 
-- CLI: `metrics-base-url`
+- CLI: `--metrics-base-path`
 - Required: No
 - Default: ""
 
-URL path for host metrics and monitoring. Format: `/vpn/metrics`. Monitoring page could be available on `http://localhost:port/metrics-base-url`
+URL path for host metrics and monitoring. Format: `/vpn/metrics`. Monitoring page could be available on `http://localhost:port/metrics-base-path`
 
 ## Other
 

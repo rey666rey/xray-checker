@@ -41,7 +41,7 @@ docker run -d \
   -e METRICS_PASSWORD=custom_pass \
   -e METRICS_INSTANCE=node-1 \
   -e METRICS_PUSH_URL=https://push.example.com \
-  -e METRICS_BASE_URL=/xray/monitor \
+  -e METRICS_BASE_PATH=/xray/monitor \
   -e RUN_ONCE=false \
   -p 2112:2112 \
   kutovoys/xray-checker
@@ -85,7 +85,7 @@ services:
       - METRICS_PASSWORD=custom_pass
       - METRICS_INSTANCE=node-1
       - METRICS_PUSH_URL=https://push.example.com
-      - METRICS_BASE_URL=/xray/monitor
+      - METRICS_BASE_PATH=/xray/monitor
       - RUN_ONCE=false
     ports:
       - "2112:2112"
