@@ -76,3 +76,15 @@ services:
 4. Создайте Pull Request
 
 Подробнее о том, как внести свой вклад, читайте в [руководстве для контрибьюторов](https://xray-checker.kutovoy.dev/ru/contributing/development-guide).
+
+<p align="center">
+Спасибо всем контрибьюторам, которые помогли улучшить Xray Checker:
+</p>
+<p align="center">
+<a href="https://github.com/kutovoys/xray-checker/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=kutovoys/xray-checker" />
+</a>
+</p>
+<p align="center">
+  Сделано с помощью <a rel="noopener noreferrer" target="_blank" href="https://contrib.rocks">contrib.rocks</a>
+</p>

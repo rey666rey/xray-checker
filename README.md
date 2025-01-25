@@ -76,3 +76,15 @@ We welcome any contributions to Xray Checker! If you want to help:
 4. Create a Pull Request
 
 For more details on how to contribute, read the [contributor's guide](https://xray-checker.kutovoy.dev/contributing/development-guide).
+
+<p align="center">
+Thanks to the all contributors who have helped improve Xray Checker:
+</p>
+<p align="center">
+<a href="https://github.com/kutovoys/xray-checker/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=kutovoys/xray-checker" />
+</a>
+</p>
+<p align="center">
+  Made with <a rel="noopener noreferrer" target="_blank" href="https://contrib.rocks">contrib.rocks</a>
+</p>
