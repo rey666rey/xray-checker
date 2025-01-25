@@ -110,7 +110,7 @@ func main() {
 		updateScheduler.StartAsync()
 	}
 
-	mux, err := web.NewPrefixServeMux(config.CLIConfig.Metrics.MetricsBasePath)
+	mux, err := web.NewPrefixServeMux(config.CLIConfig.Metrics.BasePath)
 	if err != nil {
 		log.Fatalf("Error create web server: %v", err)
 	}
@@ -135,7 +135,7 @@ func main() {
 
 	if !config.CLIConfig.RunOnce {
 		log.Printf("Starting server on :%s",
-			config.CLIConfig.Metrics.Port+config.CLIConfig.Metrics.MetricsBasePath)
+			config.CLIConfig.Metrics.Port+config.CLIConfig.Metrics.BasePath)
 		if err := http.ListenAndServe(":"+config.CLIConfig.Metrics.Port, mux); err != nil {
 			log.Fatalf("Error starting server: %v", err)
 		}
