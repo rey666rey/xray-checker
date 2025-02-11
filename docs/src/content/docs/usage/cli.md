@@ -13,11 +13,23 @@ Download the latest binary from releases:
 
 ```bash
 # For Linux amd64
-curl -Lo xray-checker https://github.com/kutovoys/xray-checker/releases/latest/download/xray-checker_linux_amd64
+curl -sLo xray-checker.tar.gz https://github.com/kutovoys/xray-checker/releases/latest/download/xray-checker-$(curl -sI https://github.com/kutovoys/xray-checker/releases/latest/ | grep location | grep -Eo 'v([0-9]{1}\.?)+')-linux-amd64.tar.gz
+tar -zxvf xray-checker.tar.gz
 chmod +x xray-checker
 
 # For Linux arm64
-curl -Lo xray-checker https://github.com/kutovoys/xray-checker/releases/latest/download/xray-checker_linux_arm64
+curl -sLo xray-checker.tar.gz https://github.com/kutovoys/xray-checker/releases/latest/download/xray-checker-$(curl -sI https://github.com/kutovoys/xray-checker/releases/latest/ | grep location | grep -Eo 'v([0-9]{1}\.?)+')-linux-arm64.tar.gz
+tar -zxvf xray-checker.tar.gz
+chmod +x xray-checker
+
+# For macOS (Intel)
+curl -sLo xray-checker.tar.gz https://github.com/kutovoys/xray-checker/releases/latest/download/xray-checker-$(curl -sI https://github.com/kutovoys/xray-checker/releases/latest/ | grep location | grep -Eo 'v([0-9]{1}\.?)+')-darwin-amd64.tar.gz
+tar -zxvf xray-checker.tar.gz
+chmod +x xray-checker
+
+# For macOS (Silicon)
+curl -sLo xray-checker.tar.gz https://github.com/kutovoys/xray-checker/releases/latest/download/xray-checker-$(curl -sI https://github.com/kutovoys/xray-checker/releases/latest/ | grep location | grep -Eo 'v([0-9]{1}\.?)+')-darwin-arm64.tar.gz
+tar -zxvf xray-checker.tar.gz
 chmod +x xray-checker
 ```
 
