@@ -1,5 +1,5 @@
-github.com/OmarTariq612/goech v0.0.1 h1:/0c918Bk1ik65GXDj2k7SOK78DyZr30Jmq9euy1/HXg=
-github.com/OmarTariq612/goech v0.0.1/go.mod h1:FVGavL/QEBQDcBpr3fAojoK17xX5k9bicBphrOpP7uM=
+github.com/OmarTariq612/goech v0.0.0-20240405204721-8e2e1dafd3a0 h1:Wo41lDOevRJSGpevP+8Pk5bANX7fJacO2w04aqLiC5I=
+github.com/OmarTariq612/goech v0.0.0-20240405204721-8e2e1dafd3a0/go.mod h1:FVGavL/QEBQDcBpr3fAojoK17xX5k9bicBphrOpP7uM=
 github.com/alecthomas/assert/v2 v2.11.0 h1:2Q9r3ki8+JYXvGsDyBXwH3LcJ+WK5D0gc5E8vS6K3D0=
 github.com/alecthomas/assert/v2 v2.11.0/go.mod h1:Bze95FyfUr7x34QZrjL+XP+0qgp/zg8yS+TtBj1WA3k=
 github.com/alecthomas/kong v1.10.0 h1:8K4rGDpT7Iu+jEXCIJUeKqvpwZHbsFRoebLbnzlmrpw=
@@ -196,7 +196,7 @@ gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C
 gopkg.in/yaml.v3 v3.0.0-20200605160147-a5ece683394c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
-gvisor.dev/gvisor v0.0.0-20250411205413-9cc0e9f85e6f h1:aWVD/Utb61skCwVQpXnsWH0LCX8YXEHaqpegDaPimik=
-gvisor.dev/gvisor v0.0.0-20250411205413-9cc0e9f85e6f/go.mod h1:3r5CMtNQMKIvBlrmM9xWUNamjKBYPOWyXOjmg5Kts3g=
+gvisor.dev/gvisor v0.0.0-20250411210754-2be36b44316d h1:5Ec1IiQfalHgtvVvDz0111JPCr7Qv5AswiKa+JoLV2w=
+gvisor.dev/gvisor v0.0.0-20250411210754-2be36b44316d/go.mod h1:3r5CMtNQMKIvBlrmM9xWUNamjKBYPOWyXOjmg5Kts3g=
 lukechampine.com/blake3 v1.4.0 h1:xDbKOZCVbnZsfzM6mHSYcGRHZ3YrLDzqz8XnV4uaD5w=
 lukechampine.com/blake3 v1.4.0/go.mod h1:MQJNQCTnR+kwOP/JEZSxj3MaQjp80FOFSNMMHXcSeX0=
