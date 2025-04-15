@@ -18,6 +18,8 @@ type ProxyConfig struct {
 	Fingerprint   string
 	PublicKey     string
 	ShortID       string
+	Mode          string
+	ExtraXhttp    string
 	Password      string
 	Method        string
 	Level         int

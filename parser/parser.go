@@ -77,6 +77,11 @@ func ParseVLESSConfig(u *url.URL) (*models.ProxyConfig, error) {
 	config.PublicKey = query.Get("pbk")
 	config.ShortID = query.Get("sid")
 
+	if config.Type == "xhttp" {
+		config.Mode = query.Get("mode")
+		config.ExtraXhttp = query.Get("extra")
+	}
+
 	if config.Type == "grpc" {
 		config.ServiceName = query.Get("serviceName")
 		config.MultiMode = query.Get("multiMode") == "true"

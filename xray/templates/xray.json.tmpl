@@ -170,6 +170,17 @@
     }
     {{- end }}
 
+    {{- if and .Type (eq .Type "xhttp") }},
+    "xhttpSettings": {
+      "host": "{{.Host}}",
+      "path": "{{.Path}}",
+      {{- if .ExtraXhttp }}
+      "extra": {{.ExtraXhttp}},
+      {{- end }}
+      "mode": "{{.Mode}}"
+    }
+    {{- end }}
+
     {{- if .HasGRPCSettings }},
     "grpcSettings": {
       "serviceName": "{{.GetServiceName}}",
