@@ -66,11 +66,16 @@ func (pc *ProxyChecker) GetCurrentIP() (string, error) {
 }
 
 func (pc *ProxyChecker) CheckProxy(proxy *models.ProxyConfig) {
-	metricKey := fmt.Sprintf("%s|%s:%d|%s",
+	if proxy.StableID == "" {
+		proxy.StableID = proxy.GenerateStableID()
+	}
+
+	metricKey := fmt.Sprintf("%s|%s:%d|%s|%s",
 		proxy.Protocol,
 		proxy.Server,
 		proxy.Port,
 		proxy.Name,
+		proxy.StableID,
 	)
 
 	setFailedStatus := func() {
@@ -231,11 +236,16 @@ func (pc *ProxyChecker) GetProxyStatus(name string) (bool, time.Duration, error)
 	var metricKey string
 	for _, proxy := range pc.proxies {
 		if proxy.Name == name {
-			metricKey = fmt.Sprintf("%s|%s:%d|%s",
+			if proxy.StableID == "" {
+				proxy.StableID = proxy.GenerateStableID()
+			}
+
+			metricKey = fmt.Sprintf("%s|%s:%d|%s|%s",
 				proxy.Protocol,
 				proxy.Server,
 				proxy.Port,
 				proxy.Name,
+				proxy.StableID,
 			)
 			break
 		}
@@ -256,6 +266,19 @@ func (pc *ProxyChecker) GetProxyStatus(name string) (bool, time.Duration, error)
 	}
 
 	return status.(bool), latency.(time.Duration), nil
+}
+
+func (pc *ProxyChecker) GetProxyByStableID(stableID string) (*models.ProxyConfig, bool) {
+	for _, proxy := range pc.proxies {
+		if proxy.StableID == "" {
+			proxy.StableID = proxy.GenerateStableID()
+		}
+
+		if proxy.StableID == stableID {
+			return proxy, true
+		}
+	}
+	return nil, false
 }
 
 func (pc *ProxyChecker) GetProxies() []*models.ProxyConfig {

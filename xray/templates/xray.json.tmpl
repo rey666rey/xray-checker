@@ -164,9 +164,8 @@
     {{- if and .Type (eq .Type "ws") }},
     "wsSettings": {
       "path": "{{.Path}}",
-      "headers": {
-        "Host": "{{.Host}}"
-      }
+      "host": "{{.Host}}",
+      "headers": {}
     }
     {{- end }}
 

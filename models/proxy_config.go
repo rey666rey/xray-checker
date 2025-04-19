@@ -1,6 +1,11 @@
 package models
 
-import "fmt"
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"strings"
+)
 
 type ProxyConfig struct {
 	Protocol      string
@@ -33,6 +38,7 @@ type ProxyConfig struct {
 	ALPN          []string
 	Index         int
 	Settings      map[string]string
+	StableID      string
 }
 
 func (pc *ProxyConfig) Validate() error {
@@ -64,6 +70,51 @@ func (pc *ProxyConfig) Validate() error {
 	}
 
 	return nil
+}
+
+func (pc *ProxyConfig) GenerateStableID() string {
+	var idComponents []string
+
+	idComponents = append(idComponents, pc.Protocol)
+
+	idComponents = append(idComponents, pc.Server)
+	idComponents = append(idComponents, fmt.Sprintf("%d", pc.Port))
+
+	switch pc.Protocol {
+	case "vless", "vmess":
+		if pc.UUID != "" {
+			idComponents = append(idComponents, pc.UUID)
+		}
+	case "trojan", "shadowsocks":
+		if pc.Password != "" {
+			idComponents = append(idComponents, pc.Password)
+		}
+		if pc.Protocol == "shadowsocks" && pc.Method != "" {
+			idComponents = append(idComponents, pc.Method)
+		}
+	}
+
+	if pc.SNI != "" {
+		idComponents = append(idComponents, pc.SNI)
+	}
+
+	if pc.Type != "" {
+		idComponents = append(idComponents, pc.Type)
+	}
+
+	if pc.Security != "" {
+		idComponents = append(idComponents, pc.Security)
+	}
+
+	if pc.PublicKey != "" {
+		idComponents = append(idComponents, pc.PublicKey)
+	}
+
+	idString := strings.Join(idComponents, "|")
+
+	hash := sha256.Sum256([]byte(idString))
+
+	return hex.EncodeToString(hash[:])[:16]
 }
 
 func (pc *ProxyConfig) GetEndpointPath() string {

@@ -73,6 +73,10 @@ func saveConfig(config []byte, filename string) error {
 func PrepareProxyConfigs(proxies []*models.ProxyConfig) {
 	for i := range proxies {
 		proxies[i].Index = i
+
+		if proxies[i].StableID == "" {
+			proxies[i].StableID = proxies[i].GenerateStableID()
+		}
 	}
 }
 
@@ -125,14 +129,30 @@ func IsConfigsEqual(old, new []*models.ProxyConfig) bool {
 	}
 
 	oldMap := make(map[string]bool)
+	newMap := make(map[string]bool)
+
 	for _, cfg := range old {
-		key := fmt.Sprintf("%s:%s:%d:%s", cfg.Protocol, cfg.Server, cfg.Port, cfg.Name)
-		oldMap[key] = true
+		if cfg.StableID == "" {
+			cfg.StableID = cfg.GenerateStableID()
+		}
+		oldMap[cfg.StableID] = true
 	}
 
 	for _, cfg := range new {
-		key := fmt.Sprintf("%s:%s:%d:%s", cfg.Protocol, cfg.Server, cfg.Port, cfg.Name)
-		if !oldMap[key] {
+		if cfg.StableID == "" {
+			cfg.StableID = cfg.GenerateStableID()
+		}
+		newMap[cfg.StableID] = true
+	}
+
+	for id := range oldMap {
+		if !newMap[id] {
+			return false
+		}
+	}
+
+	for id := range newMap {
+		if !oldMap[id] {
 			return false
 		}
 	}
