@@ -220,6 +220,22 @@ export default defineConfig({
             },
           ],
         },
+        {
+          label: "VPN Recommendation",
+          translations: {
+            ru: "Рекомендуем",
+          },
+          items: [
+            {
+              label: "BlancVPN",
+              link: "https://getblancvpn.com/?ref=xc-doc",
+              badge: { text: "TRYBLANCVPN", variant: "success" },
+              attrs: {
+                class: "blanc-vpn-menu-item",
+              },
+            },
+          ],
+        },
       ],
     }),
   ],

@@ -88,3 +88,7 @@ Thanks to the all contributors who have helped improve Xray Checker:
 <p align="center">
   Made with <a rel="noopener noreferrer" target="_blank" href="https://contrib.rocks">contrib.rocks</a>
 </p>
+
+## VPN Recommendation
+
+For secure and reliable internet access, we recommend [BlancVPN](https://getblancvpn.com/?ref=xc-readme). Use promo code `TRYBLANCVPN` for 15% off your subscription.

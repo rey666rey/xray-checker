@@ -9,7 +9,7 @@
 [![en](https://img.shields.io/badge/lang-en-red)](https://github.com/kutovoys/xray-checker/blob/main/README.md)
 
 Xray Checker - это инструмент для мониторинга доступности прокси-серверов с поддержкой протоколов VLESS, VMess, Trojan и Shadowsocks. Он автоматически тестирует соединения через Xray Core и предоставляет метрики для Prometheus, а также API-эндпоинты для интеграции с системами мониторинга.
- 
+
 <div align="center">
   <img src=".github/screen/xray-checker.png" alt="Dashboard Screenshot">
 </div>
@@ -88,3 +88,9 @@ services:
 <p align="center">
   Сделано с помощью <a rel="noopener noreferrer" target="_blank" href="https://contrib.rocks">contrib.rocks</a>
 </p>
+
+---
+
+## Рекомендация VPN
+
+Для безопасного и надежного доступа в интернет мы рекомендуем [BlancVPN](https://getblancvpn.com/?ref=xc-readme). Используйте промокод `TRYBLANCVPN` для получения скидки 15% на вашу подписку.

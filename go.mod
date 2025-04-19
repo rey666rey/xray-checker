@@ -13,7 +13,7 @@ require (
 )
 
 require (
-	github.com/OmarTariq612/goech v0.0.0-20240405204721-8e2e1dafd3a0 // for ECH
+	github.com/OmarTariq612/goech v0.0.0-20240405204721-8e2e1dafd3a0 // indirect; for ECH
 	github.com/andybalholm/brotli v1.1.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
