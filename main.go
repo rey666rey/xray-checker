@@ -134,8 +134,10 @@ func main() {
 	}
 
 	if !config.CLIConfig.RunOnce {
-		log.Printf("Starting server on :%s",
-			config.CLIConfig.Metrics.Port+config.CLIConfig.Metrics.BasePath)
+		log.Printf("Starting server on %s:%s",
+			config.CLIConfig.Metrics.Host,
+			config.CLIConfig.Metrics.Port+config.CLIConfig.Metrics.BasePath,
+		)
 		if err := http.ListenAndServe(config.CLIConfig.Metrics.Host+":"+config.CLIConfig.Metrics.Port, mux); err != nil {
 			log.Fatalf("Error starting server: %v", err)
 		}
