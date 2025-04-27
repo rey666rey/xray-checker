@@ -32,6 +32,7 @@ func init() {
 
 type PageData struct {
 	Version                    string
+	Host                       string
 	Port                       string
 	CheckInterval              int
 	IPCheckUrl                 string

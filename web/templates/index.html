@@ -268,8 +268,8 @@
       <div class="info-card">
         <h3>Server Settings</h3>
         <div class="info-item">
-          <span class="info-label">Server Port:</span>
-          <span class="info-value">{{.Port}}</span>
+          <span class="info-label">Server:</span>
+          <span class="info-value">{{.Host}}:{{.Port}}</span>
         </div>
         <div class="info-item">
           <span class="info-label">Proxy Start Port:</span>
@@ -432,7 +432,10 @@
       }
 
       function copyToClipboard(button, url) {
-        const fullUrl = new URL(url, window.location.origin + window.location.pathname).toString();
+        const fullUrl = new URL(
+          url,
+          window.location.origin + window.location.pathname
+        ).toString();
 
         if (!navigator.clipboard) {
           fallbackCopyTextToClipboard(fullUrl, button);
