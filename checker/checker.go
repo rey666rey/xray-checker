@@ -201,11 +201,16 @@ func (pc *ProxyChecker) ClearMetrics() {
 	pc.currentMetrics.Range(func(key, _ interface{}) bool {
 		metricKey := key.(string)
 		parts := strings.Split(metricKey, "|")
-		if len(parts) == 3 {
+		if len(parts) >= 3 {
 			metrics.DeleteProxyStatus(parts[0], parts[1], parts[2], pc.instance)
 			metrics.DeleteProxyLatency(parts[0], parts[1], parts[2], pc.instance)
 		}
 		pc.currentMetrics.Delete(key)
+		return true
+	})
+
+	pc.latencyMetrics.Range(func(key, _ interface{}) bool {
+		pc.latencyMetrics.Delete(key)
 		return true
 	})
 }

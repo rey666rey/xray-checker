@@ -56,6 +56,7 @@ chmod +x xray-checker
   --simulate-latency=true \
   --xray-start-port=10000 \
   --xray-log-level=none \
+  --metrics-host=0.0.0.0 \
   --metrics-port=2112 \
   --metrics-protected=true \
   --metrics-username=custom_user \
@@ -95,6 +96,7 @@ chmod +x xray-checker
 ```bash
 ./xray-checker \
   --subscription-url="https://your-sub-url" \
+  --metrics-host=127.0.0.1 \
   --metrics-port=3000 \
   --xray-start-port=20000
 ```

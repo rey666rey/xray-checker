@@ -32,6 +32,7 @@ func IndexHandler(version string, proxyChecker *checker.ProxyChecker) http.Handl
 
 		data := PageData{
 			Version:                    version,
+			Host:                       config.CLIConfig.Metrics.Host,
 			Port:                       config.CLIConfig.Metrics.Port,
 			CheckInterval:              config.CLIConfig.Proxy.CheckInterval,
 			IPCheckUrl:                 config.CLIConfig.Proxy.IpCheckUrl,

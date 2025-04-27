@@ -35,6 +35,7 @@ docker run -d \
   -e SIMULATE_LATENCY=true \
   -e XRAY_START_PORT=10000 \
   -e XRAY_LOG_LEVEL=none \
+  -e METRICS_HOST=0.0.0.0 \
   -e METRICS_PORT=2112 \
   -e METRICS_PROTECTED=true \
   -e METRICS_USERNAME=custom_user \
@@ -79,6 +80,7 @@ services:
       - SIMULATE_LATENCY=true
       - XRAY_START_PORT=10000
       - XRAY_LOG_LEVEL=none
+      - METRICS_HOST=0.0.0.0
       - METRICS_PORT=2112
       - METRICS_PROTECTED=true
       - METRICS_USERNAME=custom_user

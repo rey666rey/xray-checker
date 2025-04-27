@@ -109,6 +109,14 @@ Controls Xray Core logging verbosity.
 
 ## Metrics
 
+### METRICS_HOST
+
+- CLI: `--metrics-host`
+- Required: No
+- Default: `0.0.0.0`
+
+Host address for metrics and status endpoints.
+
 ### METRICS_PORT
 
 - CLI: `--metrics-port`
