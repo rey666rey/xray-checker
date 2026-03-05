@@ -44,5 +44,7 @@ scrape_configs:
 Конфигурация Xray Checker:
 
 ```bash
-METRICS_PUSH_URL="http://user:password@pushgateway:9091"
+METRICS_PUSH_URL="http://user:password@pushgateway:9091/metrics/job/xray-checker"
 ```
+`user:password@`: Используются только в случае когда включен basic auth
+`/metrics/job/{yourname}`: Эндпоинт для метрик, подробнее читатйте в документации pushgateway
