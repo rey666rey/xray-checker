@@ -231,29 +231,108 @@ func (p *Parser) Parse(subscriptionData string) (*ParseResult, error) {
 
 	cleanedData := p.cleanEmptyLines(rawData)
 
+	// Try batch parsing first
+	proxyConfigs := p.parseViaLibXray(cleanedData, originalData)
+
+	// If batch parsing failed, fall back to line-by-line parsing
+	if len(proxyConfigs) == 0 {
+		logger.Warn("Batch parsing failed or returned no configs, trying line-by-line parsing")
+		proxyConfigs = p.parseLineByLine(cleanedData, originalData)
+	}
+
+	if len(proxyConfigs) == 0 {
+		return nil, fmt.Errorf("no valid proxy configurations found")
+	}
+
+	return &ParseResult{Configs: proxyConfigs, Name: subName}, nil
+}
+
+// parseViaLibXray attempts to parse all configs at once via libXray.
+// Returns parsed configs or nil if parsing fails.
+func (p *Parser) parseViaLibXray(cleanedData []byte, originalData map[string]*originalLinkData) []*models.ProxyConfig {
 	base64Data := base64.StdEncoding.EncodeToString(cleanedData)
 
 	resultBase64 := libXray.ConvertShareLinksToXrayJson(base64Data)
 
 	resultBytes, err := base64.StdEncoding.DecodeString(resultBase64)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode libXray response: %v", err)
+		logger.Debug("Failed to decode libXray response: %v", err)
+		return nil
 	}
 
 	var response libXrayResponse
 	if err := json.Unmarshal(resultBytes, &response); err != nil {
-		return nil, fmt.Errorf("failed to parse libXray response: %v", err)
+		logger.Debug("Failed to parse libXray response: %v", err)
+		return nil
 	}
 
 	if !response.Success {
-		return nil, fmt.Errorf("libXray parsing failed. Please check your subscription hosts, check your HWID in your dashboard, or try disabling HWID lock for your checker account")
+		logger.Debug("libXray batch parsing returned success=false")
+		return nil
 	}
 
+	return p.extractOutbounds(response.Data, originalData)
+}
+
+// parseLineByLine parses each config line individually, skipping broken ones.
+func (p *Parser) parseLineByLine(cleanedData []byte, originalData map[string]*originalLinkData) []*models.ProxyConfig {
+	lines := strings.Split(string(cleanedData), "\n")
+	var allConfigs []*models.ProxyConfig
+	skippedCount := 0
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		lineBase64 := base64.StdEncoding.EncodeToString([]byte(line))
+		resultBase64 := libXray.ConvertShareLinksToXrayJson(lineBase64)
+
+		resultBytes, err := base64.StdEncoding.DecodeString(resultBase64)
+		if err != nil {
+			logger.Warn("Skipping invalid config line (decode error): %.50s...", line)
+			skippedCount++
+			continue
+		}
+
+		var response libXrayResponse
+		if err := json.Unmarshal(resultBytes, &response); err != nil {
+			logger.Warn("Skipping invalid config line (parse error): %.50s...", line)
+			skippedCount++
+			continue
+		}
+
+		if !response.Success {
+			logger.Warn("Skipping invalid config line (libXray error): %.50s...", line)
+			skippedCount++
+			continue
+		}
+
+		configs := p.extractOutbounds(response.Data, originalData)
+		allConfigs = append(allConfigs, configs...)
+	}
+
+	if skippedCount > 0 {
+		logger.Warn("Skipped %d invalid config line(s) during parsing", skippedCount)
+	}
+
+	// Re-index configs
+	for i, cfg := range allConfigs {
+		cfg.Index = i
+	}
+
+	return allConfigs
+}
+
+// extractOutbounds extracts proxy configs from libXray response data.
+func (p *Parser) extractOutbounds(data json.RawMessage, originalData map[string]*originalLinkData) []*models.ProxyConfig {
 	var xrayConfig struct {
 		Outbounds []json.RawMessage `json:"outbounds"`
 	}
-	if err := json.Unmarshal(response.Data, &xrayConfig); err != nil {
-		return nil, fmt.Errorf("failed to parse libXray config data: %v", err)
+	if err := json.Unmarshal(data, &xrayConfig); err != nil {
+		logger.Debug("Failed to parse libXray config data: %v", err)
+		return nil
 	}
 
 	logger.Debug("Parsed %d outbounds", len(xrayConfig.Outbounds))
@@ -272,11 +351,7 @@ func (p *Parser) Parse(subscriptionData string) (*ParseResult, error) {
 		}
 	}
 
-	if len(proxyConfigs) == 0 {
-		return nil, fmt.Errorf("no valid proxy configurations found")
-	}
-
-	return &ParseResult{Configs: proxyConfigs, Name: subName}, nil
+	return proxyConfigs
 }
 
 func (p *Parser) parseJSONConfigs(data []byte) ([]*models.ProxyConfig, error) {
