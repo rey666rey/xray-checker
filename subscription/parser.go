@@ -54,6 +54,8 @@ type libXraySettings struct {
 	Security   string `json:"security"`
 	Password   string `json:"password"`
 	Method     string `json:"method"`
+	Version    int32  `json:"version"`
+	Auth       string `json:"auth"`
 }
 
 type libXrayStreamSettings struct {
@@ -68,6 +70,9 @@ type libXrayStreamSettings struct {
 	HttpupgradeSettings *libXrayHttpupgradeSettings `json:"httpupgradeSettings"`
 	XhttpSettings       json.RawMessage             `json:"xhttpSettings"`
 	SplithttpSettings   json.RawMessage             `json:"splithttpSettings"`
+	HysteriaSettings    *libXrayHysteriaSettings    `json:"hysteriaSettings"`
+	Sockopt             *libXraySockopt              `json:"sockopt"`
+	FinalMask           *libXrayFinalMask            `json:"finalMask"`
 }
 
 type libXrayTlsSettings struct {
@@ -123,6 +128,46 @@ type libXrayXhttpSettings struct {
 	Path string `json:"path"`
 	Host string `json:"host"`
 	Mode string `json:"mode"`
+}
+
+type libXrayHysteriaSettings struct {
+	Version int32  `json:"version"`
+	Auth    string `json:"auth"`
+}
+
+type libXraySockopt struct {
+	FinalMask *libXrayFinalMask `json:"finalMask"`
+}
+
+type libXrayFinalMask struct {
+	QuicParams *libXrayQuicParams `json:"quicParams"`
+	Udp        []libXrayMask      `json:"udp"`
+}
+
+type libXrayQuicParams struct {
+	Congestion string          `json:"congestion"`
+	BrutalUp   string          `json:"brutalUp"`
+	BrutalDown string          `json:"brutalDown"`
+	UdpHop     *libXrayUdpHop  `json:"udpHop"`
+}
+
+type libXrayUdpHop struct {
+	PortList json.RawMessage    `json:"portList"`
+	Interval *libXrayInt32Range `json:"interval"`
+}
+
+type libXrayInt32Range struct {
+	From int32 `json:"from"`
+	To   int32 `json:"to"`
+}
+
+type libXrayMask struct {
+	Type     string           `json:"type"`
+	Settings *json.RawMessage `json:"settings"`
+}
+
+type libXraySalamander struct {
+	Password string `json:"password"`
 }
 
 type originalLinkData struct {
@@ -705,6 +750,8 @@ func (p *Parser) convertOutbound(raw json.RawMessage, index int, originalData ma
 		case "shadowsocks":
 			pc.Password = flatSettings.Password
 			pc.Method = flatSettings.Method
+		case "hysteria":
+			pc.HysteriaAuth = flatSettings.Auth
 		}
 	} else {
 		var stdSettings xrayStandardSettings
@@ -738,6 +785,19 @@ func (p *Parser) convertOutbound(raw json.RawMessage, index int, originalData ma
 			pc.Password = srv.Password
 			pc.Method = srv.Method
 			pc.Flow = srv.Flow
+		case "hysteria":
+			var hySettings struct {
+				Address string `json:"address"`
+				Port    int    `json:"port"`
+				Version int32  `json:"version"`
+				Auth    string `json:"auth"`
+			}
+			if err := json.Unmarshal(baseOutbound.Settings, &hySettings); err != nil {
+				return nil, fmt.Errorf("failed to parse hysteria settings: %v", err)
+			}
+			pc.Server = hySettings.Address
+			pc.Port = hySettings.Port
+			pc.HysteriaAuth = hySettings.Auth
 		default:
 			return nil, fmt.Errorf("unsupported protocol: %s", baseOutbound.Protocol)
 		}
@@ -834,6 +894,52 @@ func (p *Parser) convertOutbound(raw json.RawMessage, index int, originalData ma
 				}
 			}
 		}
+
+		// Hysteria stream settings
+		if ss.HysteriaSettings != nil {
+			if pc.HysteriaAuth == "" {
+				pc.HysteriaAuth = ss.HysteriaSettings.Auth
+			}
+		}
+
+		// Extract QuicParams and Salamander from FinalMask
+		// FinalMask can be at streamSettings level or inside sockopt
+		finalMask := ss.FinalMask
+		if finalMask == nil && ss.Sockopt != nil {
+			finalMask = ss.Sockopt.FinalMask
+		}
+		if finalMask != nil {
+			if finalMask.QuicParams != nil {
+				qp := finalMask.QuicParams
+				pc.HysteriaUp = qp.BrutalUp
+				pc.HysteriaDown = qp.BrutalDown
+				if qp.UdpHop != nil {
+					if qp.UdpHop.PortList != nil {
+						var ports string
+						if err := json.Unmarshal(qp.UdpHop.PortList, &ports); err == nil {
+							pc.HysteriaPorts = ports
+						} else {
+							logger.Debug("Failed to parse UdpHop portList as string: %v", err)
+						}
+					}
+					if qp.UdpHop.Interval != nil {
+						pc.HysteriaHopInterval = qp.UdpHop.Interval.From
+					}
+				}
+			}
+			if len(finalMask.Udp) > 0 {
+				mask := finalMask.Udp[0]
+				if mask.Type == "salamander" && mask.Settings != nil {
+					pc.HysteriaObfs = "salamander"
+					var sal libXraySalamander
+					if err := json.Unmarshal(*mask.Settings, &sal); err == nil {
+						pc.HysteriaObfsPassword = sal.Password
+					} else {
+						logger.Debug("Failed to parse salamander settings: %v", err)
+					}
+				}
+			}
+		}
 	}
 
 	key := fmt.Sprintf("%s:%d", pc.Server, pc.Port)
@@ -862,6 +968,7 @@ func (p *Parser) tryDecodeBase64(data []byte) []byte {
 
 	if strings.HasPrefix(text, "vless://") || strings.HasPrefix(text, "vmess://") ||
 		strings.HasPrefix(text, "trojan://") || strings.HasPrefix(text, "ss://") ||
+		strings.HasPrefix(text, "hysteria2://") || strings.HasPrefix(text, "hy2://") ||
 		strings.HasPrefix(text, "{") || strings.HasPrefix(text, "[") {
 		return data
 	}
