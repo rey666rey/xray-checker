@@ -8,8 +8,6 @@ github.com/andybalholm/brotli v1.1.1 h1:PR2pgnyFznKEugtsUo0xLdDop5SKXd5Qf5ysW+7X
 github.com/andybalholm/brotli v1.1.1/go.mod h1:05ib4cKhjx3OQYUY22hTVd34Bc8upXjOLL2rKwwZBoA=
 github.com/apernet/quic-go v0.59.1-0.20260217092621-db4786c77a22 h1:00ziBGnLWQEcR9LThDwvxOznJJquJ9bYUdmBFnawLMU=
 github.com/apernet/quic-go v0.59.1-0.20260217092621-db4786c77a22/go.mod h1:Npbg8qBtAZlsAB3FWmqwlVh5jtVG6a4DlYsOylUpvzA=
-github.com/belaytzev/libxray v0.0.0-20260331201023-b6b09cac0953 h1:BmlXxMToc0+UnFld3U2MUwvvt5XU0TNC/O5Bc1TeFPU=
-github.com/belaytzev/libxray v0.0.0-20260331201023-b6b09cac0953/go.mod h1:NLTl4u9AwU1GjBQOVEGkYZUQuF5dH+5ffpKTmDVpNlI=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
@@ -108,6 +106,8 @@ github.com/vishvananda/netlink v1.3.1 h1:3AEMt62VKqz90r0tmNhog0r/PpWKmrEShJU0wJW
 github.com/vishvananda/netlink v1.3.1/go.mod h1:ARtKouGSTGchR8aMwmkzC0qiNPrrWO5JS/XMVl45+b4=
 github.com/vishvananda/netns v0.0.5 h1:DfiHV+j8bA32MFM7bfEunvT8IAqQ/NzSJHtcmW5zdEY=
 github.com/vishvananda/netns v0.0.5/go.mod h1:SpkAiCQRtJ6TvvxPnOSyH3BMl6unz3xZlaprSwhNNJM=
+github.com/xtls/libxray v0.0.0-20260401024615-0e9dc9457ffc h1:5NxLSyrC/GMy7k0lq6n9rbyuSAYEOHCbhRldq7w2LnA=
+github.com/xtls/libxray v0.0.0-20260401024615-0e9dc9457ffc/go.mod h1:NLTl4u9AwU1GjBQOVEGkYZUQuF5dH+5ffpKTmDVpNlI=
 github.com/xtls/reality v0.0.0-20260322125925-9234c772ba8f h1:iy2JRioxmUpoJ3SzbFPyTxHZMbR/rSHP7dOOgYaq1O8=
 github.com/xtls/reality v0.0.0-20260322125925-9234c772ba8f/go.mod h1:DsJblcWDGt76+FVqBVwbwRhxyyNJsGV48gJLch0OOWI=
 github.com/xtls/xray-core v1.260327.0 h1:g4TzxMwyPrxslZh6uD+FiG3lXKTrnNO+b4ky2OhogHE=

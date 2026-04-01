@@ -7,7 +7,7 @@ require (
 	github.com/go-co-op/gocron v1.37.0
 	github.com/prometheus/client_golang v1.22.0
 	github.com/prometheus/common v0.64.0
-	github.com/xtls/libxray v0.0.0-20260208142825-83548e854973
+	github.com/xtls/libxray v0.0.0-20260401024615-0e9dc9457ffc
 	github.com/xtls/xray-core v1.260327.0
 )
 
@@ -64,5 +64,3 @@ require (
 	gvisor.dev/gvisor v0.0.0-20260122175437-89a5d21be8f0 // indirect
 	lukechampine.com/blake3 v1.4.1 // indirect
 )
-
-replace github.com/xtls/libxray => github.com/belaytzev/libxray v0.0.0-20260331201023-b6b09cac0953
