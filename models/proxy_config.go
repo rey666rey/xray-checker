@@ -106,19 +106,23 @@ func (pc *ProxyConfig) GenerateStableID() string {
 	write("server", pc.Server)
 	write("port", strconv.Itoa(pc.Port))
 
+	// Low-entropy, human-chosen secrets (trojan/shadowsocks password, hysteria auth)
+	// are deliberately NOT hashed: stableID is a PUBLIC identifier (API, badges) and a
+	// 64-bit truncated hash of a weak password alongside otherwise-known fields could
+	// be brute-forced offline. The UUID is kept: it is a high-entropy (122-bit) random
+	// identifier, so its hash is not brute-forceable, and it is a meaningful
+	// discriminator when one endpoint serves several users/routes that differ only by
+	// UUID (e.g. vless route-id setups). The AssignStableIDs tiebreaker separates any
+	// configs that still collide after excluding the low-entropy secrets.
 	switch pc.Protocol {
 	case "vless", "vmess":
 		write("uuid", pc.UUID)
 		if pc.Protocol == "vmess" {
 			write("alterId", strconv.Itoa(pc.GetAlterId()))
 		}
-	case "trojan":
-		write("password", pc.Password)
 	case "shadowsocks":
-		write("password", pc.Password)
 		write("method", pc.Method)
 	case "hysteria":
-		write("auth", pc.HysteriaAuth)
 		write("ports", pc.HysteriaPorts)
 		write("obfs", pc.HysteriaObfs)
 	}

@@ -35,7 +35,7 @@ func TestGenerateStableID_DistinguishesConnectionFields(t *testing.T) {
 		"encryption": func(p *ProxyConfig) { p.Encryption = "none" },
 		"server":     func(p *ProxyConfig) { p.Server = "other.com" },
 		"port":       func(p *ProxyConfig) { p.Port = 8443 },
-		"uuid":       func(p *ProxyConfig) { p.UUID = "11111111-1111-1111-1111-111111111111" },
+		"uuid":       func(p *ProxyConfig) { p.UUID = "11111111-1111-1111-1111-111111111111" }, // vless route-id: same node, different exit
 		"publicKey":  func(p *ProxyConfig) { p.PublicKey = "PBK2" },
 		"alpn":       func(p *ProxyConfig) { p.ALPN = []string{"h2"} },
 	}
@@ -62,6 +62,23 @@ func TestGenerateStableID_IgnoresNameAndIndex(t *testing.T) {
 		if got := p.GenerateStableID(); got != base {
 			t.Errorf("%s must not affect stableID: %s != %s", name, got, base)
 		}
+	}
+}
+
+// stableID is public, so it must NOT change with low-entropy, human-chosen secrets
+// (trojan/shadowsocks password, hysteria auth) — a truncated hash of those could be
+// brute-forced. (The high-entropy UUID is kept; see DistinguishesConnectionFields.)
+func TestGenerateStableID_ExcludesSecrets(t *testing.T) {
+	tr := &ProxyConfig{Protocol: "trojan", Server: "s.example.com", Port: 443, Password: "secret-one", Name: "T"}
+	tr2 := &ProxyConfig{Protocol: "trojan", Server: "s.example.com", Port: 443, Password: "secret-two", Name: "T"}
+	if tr.GenerateStableID() != tr2.GenerateStableID() {
+		t.Errorf("trojan password (secret) must not affect stableID")
+	}
+
+	hy := &ProxyConfig{Protocol: "hysteria", Server: "h.example.com", Port: 443, HysteriaAuth: "auth-one", Name: "H"}
+	hy2 := &ProxyConfig{Protocol: "hysteria", Server: "h.example.com", Port: 443, HysteriaAuth: "auth-two", Name: "H"}
+	if hy.GenerateStableID() != hy2.GenerateStableID() {
+		t.Errorf("hysteria auth (secret) must not affect stableID")
 	}
 }
 
