@@ -19,6 +19,16 @@ import (
 	libXray "github.com/xtls/libxray"
 )
 
+const (
+	// subscriptionHWID is a fixed device id sent with subscription requests. It is
+	// intentionally constant (not per-request) so panels that enforce HWID/device
+	// limits register a single device for the checker.
+	subscriptionHWID = "0JLQq9Ca0JvQrtCn0Jgg0JHQm9Cp0KLQrCBIV0lE"
+	// subscriptionJSONUserAgent impersonates an app whose responses are full JSON
+	// configs (used when --subscription-json-format is enabled).
+	subscriptionJSONUserAgent = "Happ/1.0"
+)
+
 type Parser struct{}
 
 type fetchResult struct {
@@ -70,6 +80,7 @@ type libXrayStreamSettings struct {
 	HttpupgradeSettings *libXrayHttpupgradeSettings `json:"httpupgradeSettings"`
 	XhttpSettings       json.RawMessage             `json:"xhttpSettings"`
 	SplithttpSettings   json.RawMessage             `json:"splithttpSettings"`
+	KcpSettings         json.RawMessage             `json:"kcpSettings"`
 	HysteriaSettings    *libXrayHysteriaSettings    `json:"hysteriaSettings"`
 	Sockopt             *libXraySockopt             `json:"sockopt"`
 	FinalMask           *libXrayFinalMask           `json:"finalMask"`
@@ -400,6 +411,47 @@ func (p *Parser) extractOutbounds(data json.RawMessage, originalData map[string]
 	return proxyConfigs
 }
 
+// nameGroupedProxies assigns display names to the proxies parsed from a single JSON
+// config (one `remarks` group). A single-node group takes the group name; a
+// multi-node group (a balancer) names each node "<group> | <node>" so the nodes are
+// tracked individually. Each proxy's Name is expected to already hold its outbound
+// tag (set by convertOutbound); server:port is used as a fallback and to
+// disambiguate nodes that share a tag.
+func nameGroupedProxies(remarks string, group []*models.ProxyConfig) {
+	if len(group) == 0 {
+		return
+	}
+	if len(group) == 1 {
+		if remarks != "" {
+			group[0].Name = remarks
+		}
+		return
+	}
+
+	nodeLabel := func(pc *models.ProxyConfig) string {
+		if pc.Name != "" {
+			return pc.Name
+		}
+		return fmt.Sprintf("%s:%d", pc.Server, pc.Port)
+	}
+	labelCounts := make(map[string]int, len(group))
+	for _, pc := range group {
+		labelCounts[nodeLabel(pc)]++
+	}
+	for _, pc := range group {
+		node := nodeLabel(pc)
+		if labelCounts[node] > 1 {
+			node = fmt.Sprintf("%s (%s:%d)", node, pc.Server, pc.Port)
+		}
+		if remarks != "" {
+			pc.Name = fmt.Sprintf("%s | %s", remarks, node)
+			pc.GroupName = remarks
+		} else {
+			pc.Name = node
+		}
+	}
+}
+
 func (p *Parser) parseJSONConfigs(data []byte) ([]*models.ProxyConfig, error) {
 	var configs []struct {
 		Remarks   string            `json:"remarks"`
@@ -416,19 +468,17 @@ func (p *Parser) parseJSONConfigs(data []byte) ([]*models.ProxyConfig, error) {
 	configIndex := 0
 
 	for _, config := range configs {
+		var group []*models.ProxyConfig
 		for _, outboundRaw := range config.Outbounds {
 			proxyConfig, err := p.convertOutbound(outboundRaw, configIndex, nil)
-			if err != nil {
+			if err != nil || proxyConfig == nil {
 				continue
 			}
-			if proxyConfig != nil {
-				if config.Remarks != "" {
-					proxyConfig.Name = config.Remarks
-				}
-				proxyConfigs = append(proxyConfigs, proxyConfig)
-				configIndex++
-			}
+			group = append(group, proxyConfig)
+			configIndex++
 		}
+		nameGroupedProxies(config.Remarks, group)
+		proxyConfigs = append(proxyConfigs, group...)
 	}
 
 	if len(proxyConfigs) == 0 {
@@ -455,17 +505,14 @@ func (p *Parser) parseSingleJSONConfig(data []byte) ([]*models.ProxyConfig, erro
 
 	for _, outboundRaw := range config.Outbounds {
 		proxyConfig, err := p.convertOutbound(outboundRaw, configIndex, nil)
-		if err != nil {
+		if err != nil || proxyConfig == nil {
 			continue
 		}
-		if proxyConfig != nil {
-			if config.Remarks != "" {
-				proxyConfig.Name = config.Remarks
-			}
-			proxyConfigs = append(proxyConfigs, proxyConfig)
-			configIndex++
-		}
+		proxyConfigs = append(proxyConfigs, proxyConfig)
+		configIndex++
 	}
+
+	nameGroupedProxies(config.Remarks, proxyConfigs)
 
 	if len(proxyConfigs) == 0 {
 		return nil, fmt.Errorf("no valid proxy configurations found in single JSON config")
@@ -512,12 +559,35 @@ func (p *Parser) fetchURLContent(source string) (*fetchResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "Xray-Checker")
+
+	sub := config.CLIConfig.Subscription
 	req.Header.Set("Accept", "*/*")
-	req.Header.Set("X-Device-OS", "CheckerOS")
-	req.Header.Set("X-Ver-OS", config.Version)
-	req.Header.Set("X-Device-Model", "Xray-Checker Pro Max")
-	req.Header.Set("X-Hwid", "0JLQq9Ca0JvQrtCn0Jgg0JHQm9Cp0KLQrCBIV0lE")
+	switch {
+	case sub.UserAgent != "":
+		// Explicit override: the user controls exactly which client to impersonate.
+		req.Header.Set("User-Agent", sub.UserAgent)
+	case sub.JSONFormat:
+		// App-like headers so panels (e.g. Remnawave) return full JSON configs with
+		// individual grouped/balancer nodes instead of collapsed base64 share links.
+		req.Header.Set("User-Agent", subscriptionJSONUserAgent)
+		req.Header.Set("X-Hwid", subscriptionHWID)
+	default:
+		req.Header.Set("User-Agent", "Xray-Checker")
+		req.Header.Set("X-Device-OS", "CheckerOS")
+		req.Header.Set("X-Ver-OS", config.Version)
+		req.Header.Set("X-Device-Model", "Xray-Checker Pro Max")
+		req.Header.Set("X-Hwid", subscriptionHWID)
+	}
+
+	// User-supplied headers are applied last so they can override any of the above.
+	for _, h := range sub.Headers {
+		key, value, ok := strings.Cut(h, ":")
+		if !ok {
+			logger.Warn("Ignoring malformed subscription header (want 'Key: Value'): %s", h)
+			continue
+		}
+		req.Header.Set(strings.TrimSpace(key), strings.TrimSpace(value))
+	}
 
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
@@ -875,6 +945,10 @@ func (p *Parser) convertOutbound(raw json.RawMessage, index int, originalData ma
 			pc.Host = ss.HttpupgradeSettings.Host
 		}
 
+		if (ss.Network == "kcp" || ss.Network == "mkcp") && len(ss.KcpSettings) > 0 {
+			pc.RawKcpSettings = string(ss.KcpSettings)
+		}
+
 		if ss.Network == "xhttp" || ss.Network == "splithttp" {
 			pc.Type = ss.Network
 
@@ -1063,16 +1137,13 @@ func (p *Parser) parseSingleConfigFile(data []byte, startIndex int) ([]*models.P
 		var proxyConfigs []*models.ProxyConfig
 		for _, outboundRaw := range config.Outbounds {
 			proxyConfig, err := p.convertOutbound(outboundRaw, startIndex, nil)
-			if err != nil {
+			if err != nil || proxyConfig == nil {
 				continue
 			}
-			if proxyConfig != nil {
-				if config.Remarks != "" {
-					proxyConfig.Name = config.Remarks
-				}
-				proxyConfigs = append(proxyConfigs, proxyConfig)
-			}
+			proxyConfigs = append(proxyConfigs, proxyConfig)
 		}
+
+		nameGroupedProxies(config.Remarks, proxyConfigs)
 
 		if len(proxyConfigs) == 0 {
 			return nil, fmt.Errorf("no valid proxy configurations found")

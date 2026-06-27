@@ -81,20 +81,22 @@ func (pc *ProxyChecker) CheckProxy(proxy *models.ProxyConfig) {
 // in-memory map key, so series can be deleted exactly from their labels without
 // parsing a packed string (proxy names may legitimately contain any character).
 type proxyMetricLabels struct {
-	protocol string
-	address  string
-	name     string
-	subName  string
-	stableID string
+	protocol  string
+	address   string
+	name      string
+	subName   string
+	stableID  string
+	groupName string
 }
 
 func proxyMetricKey(proxy *models.ProxyConfig) proxyMetricLabels {
 	return proxyMetricLabels{
-		protocol: proxy.Protocol,
-		address:  fmt.Sprintf("%s:%d", proxy.Server, proxy.Port),
-		name:     proxy.Name,
-		subName:  proxy.SubName,
-		stableID: proxy.StableID,
+		protocol:  proxy.Protocol,
+		address:   fmt.Sprintf("%s:%d", proxy.Server, proxy.Port),
+		name:      proxy.Name,
+		subName:   proxy.SubName,
+		stableID:  proxy.StableID,
+		groupName: proxy.GroupName,
 	}
 }
 
@@ -122,7 +124,7 @@ func (pc *ProxyChecker) checkProxyInternal(proxy *models.ProxyConfig, expectedGe
 			metricKey.address,
 			metricKey.name,
 			metricKey.subName,
-			metricKey.stableID,
+			metricKey.stableID, metricKey.groupName,
 			0,
 		)
 		pc.currentMetrics.Store(metricKey, false)
@@ -137,7 +139,7 @@ func (pc *ProxyChecker) checkProxyInternal(proxy *models.ProxyConfig, expectedGe
 			metricKey.address,
 			metricKey.name,
 			metricKey.subName,
-			metricKey.stableID,
+			metricKey.stableID, metricKey.groupName,
 			time.Duration(0),
 		)
 		pc.latencyMetrics.Store(metricKey, time.Duration(0))
@@ -200,7 +202,7 @@ func (pc *ProxyChecker) checkProxyInternal(proxy *models.ProxyConfig, expectedGe
 			metricKey.address,
 			metricKey.name,
 			metricKey.subName,
-			metricKey.stableID,
+			metricKey.stableID, metricKey.groupName,
 			1,
 		)
 		metrics.RecordProxyLatency(
@@ -208,7 +210,7 @@ func (pc *ProxyChecker) checkProxyInternal(proxy *models.ProxyConfig, expectedGe
 			metricKey.address,
 			metricKey.name,
 			metricKey.subName,
-			metricKey.stableID,
+			metricKey.stableID, metricKey.groupName,
 			latency,
 		)
 
@@ -337,8 +339,8 @@ func (pc *ProxyChecker) checkByDownload(client *http.Client) (bool, string, time
 func (pc *ProxyChecker) ClearMetrics() {
 	pc.currentMetrics.Range(func(key, _ interface{}) bool {
 		k := key.(proxyMetricLabels)
-		metrics.DeleteProxyStatus(k.protocol, k.address, k.name, k.subName, k.stableID)
-		metrics.DeleteProxyLatency(k.protocol, k.address, k.name, k.subName, k.stableID)
+		metrics.DeleteProxyStatus(k.protocol, k.address, k.name, k.subName, k.stableID, k.groupName)
+		metrics.DeleteProxyLatency(k.protocol, k.address, k.name, k.subName, k.stableID, k.groupName)
 		pc.currentMetrics.Delete(key)
 		return true
 	})
@@ -383,8 +385,8 @@ func (pc *ProxyChecker) ReconcileMetrics() {
 		if _, ok := currentKeys[k]; ok {
 			return true
 		}
-		metrics.DeleteProxyStatus(k.protocol, k.address, k.name, k.subName, k.stableID)
-		metrics.DeleteProxyLatency(k.protocol, k.address, k.name, k.subName, k.stableID)
+		metrics.DeleteProxyStatus(k.protocol, k.address, k.name, k.subName, k.stableID, k.groupName)
+		metrics.DeleteProxyLatency(k.protocol, k.address, k.name, k.subName, k.stableID, k.groupName)
 		pc.currentMetrics.Delete(key)
 		pc.latencyMetrics.Delete(key)
 		return true

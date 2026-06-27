@@ -27,6 +27,7 @@ type EndpointInfo struct {
 	Status     bool
 	Latency    time.Duration
 	StableID   string
+	GroupName  string
 }
 
 func IndexHandler(version string, proxyChecker *checker.ProxyChecker) http.HandlerFunc {
@@ -44,22 +45,29 @@ func IndexHandler(version string, proxyChecker *checker.ProxyChecker) http.Handl
 		endpointsMu.RUnlock()
 
 		isPublic := config.CLIConfig.Web.Public
-		showServerDetails := config.CLIConfig.Web.ShowServerDetails
-		if isPublic {
-			showServerDetails = false
-		}
+		showServerDetails := shouldShowServerDetails()
 
 		endpoints := allEndpoints
 		if isPublic {
+			// In public mode the per-proxy config URL (copy link) is never
+			// exposed. Server address/port are exposed only when details are
+			// allowed, e.g. via WEB_TRUSTED_EXTERNAL_AUTH behind an external
+			// auth proxy.
 			endpoints = make([]EndpointInfo, len(allEndpoints))
 			for i, ep := range allEndpoints {
-				endpoints[i] = EndpointInfo{
-					Name:     ep.Name,
-					Index:    ep.Index,
-					Status:   ep.Status,
-					Latency:  ep.Latency,
-					StableID: ep.StableID,
+				e := EndpointInfo{
+					Name:      ep.Name,
+					Index:     ep.Index,
+					Status:    ep.Status,
+					Latency:   ep.Latency,
+					StableID:  ep.StableID,
+					GroupName: ep.GroupName,
 				}
+				if showServerDetails {
+					e.ServerInfo = ep.ServerInfo
+					e.ProxyPort = ep.ProxyPort
+				}
+				endpoints[i] = e
 			}
 		}
 
@@ -170,6 +178,7 @@ func RegisterConfigEndpoints(proxies []*models.ProxyConfig, proxyChecker *checke
 			Status:     status,
 			Latency:    latency,
 			StableID:   proxy.StableID,
+			GroupName:  proxy.GroupName,
 		})
 	}
 

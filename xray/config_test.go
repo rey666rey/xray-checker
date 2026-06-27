@@ -3,12 +3,56 @@ package xray
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"xray-checker/models"
 
 	"github.com/xtls/xray-core/infra/conf/serial"
 )
+
+func TestExtractFailingOutboundTag(t *testing.T) {
+	cases := map[string]string{
+		"infra/conf: failed to build outbound config with tag BAD-xhttp_1 > infra/conf: unsupported mode: x": "BAD-xhttp_1",
+		"failed to build outbound config with tag My Server | node_7 > some reason":                          "My Server | node_7",
+		"some unrelated error":   "",
+		"with tag trailing-only": "trailing-only",
+	}
+	for in, want := range cases {
+		if got := extractFailingOutboundTag(in); got != want {
+			t.Errorf("extractFailingOutboundTag(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+// A single unbuildable proxy must be excluded (with the rest kept) rather than
+// aborting the whole config.
+func TestGenerateValidatedConfigPrunesUnbuildable(t *testing.T) {
+	good := &models.ProxyConfig{
+		Protocol: "vless", Server: "good.example.com", Port: 443, Name: "good",
+		UUID: "00000000-0000-0000-0000-000000000000", Type: "tcp", Security: "none", Index: 0,
+	}
+	bad := &models.ProxyConfig{
+		Protocol: "vless", Server: "bad.example.com", Port: 443, Name: "bad",
+		UUID: "00000000-0000-0000-0000-000000000000", Type: "xhttp", Security: "tls", SNI: "bad.example.com",
+		RawXhttpSettings: `{"mode":"bogus-mode","path":"/"}`, Index: 1,
+	}
+
+	f := filepath.Join(t.TempDir(), "cfg.json")
+	g := NewConfigGenerator()
+	survivors, err := g.GenerateValidatedConfig([]*models.ProxyConfig{good, bad}, 20000, f, "none")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(survivors) != 1 || survivors[0].Name != "good" {
+		t.Fatalf("expected only 'good' to survive, got %d proxies", len(survivors))
+	}
+	data, _ := os.ReadFile(f)
+	if err := validateConfigBuild(data); err != nil {
+		t.Fatalf("written config must be buildable, got: %v", err)
+	}
+}
 
 // buildsWithXrayCore feeds a generated config through the exact decode+build path
 // that xray/runner.go uses at startup. This validates the JSON against xray-core's

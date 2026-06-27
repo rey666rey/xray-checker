@@ -1,12 +1,15 @@
 package xray
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 	"xray-checker/logger"
 	"xray-checker/models"
+
+	"github.com/xtls/xray-core/infra/conf/serial"
 )
 
 type ConfigGenerator struct{}
@@ -28,37 +31,94 @@ func (g *ConfigGenerator) GenerateConfig(proxies []*models.ProxyConfig, startPor
 	return json.MarshalIndent(config, "", "  ")
 }
 
-func (g *ConfigGenerator) GenerateAndSaveConfig(proxies []*models.ProxyConfig, startPort int, filename string, xrayLogLevel string) error {
-	configBytes, err := g.GenerateConfig(proxies, startPort, xrayLogLevel)
+// validateConfigBuild runs the generated JSON through xray-core's decode+build path
+// (the same path the runner uses at startup), so a config that xray-core would reject
+// is caught here — letting us report and prune the offending node instead of having
+// the whole instance abort on Start.
+func validateConfigBuild(configBytes []byte) error {
+	xrayConfig, err := serial.DecodeJSONConfig(bytes.NewReader(configBytes))
 	if err != nil {
-		return fmt.Errorf("error generating config: %v", err)
+		return err
 	}
-
-	if err := g.ValidateConfig(configBytes); err != nil {
-		logger.Warn("Config validation failed: %v", err)
-	}
-
-	if err := os.WriteFile(filename, configBytes, 0644); err != nil {
-		return fmt.Errorf("error saving config: %v", err)
-	}
-
-	return nil
+	_, err = xrayConfig.Build()
+	return err
 }
 
-func (g *ConfigGenerator) ValidateConfig(configBytes []byte) error {
-	var config map[string]interface{}
-	if err := json.Unmarshal(configBytes, &config); err != nil {
-		return fmt.Errorf("failed to parse config: %v", err)
-	}
+func outboundTag(proxy *models.ProxyConfig) string {
+	return fmt.Sprintf("%s_%d", proxy.Name, proxy.Index)
+}
 
-	required := []string{"inbounds", "outbounds", "routing"}
-	for _, field := range required {
-		if _, ok := config[field]; !ok {
-			return fmt.Errorf("missing required field: %s", field)
+// extractFailingOutboundTag pulls the outbound tag from an xray build error shaped
+// like: "... failed to build outbound config with tag <TAG> > <reason>".
+func extractFailingOutboundTag(errMsg string) string {
+	const marker = "with tag "
+	i := strings.Index(errMsg, marker)
+	if i < 0 {
+		return ""
+	}
+	rest := errMsg[i+len(marker):]
+	if j := strings.Index(rest, " > "); j >= 0 {
+		return strings.TrimSpace(rest[:j])
+	}
+	return strings.TrimSpace(rest)
+}
+
+// shortBuildReason returns the leaf segment of xray's ">"-chained error message.
+func shortBuildReason(err error) string {
+	parts := strings.Split(err.Error(), " > ")
+	return strings.TrimSpace(parts[len(parts)-1])
+}
+
+// GenerateValidatedConfig generates the xray config and, if xray-core rejects a
+// specific outbound at build time, drops that proxy, logs why it was excluded, and
+// regenerates. This prevents a single unsupported/legacy node (e.g. a transport
+// field removed in a newer xray-core) from bringing down the whole instance. It
+// writes the final, buildable config to filename and returns the surviving proxies.
+func (g *ConfigGenerator) GenerateValidatedConfig(proxies []*models.ProxyConfig, startPort int, filename, xrayLogLevel string) ([]*models.ProxyConfig, error) {
+	current := proxies
+	for {
+		configBytes, err := g.GenerateConfig(current, startPort, xrayLogLevel)
+		if err != nil {
+			return current, fmt.Errorf("error generating config: %v", err)
 		}
-	}
 
-	return nil
+		buildErr := validateConfigBuild(configBytes)
+		if buildErr == nil {
+			if err := os.WriteFile(filename, configBytes, 0644); err != nil {
+				return current, fmt.Errorf("error saving config: %v", err)
+			}
+			if len(current) != len(proxies) {
+				logger.Warn("Config validated after excluding %d unbuildable prox(ies); %d remain", len(proxies)-len(current), len(current))
+			}
+			return current, nil
+		}
+
+		tag := extractFailingOutboundTag(buildErr.Error())
+		idx := -1
+		if tag != "" {
+			for i, p := range current {
+				if outboundTag(p) == tag {
+					idx = i
+					break
+				}
+			}
+		}
+
+		if idx < 0 {
+			// Failure can't be attributed to a single proxy — keep the config so the
+			// error surfaces at startup instead of silently dropping everything.
+			logger.Error("Xray config build failed and no offending proxy could be identified; keeping config as-is: %v", buildErr)
+			if werr := os.WriteFile(filename, configBytes, 0644); werr != nil {
+				return current, werr
+			}
+			return current, nil
+		}
+
+		bad := current[idx]
+		logger.Warn("Excluding proxy %q (%s %s:%d): xray rejected its config: %s",
+			bad.Name, bad.Protocol, bad.Server, bad.Port, shortBuildReason(buildErr))
+		current = append(current[:idx:idx], current[idx+1:]...)
+	}
 }
 
 func (g *ConfigGenerator) generateInbounds(proxies []*models.ProxyConfig, startPort int) []map[string]interface{} {
@@ -108,6 +168,13 @@ func (g *ConfigGenerator) generateOutbounds(proxies []*models.ProxyConfig) []map
 	}
 
 	return outbounds
+}
+
+// GenerateProxyOutbound returns the xray outbound configuration map for a single
+// proxy. It is exported so the web layer can surface a sanitized view of the
+// generated config for debugging without rebuilding the whole config.
+func (g *ConfigGenerator) GenerateProxyOutbound(proxy *models.ProxyConfig) map[string]interface{} {
+	return g.generateProxyOutbound(proxy)
 }
 
 func (g *ConfigGenerator) generateProxyOutbound(proxy *models.ProxyConfig) map[string]interface{} {
@@ -268,6 +335,19 @@ func (g *ConfigGenerator) generateStreamSettings(proxy *models.ProxyConfig) map[
 		ss["grpcSettings"] = map[string]interface{}{
 			"serviceName": proxy.GetServiceName(),
 			"multiMode":   proxy.MultiMode,
+		}
+
+	case "kcp", "mkcp":
+		if proxy.RawKcpSettings != "" {
+			var rawSettings map[string]interface{}
+			if err := json.Unmarshal([]byte(proxy.RawKcpSettings), &rawSettings); err == nil {
+				// xray-core removed kcp "header" and "seed" (migrated to finalmask).
+				// Emitting them aborts the WHOLE config build, taking every proxy
+				// down, so drop them — the node degrades to plain mKCP instead.
+				delete(rawSettings, "header")
+				delete(rawSettings, "seed")
+				ss["kcpSettings"] = rawSettings
+			}
 		}
 
 	case "http", "h2":

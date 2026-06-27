@@ -110,6 +110,9 @@
         background: var(--bg-tertiary);
         border: 1px solid var(--border);
       }
+      .group-header:hover {
+        border-color: var(--border-hover);
+      }
 
       .text-primary {
         color: var(--text-primary);
@@ -856,84 +859,112 @@
         x-show="showProxies"
         class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 mb-4"
       >
-        <template x-for="(proxy, idx) in filteredProxies" :key="proxy.stableId">
-          <div
-            class="proxy-card group card rounded-lg px-3 py-2.5 flex items-center gap-3 transition-all duration-150"
-            :class="initialLoad && 'animate'"
-          >
-            <!-- Status dot -->
-            <div class="relative flex-shrink-0">
-              <div
-                class="w-2 h-2 rounded-full"
-                :class="proxy.status ? 'status-online pulse' : 'status-offline'"
-              ></div>
-            </div>
-
-            <!-- Info -->
-            <div class="flex-1 min-w-0">
-              {{ if .IsPublic }}
-              <span
-                class="text-sm text-primary truncate block"
-                x-text="proxy.name"
-              ></span>
-              {{ else }}
-              <a
-                :href="proxy.url"
-                target="_blank"
-                class="text-sm text-primary link-hover truncate block transition-colors"
-                x-text="proxy.name"
-              ></a>
-              {{ end }} {{ if .ShowServerDetails }}
-              <span class="text-xs text-muted truncate block"
-                ><span x-text="proxy.serverInfo"></span> · :<span
-                  x-text="proxy.proxyPort"
-                ></span
-              ></span>
-              {{ end }}
-            </div>
-
-            <!-- Latency -->
-            <div class="flex flex-col items-center gap-1 flex-shrink-0">
-              <span
-                class="text-xs tabular-nums"
-                :class="proxy.latencyMs === 0 ? 'text-muted' : proxy.latencyMs < 500 ? 'latency-good' : proxy.latencyMs < 1000 ? 'latency-medium' : 'latency-bad'"
-                x-text="proxy.latency"
-              ></span>
-              <div class="flex items-center gap-0.5">
-                <template x-for="i in 5" :key="i">
-                  <div
-                    class="latency-segment"
-                    :class="proxy.latencyMs === 0 ? '' :
-                    (proxy.latencyMs < 500 ? (i <= getSegments(proxy.latencyMs) ? 'segment-good' : '') :
-                     proxy.latencyMs < 1000 ? (i <= getSegments(proxy.latencyMs) ? 'segment-medium' : '') :
-                     (i <= getSegments(proxy.latencyMs) ? 'segment-bad' : ''))"
-                  ></div>
-                </template>
-              </div>
-            </div>
-
-            {{ if not .IsPublic }}
-            <!-- Copy -->
-            <button
-              @click="copyUrl(proxy)"
-              class="hidden sm:block p-1.5 rounded text-muted btn-icon transition-all"
-              title="Copy URL"
-            >
-              <svg
-                class="w-3.5 h-3.5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+        <template x-for="item in displayItems" :key="item.key">
+          <div :style="item.type === 'header' ? 'grid-column: 1 / -1' : ''">
+            <!-- Group header (balancer groups) -->
+            <template x-if="item.type === 'header'">
+              <button
+                @click="toggleGroup(item.block.group)"
+                class="group-header card-flat w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-left transition-colors"
               >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                />
-              </svg>
-            </button>
-            {{ end }}
+                <svg
+                  class="w-3.5 h-3.5 text-muted transition-transform flex-shrink-0"
+                  :class="collapsedGroups[item.block.group] && '-rotate-90'"
+                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+                <span class="text-sm font-medium text-primary truncate flex-1" x-text="item.block.group"></span>
+                <span class="text-xs text-muted tabular-nums flex-shrink-0"
+                  ><span
+                    :class="item.block.online === item.block.total ? 'latency-good' : (item.block.online === 0 ? 'latency-bad' : '')"
+                    x-text="item.block.online"
+                  ></span>/<span x-text="item.block.total"></span
+                ></span>
+              </button>
+            </template>
+
+            <!-- Proxy card -->
+            <template x-if="item.type === 'proxy'">
+              <div
+                class="proxy-card group card rounded-lg px-3 py-2.5 flex items-center gap-3 transition-all duration-150"
+                :class="initialLoad && 'animate'"
+              >
+                <!-- Status dot -->
+                <div class="relative flex-shrink-0">
+                  <div
+                    class="w-2 h-2 rounded-full"
+                    :class="item.proxy.status ? 'status-online pulse' : 'status-offline'"
+                  ></div>
+                </div>
+
+                <!-- Info -->
+                <div class="flex-1 min-w-0">
+                  {{ if .IsPublic }}
+                  <span
+                    class="text-sm text-primary truncate block"
+                    x-text="item.proxy.name"
+                  ></span>
+                  {{ else }}
+                  <a
+                    :href="item.proxy.url"
+                    target="_blank"
+                    class="text-sm text-primary link-hover truncate block transition-colors"
+                    x-text="item.proxy.name"
+                  ></a>
+                  {{ end }} {{ if .ShowServerDetails }}
+                  <span class="text-xs text-muted truncate block"
+                    ><span x-text="item.proxy.serverInfo"></span> · :<span
+                      x-text="item.proxy.proxyPort"
+                    ></span
+                  ></span>
+                  {{ end }}
+                </div>
+
+                <!-- Latency -->
+                <div class="flex flex-col items-center gap-1 flex-shrink-0">
+                  <span
+                    class="text-xs tabular-nums"
+                    :class="item.proxy.latencyMs === 0 ? 'text-muted' : item.proxy.latencyMs < 500 ? 'latency-good' : item.proxy.latencyMs < 1000 ? 'latency-medium' : 'latency-bad'"
+                    x-text="item.proxy.latency"
+                  ></span>
+                  <div class="flex items-center gap-0.5">
+                    <template x-for="i in 5" :key="i">
+                      <div
+                        class="latency-segment"
+                        :class="item.proxy.latencyMs === 0 ? '' :
+                        (item.proxy.latencyMs < 500 ? (i <= getSegments(item.proxy.latencyMs) ? 'segment-good' : '') :
+                         item.proxy.latencyMs < 1000 ? (i <= getSegments(item.proxy.latencyMs) ? 'segment-medium' : '') :
+                         (i <= getSegments(item.proxy.latencyMs) ? 'segment-bad' : ''))"
+                      ></div>
+                    </template>
+                  </div>
+                </div>
+
+                {{ if not .IsPublic }}
+                <!-- Copy -->
+                <button
+                  @click="copyUrl(item.proxy)"
+                  class="hidden sm:block p-1.5 rounded text-muted btn-icon transition-all"
+                  title="Copy URL"
+                >
+                  <svg
+                    class="w-3.5 h-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                    />
+                  </svg>
+                </button>
+                {{ end }}
+              </div>
+            </template>
           </div>
         </template>
       </div>
@@ -1065,9 +1096,11 @@
             return classes.join(' ');
           },
 
+          collapsedGroups: {},
+
           proxies: [
             {{ range $.Endpoints }}
-            { name: "{{.Name}}", stableId: "{{.StableID}}", {{ if $.ShowServerDetails }}serverInfo: "{{.ServerInfo}}", proxyPort: {{.ProxyPort}}, {{ end }}{{ if not $.IsPublic }}url: "{{.URL}}", {{ end }}index: {{.Index}}, status: {{.Status}}, latency: "{{ formatLatency .Latency }}", latencyMs: {{ .Latency.Milliseconds }} },
+            { name: "{{.Name}}", stableId: "{{.StableID}}", groupName: "{{.GroupName}}", {{ if $.ShowServerDetails }}serverInfo: "{{.ServerInfo}}", proxyPort: {{.ProxyPort}}, {{ end }}{{ if not $.IsPublic }}url: "{{.URL}}", {{ end }}index: {{.Index}}, status: {{.Status}}, latency: "{{ formatLatency .Latency }}", latencyMs: {{ .Latency.Milliseconds }} },
             {{ end }}
           ],
 
@@ -1108,6 +1141,60 @@
               if (this.sort === 'name') return this.stripLeadingEmoji(a.name).localeCompare(this.stripLeadingEmoji(b.name));
               return a.index - b.index;
             });
+          },
+
+          // Partition filteredProxies into render blocks: one block per balancer
+          // group (proxies that share a non-empty groupName) plus a final block for
+          // ungrouped proxies. Subscriptions without groups yield a single block,
+          // so the layout is unchanged for them.
+          get proxyBlocks() {
+            const groups = new Map();
+            const ungrouped = [];
+            for (const p of this.filteredProxies) {
+              if (p.groupName) {
+                if (!groups.has(p.groupName)) groups.set(p.groupName, []);
+                groups.get(p.groupName).push(p);
+              } else {
+                ungrouped.push(p);
+              }
+            }
+            const blocks = [];
+            // Ungrouped (standalone) nodes first so each balancer group below is
+            // clearly delimited by its own header (no blending into a headerless block).
+            if (ungrouped.length) {
+              blocks.push({ key: '_ungrouped', group: '', proxies: ungrouped, online: 0, total: ungrouped.length });
+            }
+            for (const [name, proxies] of groups) {
+              blocks.push({
+                key: 'g:' + name,
+                group: name,
+                proxies,
+                online: proxies.filter(p => p.status).length,
+                total: proxies.length,
+              });
+            }
+            return blocks;
+          },
+
+          // Flatten blocks into a single list of grid items (group header rows +
+          // proxy cards) so the whole grid shares one uniform gap. Collapsed groups
+          // contribute only their header.
+          get displayItems() {
+            const items = [];
+            for (const b of this.proxyBlocks) {
+              if (b.group) {
+                items.push({ type: 'header', key: 'h:' + b.group, block: b });
+                if (this.collapsedGroups[b.group]) continue;
+              }
+              for (const p of b.proxies) {
+                items.push({ type: 'proxy', key: p.stableId, proxy: p });
+              }
+            }
+            return items;
+          },
+
+          toggleGroup(name) {
+            this.collapsedGroups[name] = !this.collapsedGroups[name];
           },
 
           init() {

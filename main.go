@@ -229,14 +229,16 @@ func updateConfiguration(newConfigs []*models.ProxyConfig, currentConfigs *[]*mo
 
 	configFile := "xray_config.json"
 	configGenerator := xray.NewConfigGenerator()
-	if err := configGenerator.GenerateAndSaveConfig(
+	validProxies, err := configGenerator.GenerateValidatedConfig(
 		newConfigs,
 		config.CLIConfig.Xray.StartPort,
 		configFile,
 		config.CLIConfig.Xray.LogLevel,
-	); err != nil {
+	)
+	if err != nil {
 		return err
 	}
+	newConfigs = validProxies
 
 	if err := xrayRunner.Stop(); err != nil {
 		return err
