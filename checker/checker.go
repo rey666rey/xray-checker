@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptrace"
 	"net/url"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -78,18 +77,25 @@ func (pc *ProxyChecker) CheckProxy(proxy *models.ProxyConfig) {
 	pc.checkProxyInternal(proxy, 0, false)
 }
 
-// proxyMetricKey builds the in-memory map key for a proxy. The first four
-// "|"-separated fields (protocol, address, name, sub_name) match the Prometheus
-// label set, so ClearMetrics/ReconcileMetrics can derive the series labels from it.
-func proxyMetricKey(proxy *models.ProxyConfig) string {
-	return fmt.Sprintf("%s|%s:%d|%s|%s|%s",
-		proxy.Protocol,
-		proxy.Server,
-		proxy.Port,
-		proxy.Name,
-		proxy.SubName,
-		proxy.StableID,
-	)
+// proxyMetricLabels is the full Prometheus label set for a proxy. It doubles as the
+// in-memory map key, so series can be deleted exactly from their labels without
+// parsing a packed string (proxy names may legitimately contain any character).
+type proxyMetricLabels struct {
+	protocol string
+	address  string
+	name     string
+	subName  string
+	stableID string
+}
+
+func proxyMetricKey(proxy *models.ProxyConfig) proxyMetricLabels {
+	return proxyMetricLabels{
+		protocol: proxy.Protocol,
+		address:  fmt.Sprintf("%s:%d", proxy.Server, proxy.Port),
+		name:     proxy.Name,
+		subName:  proxy.SubName,
+		stableID: proxy.StableID,
+	}
 }
 
 func (pc *ProxyChecker) checkProxyInternal(proxy *models.ProxyConfig, expectedGeneration uint64, checkGeneration bool) {
@@ -112,10 +118,11 @@ func (pc *ProxyChecker) checkProxyInternal(proxy *models.ProxyConfig, expectedGe
 			return
 		}
 		metrics.RecordProxyStatus(
-			proxy.Protocol,
-			fmt.Sprintf("%s:%d", proxy.Server, proxy.Port),
-			proxy.Name,
-			proxy.SubName,
+			metricKey.protocol,
+			metricKey.address,
+			metricKey.name,
+			metricKey.subName,
+			metricKey.stableID,
 			0,
 		)
 		pc.currentMetrics.Store(metricKey, false)
@@ -126,10 +133,11 @@ func (pc *ProxyChecker) checkProxyInternal(proxy *models.ProxyConfig, expectedGe
 			return
 		}
 		metrics.RecordProxyLatency(
-			proxy.Protocol,
-			fmt.Sprintf("%s:%d", proxy.Server, proxy.Port),
-			proxy.Name,
-			proxy.SubName,
+			metricKey.protocol,
+			metricKey.address,
+			metricKey.name,
+			metricKey.subName,
+			metricKey.stableID,
 			time.Duration(0),
 		)
 		pc.latencyMetrics.Store(metricKey, time.Duration(0))
@@ -188,17 +196,19 @@ func (pc *ProxyChecker) checkProxyInternal(proxy *models.ProxyConfig, expectedGe
 			return
 		}
 		metrics.RecordProxyStatus(
-			proxy.Protocol,
-			fmt.Sprintf("%s:%d", proxy.Server, proxy.Port),
-			proxy.Name,
-			proxy.SubName,
+			metricKey.protocol,
+			metricKey.address,
+			metricKey.name,
+			metricKey.subName,
+			metricKey.stableID,
 			1,
 		)
 		metrics.RecordProxyLatency(
-			proxy.Protocol,
-			fmt.Sprintf("%s:%d", proxy.Server, proxy.Port),
-			proxy.Name,
-			proxy.SubName,
+			metricKey.protocol,
+			metricKey.address,
+			metricKey.name,
+			metricKey.subName,
+			metricKey.stableID,
 			latency,
 		)
 
@@ -326,12 +336,9 @@ func (pc *ProxyChecker) checkByDownload(client *http.Client) (bool, string, time
 
 func (pc *ProxyChecker) ClearMetrics() {
 	pc.currentMetrics.Range(func(key, _ interface{}) bool {
-		metricKey := key.(string)
-		parts := strings.Split(metricKey, "|")
-		if len(parts) >= 4 {
-			metrics.DeleteProxyStatus(parts[0], parts[1], parts[2], parts[3])
-			metrics.DeleteProxyLatency(parts[0], parts[1], parts[2], parts[3])
-		}
+		k := key.(proxyMetricLabels)
+		metrics.DeleteProxyStatus(k.protocol, k.address, k.name, k.subName, k.stableID)
+		metrics.DeleteProxyLatency(k.protocol, k.address, k.name, k.subName, k.stableID)
 		pc.currentMetrics.Delete(key)
 		return true
 	})
@@ -360,37 +367,26 @@ func (pc *ProxyChecker) UpdateProxies(newProxies []*models.ProxyConfig) {
 // proxies keep their freshly-refreshed values and only stale ones are pruned.
 func (pc *ProxyChecker) ReconcileMetrics() {
 	pc.mu.RLock()
-	currentKeys := make(map[string]struct{}, len(pc.proxies))
-	currentLabels := make(map[string]struct{}, len(pc.proxies))
+	currentKeys := make(map[proxyMetricLabels]struct{}, len(pc.proxies))
 	for _, proxy := range pc.proxies {
 		if proxy.StableID == "" {
 			proxy.StableID = proxy.GenerateStableID()
 		}
-		key := proxyMetricKey(proxy)
-		currentKeys[key] = struct{}{}
-		// label tuple = protocol|address|name|sub_name (first 4 key fields)
-		currentLabels[fmt.Sprintf("%s|%s:%d|%s|%s", proxy.Protocol, proxy.Server, proxy.Port, proxy.Name, proxy.SubName)] = struct{}{}
+		currentKeys[proxyMetricKey(proxy)] = struct{}{}
 	}
 	pc.mu.RUnlock()
 
-	pc.currentMetrics.Range(func(k, _ interface{}) bool {
-		metricKey := k.(string)
-		if _, ok := currentKeys[metricKey]; ok {
+	// stable_id is part of the label set, so each proxy maps to its own series; a key
+	// absent from the current set is stale and safe to delete.
+	pc.currentMetrics.Range(func(key, _ interface{}) bool {
+		k := key.(proxyMetricLabels)
+		if _, ok := currentKeys[k]; ok {
 			return true
 		}
-		parts := strings.Split(metricKey, "|")
-		if len(parts) >= 4 {
-			// Only delete the Prometheus series if no surviving proxy shares the
-			// same label tuple (guards against same-label collisions removing a
-			// still-present proxy's series).
-			labelTuple := strings.Join(parts[0:4], "|")
-			if _, used := currentLabels[labelTuple]; !used {
-				metrics.DeleteProxyStatus(parts[0], parts[1], parts[2], parts[3])
-				metrics.DeleteProxyLatency(parts[0], parts[1], parts[2], parts[3])
-			}
-		}
-		pc.currentMetrics.Delete(k)
-		pc.latencyMetrics.Delete(k)
+		metrics.DeleteProxyStatus(k.protocol, k.address, k.name, k.subName, k.stableID)
+		metrics.DeleteProxyLatency(k.protocol, k.address, k.name, k.subName, k.stableID)
+		pc.currentMetrics.Delete(key)
+		pc.latencyMetrics.Delete(key)
 		return true
 	})
 }
@@ -420,7 +416,8 @@ func (pc *ProxyChecker) CheckAllProxies() {
 
 func (pc *ProxyChecker) GetProxyStatus(name string) (bool, time.Duration, error) {
 	pc.mu.RLock()
-	var metricKey string
+	var metricKey proxyMetricLabels
+	found := false
 	for _, proxy := range pc.proxies {
 		if proxy.Name == name {
 			if proxy.StableID == "" {
@@ -428,12 +425,13 @@ func (pc *ProxyChecker) GetProxyStatus(name string) (bool, time.Duration, error)
 			}
 
 			metricKey = proxyMetricKey(proxy)
+			found = true
 			break
 		}
 	}
 	pc.mu.RUnlock()
 
-	if metricKey == "" {
+	if !found {
 		return false, 0, fmt.Errorf("proxy not found")
 	}
 

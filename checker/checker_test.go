@@ -30,8 +30,8 @@ func mkProxy(server, name, stableID string) *models.ProxyConfig {
 // recordUp mimics what checkProxyInternal writes on a successful check.
 func recordUp(pc *ProxyChecker, p *models.ProxyConfig, lat time.Duration) {
 	addr := fmt.Sprintf("%s:%d", p.Server, p.Port)
-	metrics.RecordProxyStatus(p.Protocol, addr, p.Name, p.SubName, 1)
-	metrics.RecordProxyLatency(p.Protocol, addr, p.Name, p.SubName, lat)
+	metrics.RecordProxyStatus(p.Protocol, addr, p.Name, p.SubName, p.StableID, 1)
+	metrics.RecordProxyLatency(p.Protocol, addr, p.Name, p.SubName, p.StableID, lat)
 	pc.currentMetrics.Store(proxyMetricKey(p), true)
 	pc.latencyMetrics.Store(proxyMetricKey(p), lat)
 }
@@ -61,7 +61,7 @@ func TestUpdateProxiesKeepsMetricsAndReconcilePrunesStale(t *testing.T) {
 	if got := testutil.CollectAndCount(metrics.GetProxyStatusMetric()); got != 2 {
 		t.Fatalf("UpdateProxies must not clear metrics; expected 2 series, got %d", got)
 	}
-	if v := testutil.ToFloat64(metrics.GetProxyStatusMetric().WithLabelValues("vless", "1.1.1.1:443", "A", "sub")); v != 1 {
+	if v := testutil.ToFloat64(metrics.GetProxyStatusMetric().WithLabelValues("vless", "1.1.1.1:443", "A", "sub", "ida")); v != 1 {
 		t.Fatalf("surviving proxy A must keep status 1 across the update, got %v", v)
 	}
 
