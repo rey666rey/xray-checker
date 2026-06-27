@@ -14,10 +14,12 @@ Xray Checker предоставляет две метрики Prometheus для 
 - Тип: Gauge
 - Значения: 1 (работает) или 0 (не работает)
 - Метки:
-  - `protocol`: Протокол прокси (vless/vmess/trojan/shadowsocks)
+  - `protocol`: Протокол прокси (vless/vmess/trojan/shadowsocks/hysteria/socks/http)
   - `address`: Адрес и порт сервера
   - `name`: Имя конфигурации прокси
+  - `stable_id`: Стабильный идентификатор для каждого прокси; сохраняет уникальность каждой серии даже при совпадении имён и остаётся неизменным при перезапусках/переупорядочивании
   - `sub_name`: Имя подписки (из фрагмента URL или заголовка profile-title)
+  - `group_name`: Имя балансировщика/группы для сгруппированных прокси (пусто для несгруппированных)
   - `instance`: Имя экземпляра (если настроено)
 
 :::tip
@@ -29,7 +31,7 @@ Xray Checker предоставляет две метрики Prometheus для 
 ```text
 # HELP xray_proxy_status Статус прокси-соединения (1: успешно, 0: неудача)
 # TYPE xray_proxy_status gauge
-xray_proxy_status{protocol="vless",address="example.com:443",name="proxy1",sub_name="Premium VPN",instance="dc1"} 1
+xray_proxy_status{protocol="vless",address="example.com:443",name="proxy1",stable_id="a1b2c3d4e5f67890",sub_name="Premium VPN",group_name="",instance="dc1"} 1
 ```
 
 ### xray_proxy_latency_ms
@@ -45,5 +47,5 @@ xray_proxy_status{protocol="vless",address="example.com:443",name="proxy1",sub_n
 ```text
 # HELP xray_proxy_latency_ms Задержка прокси-соединения в миллисекундах
 # TYPE xray_proxy_latency_ms gauge
-xray_proxy_latency_ms{protocol="vless",address="example.com:443",name="proxy1",sub_name="Premium VPN",instance="dc1"} 156
+xray_proxy_latency_ms{protocol="vless",address="example.com:443",name="proxy1",stable_id="a1b2c3d4e5f67890",sub_name="Premium VPN",group_name="",instance="dc1"} 156
 ```

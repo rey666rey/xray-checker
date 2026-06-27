@@ -152,12 +152,17 @@ Custom templates may break after updates if the data structure changes. Use at y
 |----------|------|--------------|-------------|
 | `.Name` | string | Always | Proxy name |
 | `.StableID` | string | Always | Unique proxy identifier |
+| `.GroupName` | string | Always | Balancer/group name (empty for ungrouped) |
 | `.Index` | int | Always | Proxy index (0-based) |
 | `.Status` | bool | Always | `true` if online |
 | `.Latency` | time.Duration | Always | Response latency |
-| `.ServerInfo` | string | When `ShowServerDetails && !IsPublic` | Server address and port |
-| `.ProxyPort` | int | When `ShowServerDetails && !IsPublic` | Local proxy port |
+| `.ServerInfo` | string | When `ShowServerDetails` | Server address and port |
+| `.ProxyPort` | int | When `ShowServerDetails` | Local proxy port |
 | `.URL` | string | When `!IsPublic` | Config status endpoint URL |
+
+:::note
+`.ShowServerDetails` already accounts for public mode: it is `true` only when `WEB_SHOW_DETAILS` is set and either the dashboard is not public or [`WEB_TRUSTED_EXTERNAL_AUTH`](/configuration/envs#web_trusted_external_auth) is enabled. Gate server details on `.ShowServerDetails` rather than re-deriving it.
+:::
 
 ### Template Functions
 

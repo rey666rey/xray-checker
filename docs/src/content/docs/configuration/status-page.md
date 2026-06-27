@@ -42,6 +42,14 @@ xray-checker --web-public
 | Local Proxy Port      | ✗ Hidden    | ✓ Visible   |
 | Configuration Details | ✗ Hidden    | ✓ Visible   |
 
+:::tip[Showing details behind an external auth proxy]
+If your public dashboard sits behind an external authentication proxy (Authelia, Authentik, Cloudflare Access, nginx basic auth, …), you can re-enable server details with [`WEB_TRUSTED_EXTERNAL_AUTH=true`](/configuration/envs#web_trusted_external_auth) together with `WEB_SHOW_DETAILS=true`. Only enable this when access is actually controlled by that external layer.
+:::
+
+## Grouped View
+
+Proxies that share a `group_name` (for example, nodes expanded from a [balancer](/configuration/subscription#6-json-subscription-balancers)) are shown as collapsible groups with a per-group online count. Ungrouped proxies appear first, followed by each group.
+
 ## Custom Subscription Name
 
 You can set a custom name for your status page using the subscription info from your provider, or set it manually:

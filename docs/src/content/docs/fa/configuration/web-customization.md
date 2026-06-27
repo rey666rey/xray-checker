@@ -152,12 +152,17 @@ custom/
 |-------|-----|--------|---------|
 | `.Name` | string | همیشه | نام پروکسی |
 | `.StableID` | string | همیشه | شناسه یکتای پروکسی |
+| `.GroupName` | string | همیشه | نام متعادل‌کننده/گروه (برای موارد بدون گروه خالی است) |
 | `.Index` | int | همیشه | ایندکس پروکسی (از 0) |
 | `.Status` | bool | همیشه | `true` اگر آنلاین |
 | `.Latency` | time.Duration | همیشه | تأخیر پاسخ |
-| `.ServerInfo` | string | وقتی `ShowServerDetails && !IsPublic` | آدرس و پورت سرور |
-| `.ProxyPort` | int | وقتی `ShowServerDetails && !IsPublic` | پورت محلی پروکسی |
+| `.ServerInfo` | string | وقتی `ShowServerDetails` | آدرس و پورت سرور |
+| `.ProxyPort` | int | وقتی `ShowServerDetails` | پورت محلی پروکسی |
 | `.URL` | string | وقتی `!IsPublic` | URL اندپوینت وضعیت |
+
+:::note
+`.ShowServerDetails` از قبل حالت عمومی را در نظر می‌گیرد: تنها زمانی `true` است که `WEB_SHOW_DETAILS` تنظیم شده باشد و یا داشبورد عمومی نباشد یا [`WEB_TRUSTED_EXTERNAL_AUTH`](/fa/configuration/envs#web_trusted_external_auth) فعال باشد. به‌جای استخراج دوباره‌ی آن، نمایش جزئیات سرور را بر اساس `.ShowServerDetails` کنترل کنید.
+:::
 
 ### توابع قالب
 

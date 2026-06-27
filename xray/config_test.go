@@ -184,6 +184,61 @@ func TestGenerateVlessConfigStillBuilds(t *testing.T) {
 	buildsWithXrayCore(t, []*models.ProxyConfig{proxy})
 }
 
+func TestGenerateSocksHttpConfigsBuild(t *testing.T) {
+	proxies := []*models.ProxyConfig{
+		{Protocol: "socks", Server: "1.2.3.4", Port: 1080, Name: "socks-auth", Type: "tcp", Username: "user", Password: "pass", Index: 0},
+		{Protocol: "socks", Server: "1.2.3.4", Port: 1081, Name: "socks-noauth", Type: "tcp", Index: 1},
+		{Protocol: "http", Server: "1.2.3.4", Port: 8080, Name: "http-auth", Type: "tcp", Username: "user", Password: "pass", Index: 2},
+		{Protocol: "http", Server: "1.2.3.4", Port: 8443, Name: "https-tls", Type: "tcp", Security: "tls", SNI: "1.2.3.4", Index: 3},
+	}
+	configBytes := buildsWithXrayCore(t, proxies)
+
+	var parsed struct {
+		Outbounds []struct {
+			Protocol       string                 `json:"protocol"`
+			Settings       map[string]interface{} `json:"settings"`
+			StreamSettings map[string]interface{} `json:"streamSettings"`
+		} `json:"outbounds"`
+	}
+	if err := json.Unmarshal(configBytes, &parsed); err != nil {
+		t.Fatalf("parse generated config: %v", err)
+	}
+
+	var socksAuth, httpsTLS bool
+	for _, ob := range parsed.Outbounds {
+		if ob.Protocol != "socks" && ob.Protocol != "http" {
+			continue
+		}
+		servers, _ := ob.Settings["servers"].([]interface{})
+		if len(servers) == 0 {
+			t.Fatalf("%s outbound has no servers: %v", ob.Protocol, ob.Settings)
+		}
+		srv := servers[0].(map[string]interface{})
+		if users, ok := srv["users"].([]interface{}); ok && len(users) > 0 {
+			u := users[0].(map[string]interface{})
+			if u["user"] == "user" && u["pass"] == "pass" {
+				socksAuth = true
+			}
+		}
+		if ob.StreamSettings != nil && ob.StreamSettings["security"] == "tls" {
+			httpsTLS = true
+			// An https forward proxy must pin ALPN to http/1.1, otherwise the
+			// TLS handshake negotiates h2 and the http proxy can't parse it.
+			tls, _ := ob.StreamSettings["tlsSettings"].(map[string]interface{})
+			alpn, _ := tls["alpn"].([]interface{})
+			if len(alpn) != 1 || alpn[0] != "http/1.1" {
+				t.Errorf("https proxy alpn = %v, want [http/1.1]", alpn)
+			}
+		}
+	}
+	if !socksAuth {
+		t.Error("expected a socks/http outbound carrying user/pass")
+	}
+	if !httpsTLS {
+		t.Error("expected the https proxy to produce streamSettings security=tls")
+	}
+}
+
 func keysOf(m map[string]json.RawMessage) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
