@@ -68,11 +68,11 @@ GET /metrics
 ```text
 # HELP xray_proxy_status Статус прокси-соединения (1: успешно, 0: неудача)
 # TYPE xray_proxy_status gauge
-xray_proxy_status{protocol="vless",address="example.com:443",name="proxy1",sub_name="Premium VPN"} 1
+xray_proxy_status{protocol="vless",address="example.com:443",name="proxy1",stable_id="a1b2c3d4e5f67890",sub_name="Premium VPN",group_name=""} 1
 
 # HELP xray_proxy_latency_ms Задержка прокси-соединения в миллисекундах
 # TYPE xray_proxy_latency_ms gauge
-xray_proxy_latency_ms{protocol="vless",address="example.com:443",name="proxy1",sub_name="Premium VPN"} 156
+xray_proxy_latency_ms{protocol="vless",address="example.com:443",name="proxy1",stable_id="a1b2c3d4e5f67890",sub_name="Premium VPN",group_name=""} 156
 ```
 
 ### Статус отдельного прокси
@@ -122,6 +122,10 @@ GET /api/v1/proxies
   ]
 }
 ```
+
+:::note[Сгенерированная конфигурация]
+Когда включён `WEB_SHOW_DETAILS` (а в публичном режиме — также `WEB_TRUSTED_EXTERNAL_AUTH`), каждый элемент дополнительно содержит объект `generatedConfig` — outbound Xray, сгенерированный для этого прокси, с замаскированными секретами (uuid, password, auth, kcp seed). В противном случае он отсутствует.
+:::
 
 ### Получить прокси по ID
 

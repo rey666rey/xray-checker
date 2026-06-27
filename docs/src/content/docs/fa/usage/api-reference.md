@@ -68,11 +68,11 @@ GET /metrics
 ```text
 # HELP xray_proxy_status Status of proxy connection (1: success, 0: failure)
 # TYPE xray_proxy_status gauge
-xray_proxy_status{protocol="vless",address="example.com:443",name="proxy1",sub_name="Premium VPN"} 1
+xray_proxy_status{protocol="vless",address="example.com:443",name="proxy1",stable_id="a1b2c3d4e5f67890",sub_name="Premium VPN",group_name=""} 1
 
 # HELP xray_proxy_latency_ms Latency of proxy connection in milliseconds
 # TYPE xray_proxy_latency_ms gauge
-xray_proxy_latency_ms{protocol="vless",address="example.com:443",name="proxy1",sub_name="Premium VPN"} 156
+xray_proxy_latency_ms{protocol="vless",address="example.com:443",name="proxy1",stable_id="a1b2c3d4e5f67890",sub_name="Premium VPN",group_name=""} 156
 ```
 
 ### وضعیت پروکسی تکی
@@ -122,6 +122,10 @@ GET /api/v1/proxies
   ]
 }
 ```
+
+:::note[پیکربندی تولیدشده]
+وقتی `WEB_SHOW_DETAILS` فعال باشد (و در حالت عمومی، `WEB_TRUSTED_EXTERNAL_AUTH`)، هر آیتم یک شیء `generatedConfig` نیز شامل می‌شود — یعنی outbound مربوط به Xray که برای آن پروکسی تولید شده است، با مخفی‌سازی اطلاعات حساس (uuid، password، auth، kcp seed). در غیر این صورت حذف می‌شود.
+:::
 
 ### دریافت پروکسی با ID
 

@@ -6,7 +6,9 @@ tableOfContents: false
 
 ### 🚀 Core Features
 
-- 🔍 Monitor the health of Xray proxy servers with support for various protocols (VLESS, VMess, Trojan, Shadowsocks)
+- 🔍 Monitor the health of Xray proxy servers with support for various protocols (VLESS, VMess, Trojan, Shadowsocks, Hysteria2)
+
+- 🧦 Check plain [SOCKS / HTTP / HTTPS forward proxies](/configuration/subscription#7-socks-http-and-https-proxies) alongside Xray protocols
 
 - 🔄 Automatic proxy configuration updates from subscription URLs with [configurable intervals](/configuration/envs#subscription_update_interval)
 
@@ -16,6 +18,7 @@ tableOfContents: false
 
   - 🔍 Search and filter proxies by name or status
   - 📊 Sort by name, latency, or status
+  - 🗂️ Grouped, collapsible view for balancer/subscription groups
   - 🔄 Auto-refresh without page reload
   - 🎨 [Full customization](/configuration/web-customization) — custom logo, styles, or entire template
 
@@ -30,6 +33,10 @@ tableOfContents: false
   - 📄 V2Ray/Xray JSON files
   - 📦 Xray JSON array (multi-config)
   - 📁 Configuration folders
+  - ⚖️ [JSON subscriptions with balancers](/configuration/subscription#6-json-subscription-balancers) — each node tracked individually
+  - 🧦 SOCKS / HTTP / HTTPS forward proxies
+
+- 🔧 Custom subscription request headers and `User-Agent` for token-gated or app-specific panels
 
 ### 🔌 Integrations
 

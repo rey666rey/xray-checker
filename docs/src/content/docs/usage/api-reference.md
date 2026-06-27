@@ -68,11 +68,11 @@ Prometheus metrics endpoint.
 ```text
 # HELP xray_proxy_status Status of proxy connection (1: success, 0: failure)
 # TYPE xray_proxy_status gauge
-xray_proxy_status{protocol="vless",address="example.com:443",name="proxy1",sub_name="Premium VPN"} 1
+xray_proxy_status{protocol="vless",address="example.com:443",name="proxy1",stable_id="a1b2c3d4e5f67890",sub_name="Premium VPN",group_name=""} 1
 
 # HELP xray_proxy_latency_ms Latency of proxy connection in milliseconds
 # TYPE xray_proxy_latency_ms gauge
-xray_proxy_latency_ms{protocol="vless",address="example.com:443",name="proxy1",sub_name="Premium VPN"} 156
+xray_proxy_latency_ms{protocol="vless",address="example.com:443",name="proxy1",stable_id="a1b2c3d4e5f67890",sub_name="Premium VPN",group_name=""} 156
 ```
 
 ### Individual Proxy Status
@@ -122,6 +122,10 @@ Returns full information for all proxies.
   ]
 }
 ```
+
+:::note[Generated config]
+When `WEB_SHOW_DETAILS` is enabled (and, in public mode, `WEB_TRUSTED_EXTERNAL_AUTH`), each item also includes a `generatedConfig` object — the Xray outbound generated for that proxy, with secrets (uuid, password, auth, kcp seed) masked. It is omitted otherwise.
+:::
 
 ### Get Proxy by ID
 

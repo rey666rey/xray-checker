@@ -152,12 +152,17 @@ custom/
 |------------|-----|-------------|----------|
 | `.Name` | string | Всегда | Имя прокси |
 | `.StableID` | string | Всегда | Уникальный идентификатор прокси |
+| `.GroupName` | string | Всегда | Имя балансировщика/группы (пусто для несгруппированных) |
 | `.Index` | int | Всегда | Индекс прокси (с 0) |
 | `.Status` | bool | Всегда | `true` если онлайн |
 | `.Latency` | time.Duration | Всегда | Задержка ответа |
-| `.ServerInfo` | string | При `ShowServerDetails && !IsPublic` | Адрес и порт сервера |
-| `.ProxyPort` | int | При `ShowServerDetails && !IsPublic` | Локальный порт прокси |
+| `.ServerInfo` | string | При `ShowServerDetails` | Адрес и порт сервера |
+| `.ProxyPort` | int | При `ShowServerDetails` | Локальный порт прокси |
 | `.URL` | string | При `!IsPublic` | URL эндпоинта статуса |
+
+:::note
+`.ShowServerDetails` уже учитывает публичный режим: он равен `true` только когда задан `WEB_SHOW_DETAILS` и при этом дашборд либо не является публичным, либо включён [`WEB_TRUSTED_EXTERNAL_AUTH`](/ru/configuration/envs#web_trusted_external_auth). Управляйте отображением деталей серверов через `.ShowServerDetails`, а не выводите это условие заново.
+:::
 
 ### Функции шаблона
 

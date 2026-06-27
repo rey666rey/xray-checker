@@ -42,6 +42,33 @@ Enables automatic updates of proxy configuration from subscription source. When 
 
 Time in seconds between subscription update checks. Only used when `SUBSCRIPTION_UPDATE` is enabled.
 
+### SUBSCRIPTION_JSON_FORMAT
+
+- CLI: `--subscription-json-format`
+- Required: No
+- Default: `false`
+
+Requests the subscription as a full Xray JSON config instead of the default Base64 link list. Enable this for panels that serve JSON (e.g. Remnawave) and for subscriptions that use **balancers**: every outbound inside a balancer group is expanded into an individually checked proxy, so a single down node no longer hides behind the group. When enabled, the request is sent with an app-like `User-Agent` (overridable via `SUBSCRIPTION_USER_AGENT`). See [Subscription Format](/configuration/subscription#6-json-subscription-balancers).
+
+### SUBSCRIPTION_USER_AGENT
+
+- CLI: `--subscription-user-agent`
+- Required: No
+- Default: None
+
+Overrides the `User-Agent` header sent when fetching a subscription. Useful for panels that return different content per client. When unset, Xray Checker uses `Xray-Checker`, or an app-like agent when `SUBSCRIPTION_JSON_FORMAT` is enabled.
+
+### SUBSCRIPTION_HEADERS
+
+- CLI: `--subscription-header`
+- Required: No
+- Default: None
+
+Extra HTTP headers sent with every subscription request, each as a `Key: Value` pair.
+
+- **CLI**: repeat `--subscription-header` for each header
+- **Environment**: separate pairs with commas: `SUBSCRIPTION_HEADERS="X-Token: abc, X-Region: eu"`
+
 ## Proxy
 
 ### PROXY_CHECK_INTERVAL
@@ -160,6 +187,14 @@ Makes the dashboard publicly accessible without authentication. When enabled, th
 :::caution[Requires Protected Metrics]
 This option requires `METRICS_PROTECTED=true`. The `/metrics` endpoint and API will still require authentication, but the main dashboard (`/`) and individual proxy status pages (`/config/{id}`) will be public.
 :::
+
+### WEB_TRUSTED_EXTERNAL_AUTH
+
+- CLI: `--web-trusted-external-auth`
+- Required: No
+- Default: `false`
+
+Allows server details (`WEB_SHOW_DETAILS`) to be shown in public mode. By default, public mode hides server addresses and ports even when `WEB_SHOW_DETAILS=true`. Enable this only when the dashboard is protected by an **external auth proxy** (e.g. Authelia, Authentik, Cloudflare Access, or nginx basic auth) — you are asserting that the dashboard is already access-controlled, so it is safe to expose details.
 
 ### WEB_CUSTOM_ASSETS_PATH
 
