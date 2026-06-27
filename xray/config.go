@@ -178,6 +178,15 @@ func (g *ConfigGenerator) generateProxyOutbound(proxy *models.ProxyConfig) map[s
 				},
 			},
 		}
+
+	case "hysteria":
+		// xray-core's outbound HysteriaClientConfig has only version/address/port.
+		// The auth lives in streamSettings.hysteriaSettings.auth (set below).
+		outbound["settings"] = map[string]interface{}{
+			"address": proxy.Server,
+			"port":    proxy.Port,
+			"version": 2,
+		}
 	}
 
 	outbound["streamSettings"] = g.generateStreamSettings(proxy)
@@ -188,18 +197,25 @@ func (g *ConfigGenerator) generateProxyOutbound(proxy *models.ProxyConfig) map[s
 func (g *ConfigGenerator) generateStreamSettings(proxy *models.ProxyConfig) map[string]interface{} {
 	network := proxy.Type
 	if network == "" {
-		network = "tcp"
+		if proxy.Protocol == "hysteria" {
+			network = "hysteria"
+		} else {
+			network = "tcp"
+		}
 	}
 
 	security := proxy.Security
 	if security == "" {
-		security = "none"
+		if proxy.Protocol == "hysteria" {
+			security = "tls"
+		} else {
+			security = "none"
+		}
 	}
 
 	ss := map[string]interface{}{
 		"network":  network,
 		"security": security,
-		"sockopt":  map[string]interface{}{},
 	}
 
 	if security == "tls" {
@@ -300,6 +316,59 @@ func (g *ConfigGenerator) generateStreamSettings(proxy *models.ProxyConfig) map[
 				xhttpSettings["mode"] = proxy.Mode
 			}
 			ss["xhttpSettings"] = xhttpSettings
+		}
+
+	case "hysteria":
+		ss["hysteriaSettings"] = map[string]interface{}{
+			"version": 2,
+			"auth":    proxy.HysteriaAuth,
+		}
+
+		// Build FinalMask with port-hopping (udpHop) and Salamander obfuscation.
+		//
+		// Congestion/bandwidth control (brutal up/down) is intentionally NOT emitted:
+		// it is irrelevant for a connectivity check, and an out-of-range value (e.g. a
+		// bare "100" parsed as 100 bytes/s, below xray-core's 65536 minimum) would make
+		// xray-core reject the *entire* config and bring every proxy down. Only obfs and
+		// port-hopping affect whether the proxy is reachable, so only those are kept.
+		var finalMask map[string]interface{}
+
+		// Port-hopping (matches libXray output: finalmask.quicParams.udpHop.ports)
+		if proxy.HysteriaPorts != "" {
+			udpHop := map[string]interface{}{
+				"ports": proxy.HysteriaPorts,
+			}
+			if proxy.HysteriaHopInterval > 0 {
+				// xray-core's UdpHop.Interval is an Int32Range, decoded from a plain
+				// integer (or a "min-max" string) — NOT an object.
+				udpHop["interval"] = proxy.HysteriaHopInterval
+			}
+			finalMask = map[string]interface{}{
+				"quicParams": map[string]interface{}{
+					"udpHop": udpHop,
+				},
+			}
+		}
+
+		// Salamander obfuscation (matches libXray output: finalmask.udp[].salamander)
+		if proxy.HysteriaObfs == "salamander" && proxy.HysteriaObfsPassword != "" {
+			if finalMask == nil {
+				finalMask = map[string]interface{}{}
+			}
+			finalMask["udp"] = []map[string]interface{}{
+				{
+					"type": "salamander",
+					"settings": map[string]interface{}{
+						"password": proxy.HysteriaObfsPassword,
+					},
+				},
+			}
+		}
+
+		// xray-core reads finalmask at the streamSettings top level (json:"finalmask"),
+		// NOT under sockopt (SocketConfig has no such field, so it would be dropped).
+		if finalMask != nil {
+			ss["finalmask"] = finalMask
 		}
 	}
 
