@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -66,6 +67,8 @@ type libXraySettings struct {
 	Method     string `json:"method"`
 	Version    int32  `json:"version"`
 	Auth       string `json:"auth"`
+	User       string `json:"user"`
+	Pass       string `json:"pass"`
 }
 
 type libXrayStreamSettings struct {
@@ -87,10 +90,12 @@ type libXrayStreamSettings struct {
 }
 
 type libXrayTlsSettings struct {
-	ServerName    string   `json:"serverName"`
-	AllowInsecure bool     `json:"allowInsecure"`
-	Fingerprint   string   `json:"fingerprint"`
-	Alpn          []string `json:"alpn"`
+	ServerName           string   `json:"serverName"`
+	AllowInsecure        bool     `json:"allowInsecure"`
+	Fingerprint          string   `json:"fingerprint"`
+	Alpn                 []string `json:"alpn"`
+	PinnedPeerCertSha256 string   `json:"pinnedPeerCertSha256"`
+	VerifyPeerCertByName string   `json:"verifyPeerCertByName"`
 }
 
 type libXrayRealitySettings struct {
@@ -221,6 +226,10 @@ type xrayStandardSettings struct {
 		Password string `json:"password"`
 		Method   string `json:"method"`
 		Flow     string `json:"flow"`
+		Users    []struct {
+			User string `json:"user"`
+			Pass string `json:"pass"`
+		} `json:"users"`
 	} `json:"servers"`
 }
 
@@ -288,20 +297,181 @@ func (p *Parser) Parse(subscriptionData string) (*ParseResult, error) {
 
 	cleanedData := p.cleanEmptyLines(rawData)
 
-	// Try batch parsing first
-	proxyConfigs := p.parseViaLibXray(cleanedData, originalData)
-
-	// If batch parsing failed, fall back to line-by-line parsing
-	if len(proxyConfigs) == 0 {
-		logger.Warn("Batch parsing failed or returned no configs, trying line-by-line parsing")
-		proxyConfigs = p.parseLineByLine(cleanedData, originalData)
+	// Pull out socks/http/https forward-proxy URIs first: libXray cannot parse
+	// them, so we handle them directly and pass the rest to the normal path.
+	directConfigs, remaining := p.extractDirectProxyLines(cleanedData)
+	if len(directConfigs) > 0 {
+		logger.Info("Parsed %d socks/http proxy(ies) directly", len(directConfigs))
 	}
+
+	var proxyConfigs []*models.ProxyConfig
+	if len(strings.TrimSpace(string(remaining))) > 0 {
+		// Try batch parsing first
+		proxyConfigs = p.parseViaLibXray(remaining, originalData)
+
+		// If batch parsing failed, fall back to line-by-line parsing
+		if len(proxyConfigs) == 0 {
+			logger.Warn("Batch parsing failed or returned no configs, trying line-by-line parsing")
+			proxyConfigs = p.parseLineByLine(remaining, originalData)
+		}
+	}
+
+	proxyConfigs = append(proxyConfigs, directConfigs...)
 
 	if len(proxyConfigs) == 0 {
 		return nil, fmt.Errorf("no valid proxy configurations found")
 	}
 
+	// Re-index after merging direct + libXray-parsed configs.
+	for i, cfg := range proxyConfigs {
+		cfg.Index = i
+	}
+
 	return &ParseResult{Configs: proxyConfigs, Name: subName}, nil
+}
+
+// extractDirectProxyLines pulls socks/http/https forward-proxy URIs out of the
+// raw subscription content (which libXray cannot parse) and returns the parsed
+// configs together with the remaining lines for the normal libXray path.
+func (p *Parser) extractDirectProxyLines(cleanedData []byte) ([]*models.ProxyConfig, []byte) {
+	lines := strings.Split(string(cleanedData), "\n")
+	var configs []*models.ProxyConfig
+	remaining := make([]string, 0, len(lines))
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed != "" {
+			if pc := parseProxyURI(trimmed); pc != nil {
+				configs = append(configs, pc)
+				continue
+			}
+		}
+		remaining = append(remaining, line)
+	}
+
+	return configs, []byte(strings.Join(remaining, "\n"))
+}
+
+// parseProxyURI parses a socks/http/https forward-proxy URI into a ProxyConfig.
+// Supported forms (optional #name fragment on any):
+//
+//	socks://base64(user:pass)@host:port      (standard subscription form)
+//	socks5://user:pass@host:port             (socks5h:// also accepted)
+//	http://user:pass@host:port
+//	https://user:pass@host:port              (TLS to the proxy itself)
+//
+// Optional query params: sni=<name>, allowInsecure=true|1 (alias insecure=).
+// Returns nil if the line is not a usable forward proxy (so other URI schemes
+// and plain web URLs fall through to the normal parsing path).
+func parseProxyURI(line string) *models.ProxyConfig {
+	line = strings.TrimSpace(line)
+
+	var scheme string
+	for _, s := range []string{"socks5h", "socks5", "socks", "https", "http"} {
+		if strings.HasPrefix(line, s+"://") {
+			scheme = s
+			line = line[len(s)+3:]
+			break
+		}
+	}
+	if scheme == "" {
+		return nil
+	}
+
+	// Fragment -> name.
+	name := ""
+	if i := strings.IndexByte(line, '#'); i >= 0 {
+		name = line[i+1:]
+		line = line[:i]
+	}
+	// Query params.
+	var query url.Values
+	if i := strings.IndexByte(line, '?'); i >= 0 {
+		query, _ = url.ParseQuery(line[i+1:])
+		line = line[:i]
+	}
+	// Path: forward proxies have none; a real path means this is a web URL.
+	if i := strings.IndexByte(line, '/'); i >= 0 {
+		path := line[i:]
+		line = line[:i]
+		if (scheme == "http" || scheme == "https") && path != "/" {
+			return nil
+		}
+	}
+
+	// userinfo@host:port (last '@'; base64 userinfo never contains '@').
+	userinfo := ""
+	hostport := line
+	if i := strings.LastIndexByte(line, '@'); i >= 0 {
+		userinfo = line[:i]
+		hostport = line[i+1:]
+	}
+
+	host, portStr, err := net.SplitHostPort(hostport)
+	if err != nil || host == "" {
+		return nil
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil || port <= 0 || port > 65535 {
+		return nil
+	}
+
+	pc := &models.ProxyConfig{Server: host, Port: port, Type: "tcp"}
+	switch scheme {
+	case "socks", "socks5", "socks5h":
+		pc.Protocol = "socks"
+	case "http":
+		pc.Protocol = "http"
+	case "https":
+		pc.Protocol = "http"
+		pc.Security = "tls"
+	}
+
+	// Credentials: explicit "user:pass", else base64(user:pass), else user only.
+	if userinfo != "" {
+		if i := strings.IndexByte(userinfo, ':'); i >= 0 {
+			pc.Username, _ = url.QueryUnescape(userinfo[:i])
+			pc.Password, _ = url.QueryUnescape(userinfo[i+1:])
+		} else if decoded, derr := base64.StdEncoding.DecodeString(userinfo); derr == nil && strings.Contains(string(decoded), ":") {
+			parts := strings.SplitN(string(decoded), ":", 2)
+			pc.Username, pc.Password = parts[0], parts[1]
+		} else {
+			pc.Username, _ = url.QueryUnescape(userinfo)
+		}
+	}
+
+	if sni := query.Get("sni"); sni != "" {
+		pc.SNI = sni
+	}
+	if pc.Security == "tls" {
+		if pc.SNI == "" {
+			pc.SNI = host
+		}
+		// xray-core removed allowInsecure; pin a (self-signed) cert by its
+		// sha256 instead, or verify against a specific name.
+		if v := query.Get("pinnedPeerCertSha256"); v != "" {
+			pc.PinnedPeerCertSha256 = v
+		} else if v := query.Get("pcs"); v != "" {
+			pc.PinnedPeerCertSha256 = v
+		}
+		if v := query.Get("verifyPeerCertByName"); v != "" {
+			pc.VerifyPeerCertByName = v
+		} else if v := query.Get("vcn"); v != "" {
+			pc.VerifyPeerCertByName = v
+		}
+	}
+
+	if name != "" {
+		if un, derr := url.PathUnescape(name); derr == nil {
+			pc.Name = un
+		} else {
+			pc.Name = name
+		}
+	} else {
+		pc.Name = fmt.Sprintf("%s:%d", host, port)
+	}
+
+	return pc
 }
 
 // parseViaLibXray attempts to parse all configs at once via libXray.
@@ -823,6 +993,9 @@ func (p *Parser) convertOutbound(raw json.RawMessage, index int, originalData ma
 			pc.Method = flatSettings.Method
 		case "hysteria":
 			pc.HysteriaAuth = flatSettings.Auth
+		case "socks", "http":
+			pc.Username = flatSettings.User
+			pc.Password = flatSettings.Pass
 		}
 	} else {
 		var stdSettings xrayStandardSettings
@@ -856,6 +1029,17 @@ func (p *Parser) convertOutbound(raw json.RawMessage, index int, originalData ma
 			pc.Password = srv.Password
 			pc.Method = srv.Method
 			pc.Flow = srv.Flow
+		case "socks", "http":
+			if len(stdSettings.Servers) == 0 {
+				return nil, fmt.Errorf("no servers found")
+			}
+			srv := stdSettings.Servers[0]
+			pc.Server = srv.Address
+			pc.Port = srv.Port
+			if len(srv.Users) > 0 {
+				pc.Username = srv.Users[0].User
+				pc.Password = srv.Users[0].Pass
+			}
 		case "hysteria":
 			var hySettings struct {
 				Address string `json:"address"`
@@ -892,6 +1076,8 @@ func (p *Parser) convertOutbound(raw json.RawMessage, index int, originalData ma
 			pc.AllowInsecure = ss.TlsSettings.AllowInsecure
 			pc.Fingerprint = ss.TlsSettings.Fingerprint
 			pc.ALPN = ss.TlsSettings.Alpn
+			pc.PinnedPeerCertSha256 = ss.TlsSettings.PinnedPeerCertSha256
+			pc.VerifyPeerCertByName = ss.TlsSettings.VerifyPeerCertByName
 		}
 
 		if ss.RealitySettings != nil {

@@ -10,41 +10,44 @@ import (
 )
 
 type ProxyConfig struct {
-	Protocol         string
-	Server           string
-	Port             int
-	Name             string
-	Security         string
-	Type             string
-	UUID             string
-	Flow             string
-	Encryption       string
-	HeaderType       string
-	Path             string
-	Host             string
-	SNI              string
-	Fingerprint      string
-	PublicKey        string
-	ShortID          string
-	Mode             string
-	Password         string
-	Method           string
-	Level            int
-	AlterId          int
-	VMessAid         int
-	MultiMode        bool
-	ServiceName      string
-	IdleTimeout      int
-	WindowsSize      int
-	AllowInsecure    bool
-	ALPN             []string
-	Index            int
-	Settings         map[string]string
-	StableID         string
-	RawXhttpSettings string
-	RawKcpSettings   string
-	SubName          string
-	GroupName        string
+	Protocol             string
+	Server               string
+	Port                 int
+	Name                 string
+	Security             string
+	Type                 string
+	UUID                 string
+	Flow                 string
+	Encryption           string
+	HeaderType           string
+	Path                 string
+	Host                 string
+	SNI                  string
+	Fingerprint          string
+	PublicKey            string
+	ShortID              string
+	Mode                 string
+	Username             string
+	Password             string
+	Method               string
+	Level                int
+	AlterId              int
+	VMessAid             int
+	MultiMode            bool
+	ServiceName          string
+	IdleTimeout          int
+	WindowsSize          int
+	AllowInsecure        bool
+	PinnedPeerCertSha256 string
+	VerifyPeerCertByName string
+	ALPN                 []string
+	Index                int
+	Settings             map[string]string
+	StableID             string
+	RawXhttpSettings     string
+	RawKcpSettings       string
+	SubName              string
+	GroupName            string
 
 	// Hysteria2 fields
 	HysteriaAuth         string
@@ -84,6 +87,9 @@ func (pc *ProxyConfig) Validate() error {
 		if pc.HysteriaAuth == "" {
 			return fmt.Errorf("auth is required for Hysteria2")
 		}
+	case "socks", "http":
+		// Forward proxies need only server/port (checked above); credentials
+		// are optional.
 	default:
 		return fmt.Errorf("unsupported protocol: %s", pc.Protocol)
 	}

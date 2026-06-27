@@ -254,6 +254,22 @@ func (g *ConfigGenerator) generateProxyOutbound(proxy *models.ProxyConfig) map[s
 			"port":    proxy.Port,
 			"version": 2,
 		}
+
+	case "socks", "http":
+		// Plain forward proxies. For an https:// proxy the protocol is "http"
+		// with TLS applied via streamSettings (proxy.Security == "tls").
+		server := map[string]interface{}{
+			"address": proxy.Server,
+			"port":    proxy.Port,
+		}
+		if proxy.Username != "" || proxy.Password != "" {
+			server["users"] = []map[string]interface{}{
+				{"user": proxy.Username, "pass": proxy.Password},
+			}
+		}
+		outbound["settings"] = map[string]interface{}{
+			"servers": []map[string]interface{}{server},
+		}
 	}
 
 	outbound["streamSettings"] = g.generateStreamSettings(proxy)
@@ -287,14 +303,30 @@ func (g *ConfigGenerator) generateStreamSettings(proxy *models.ProxyConfig) map[
 
 	if security == "tls" {
 		tlsSettings := map[string]interface{}{
-			"serverName":    proxy.SNI,
-			"allowInsecure": proxy.AllowInsecure,
+			"serverName": proxy.SNI,
+		}
+		// xray-core removed "allowInsecure"; accepting a specific (e.g.
+		// self-signed) cert is now done via pinnedPeerCertSha256, and a
+		// mismatched SNI via verifyPeerCertByName.
+		if proxy.PinnedPeerCertSha256 != "" {
+			tlsSettings["pinnedPeerCertSha256"] = proxy.PinnedPeerCertSha256
+		}
+		if proxy.VerifyPeerCertByName != "" {
+			tlsSettings["verifyPeerCertByName"] = proxy.VerifyPeerCertByName
+		}
+		if proxy.AllowInsecure && proxy.PinnedPeerCertSha256 == "" && proxy.VerifyPeerCertByName == "" {
+			logger.Debug("proxy %q requested allowInsecure, which xray-core no longer supports; verifying TLS normally (use pinnedPeerCertSha256 to pin a cert)", proxy.Name)
 		}
 		if proxy.Fingerprint != "" {
 			tlsSettings["fingerprint"] = proxy.Fingerprint
 		}
 		if len(proxy.ALPN) > 0 {
 			tlsSettings["alpn"] = proxy.ALPN
+		} else if proxy.Protocol == "http" {
+			// An https:// forward proxy speaks HTTP/1.1 CONNECT; pin ALPN so the
+			// TLS handshake does not negotiate h2, which the http proxy protocol
+			// cannot parse ("http2: frame too large").
+			tlsSettings["alpn"] = []string{"http/1.1"}
 		}
 		ss["tlsSettings"] = tlsSettings
 	}
