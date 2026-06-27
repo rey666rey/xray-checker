@@ -178,6 +178,14 @@ func (g *ConfigGenerator) generateProxyOutbound(proxy *models.ProxyConfig) map[s
 				},
 			},
 		}
+
+	case "hysteria":
+		outbound["settings"] = map[string]interface{}{
+			"address": proxy.Server,
+			"port":    proxy.Port,
+			"version": 2,
+			"auth":    proxy.HysteriaAuth,
+		}
 	}
 
 	outbound["streamSettings"] = g.generateStreamSettings(proxy)
@@ -188,18 +196,25 @@ func (g *ConfigGenerator) generateProxyOutbound(proxy *models.ProxyConfig) map[s
 func (g *ConfigGenerator) generateStreamSettings(proxy *models.ProxyConfig) map[string]interface{} {
 	network := proxy.Type
 	if network == "" {
-		network = "tcp"
+		if proxy.Protocol == "hysteria" {
+			network = "hysteria"
+		} else {
+			network = "tcp"
+		}
 	}
 
 	security := proxy.Security
 	if security == "" {
-		security = "none"
+		if proxy.Protocol == "hysteria" {
+			security = "tls"
+		} else {
+			security = "none"
+		}
 	}
 
 	ss := map[string]interface{}{
 		"network":  network,
 		"security": security,
-		"sockopt":  map[string]interface{}{},
 	}
 
 	if security == "tls" {
@@ -300,6 +315,66 @@ func (g *ConfigGenerator) generateStreamSettings(proxy *models.ProxyConfig) map[
 				xhttpSettings["mode"] = proxy.Mode
 			}
 			ss["xhttpSettings"] = xhttpSettings
+		}
+
+	case "hysteria":
+		ss["hysteriaSettings"] = map[string]interface{}{
+			"version": 2,
+			"auth":    proxy.HysteriaAuth,
+		}
+
+		// Build FinalMask with QuicParams and Salamander
+		var finalMask map[string]interface{}
+
+		// QuicParams (bandwidth + port-hopping)
+		if proxy.HysteriaUp != "" || proxy.HysteriaDown != "" || proxy.HysteriaPorts != "" {
+			quicParams := map[string]interface{}{}
+			if proxy.HysteriaUp != "" || proxy.HysteriaDown != "" {
+				quicParams["congestion"] = "brutal"
+			}
+			if proxy.HysteriaUp != "" {
+				quicParams["brutalUp"] = proxy.HysteriaUp
+			}
+			if proxy.HysteriaDown != "" {
+				quicParams["brutalDown"] = proxy.HysteriaDown
+			}
+			if proxy.HysteriaPorts != "" {
+				udpHop := map[string]interface{}{
+					"portList": proxy.HysteriaPorts,
+				}
+				if proxy.HysteriaHopInterval > 0 {
+					udpHop["interval"] = map[string]interface{}{
+						"from": proxy.HysteriaHopInterval,
+						"to":   proxy.HysteriaHopInterval,
+					}
+				}
+				quicParams["udpHop"] = udpHop
+			}
+			if finalMask == nil {
+				finalMask = map[string]interface{}{}
+			}
+			finalMask["quicParams"] = quicParams
+		}
+
+		// Salamander obfuscation
+		if proxy.HysteriaObfs == "salamander" && proxy.HysteriaObfsPassword != "" {
+			if finalMask == nil {
+				finalMask = map[string]interface{}{}
+			}
+			finalMask["udp"] = []map[string]interface{}{
+				{
+					"type": "salamander",
+					"settings": map[string]interface{}{
+						"password": proxy.HysteriaObfsPassword,
+					},
+				},
+			}
+		}
+
+		if finalMask != nil {
+			ss["sockopt"] = map[string]interface{}{
+				"finalMask": finalMask,
+			}
 		}
 	}
 

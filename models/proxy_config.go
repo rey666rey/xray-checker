@@ -41,6 +41,15 @@ type ProxyConfig struct {
 	StableID         string
 	RawXhttpSettings string
 	SubName          string
+
+	// Hysteria2 fields
+	HysteriaAuth     string
+	HysteriaUp       string
+	HysteriaDown     string
+	HysteriaPorts    string
+	HysteriaHopInterval int32
+	HysteriaObfs     string
+	HysteriaObfsPassword string
 }
 
 func (pc *ProxyConfig) Validate() error {
@@ -66,6 +75,10 @@ func (pc *ProxyConfig) Validate() error {
 	case "shadowsocks":
 		if pc.Password == "" || pc.Method == "" {
 			return fmt.Errorf("password and method are required for Shadowsocks")
+		}
+	case "hysteria":
+		if pc.HysteriaAuth == "" {
+			return fmt.Errorf("auth is required for Hysteria2")
 		}
 	default:
 		return fmt.Errorf("unsupported protocol: %s", pc.Protocol)
@@ -93,6 +106,10 @@ func (pc *ProxyConfig) GenerateStableID() string {
 		}
 		if pc.Protocol == "shadowsocks" && pc.Method != "" {
 			idComponents = append(idComponents, pc.Method)
+		}
+	case "hysteria":
+		if pc.HysteriaAuth != "" {
+			idComponents = append(idComponents, pc.HysteriaAuth)
 		}
 	}
 
@@ -192,6 +209,20 @@ func (pc *ProxyConfig) DebugString() string {
 	case "shadowsocks":
 		sb.WriteString(fmt.Sprintf("      Method:   %s\n", pc.Method))
 		sb.WriteString(fmt.Sprintf("      Password: %s\n", maskSecret(pc.Password)))
+	case "hysteria":
+		sb.WriteString(fmt.Sprintf("      Auth:     %s\n", maskSecret(pc.HysteriaAuth)))
+		if pc.HysteriaUp != "" {
+			sb.WriteString(fmt.Sprintf("      Up:       %s\n", pc.HysteriaUp))
+		}
+		if pc.HysteriaDown != "" {
+			sb.WriteString(fmt.Sprintf("      Down:     %s\n", pc.HysteriaDown))
+		}
+		if pc.HysteriaPorts != "" {
+			sb.WriteString(fmt.Sprintf("      Ports:    %s\n", pc.HysteriaPorts))
+		}
+		if pc.HysteriaObfs != "" {
+			sb.WriteString(fmt.Sprintf("      Obfs:     %s\n", pc.HysteriaObfs))
+		}
 	}
 
 	transport := pc.GetTransportType()
