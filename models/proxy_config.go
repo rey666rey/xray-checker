@@ -112,6 +112,10 @@ func (pc *ProxyConfig) GenerateStableID() string {
 		idComponents = append(idComponents, pc.PublicKey)
 	}
 
+	if pc.Fingerprint != "" {
+		idComponents = append(idComponents, pc.Fingerprint)
+	}
+
 	idString := strings.Join(idComponents, "|")
 
 	hash := sha256.Sum256([]byte(idString))
