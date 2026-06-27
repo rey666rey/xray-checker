@@ -43,12 +43,12 @@ type ProxyConfig struct {
 	SubName          string
 
 	// Hysteria2 fields
-	HysteriaAuth     string
-	HysteriaUp       string
-	HysteriaDown     string
-	HysteriaPorts    string
-	HysteriaHopInterval int32
-	HysteriaObfs     string
+	HysteriaAuth         string
+	HysteriaUp           string
+	HysteriaDown         string
+	HysteriaPorts        string
+	HysteriaHopInterval  int32
+	HysteriaObfs         string
 	HysteriaObfsPassword string
 }
 

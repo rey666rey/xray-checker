@@ -71,8 +71,8 @@ type libXrayStreamSettings struct {
 	XhttpSettings       json.RawMessage             `json:"xhttpSettings"`
 	SplithttpSettings   json.RawMessage             `json:"splithttpSettings"`
 	HysteriaSettings    *libXrayHysteriaSettings    `json:"hysteriaSettings"`
-	Sockopt             *libXraySockopt              `json:"sockopt"`
-	FinalMask           *libXrayFinalMask            `json:"finalMask"`
+	Sockopt             *libXraySockopt             `json:"sockopt"`
+	FinalMask           *libXrayFinalMask           `json:"finalMask"`
 }
 
 type libXrayTlsSettings struct {
@@ -145,14 +145,15 @@ type libXrayFinalMask struct {
 }
 
 type libXrayQuicParams struct {
-	Congestion string          `json:"congestion"`
-	BrutalUp   string          `json:"brutalUp"`
-	BrutalDown string          `json:"brutalDown"`
-	UdpHop     *libXrayUdpHop  `json:"udpHop"`
+	Congestion string         `json:"congestion"`
+	BrutalUp   string         `json:"brutalUp"`
+	BrutalDown string         `json:"brutalDown"`
+	UdpHop     *libXrayUdpHop `json:"udpHop"`
 }
 
 type libXrayUdpHop struct {
-	PortList json.RawMessage    `json:"portList"`
+	// libXray serializes xray-core's conf.UdpHop, whose port list key is "ports".
+	PortList json.RawMessage    `json:"ports"`
 	Interval *libXrayInt32Range `json:"interval"`
 }
 
