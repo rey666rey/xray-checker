@@ -78,12 +78,11 @@ func (pc *ProxyChecker) CheckProxy(proxy *models.ProxyConfig) {
 	pc.checkProxyInternal(proxy, 0, false)
 }
 
-func (pc *ProxyChecker) checkProxyInternal(proxy *models.ProxyConfig, expectedGeneration uint64, checkGeneration bool) {
-	if proxy.StableID == "" {
-		proxy.StableID = proxy.GenerateStableID()
-	}
-
-	metricKey := fmt.Sprintf("%s|%s:%d|%s|%s|%s",
+// proxyMetricKey builds the in-memory map key for a proxy. The first four
+// "|"-separated fields (protocol, address, name, sub_name) match the Prometheus
+// label set, so ClearMetrics/ReconcileMetrics can derive the series labels from it.
+func proxyMetricKey(proxy *models.ProxyConfig) string {
+	return fmt.Sprintf("%s|%s:%d|%s|%s|%s",
 		proxy.Protocol,
 		proxy.Server,
 		proxy.Port,
@@ -91,6 +90,14 @@ func (pc *ProxyChecker) checkProxyInternal(proxy *models.ProxyConfig, expectedGe
 		proxy.SubName,
 		proxy.StableID,
 	)
+}
+
+func (pc *ProxyChecker) checkProxyInternal(proxy *models.ProxyConfig, expectedGeneration uint64, checkGeneration bool) {
+	if proxy.StableID == "" {
+		proxy.StableID = proxy.GenerateStableID()
+	}
+
+	metricKey := proxyMetricKey(proxy)
 
 	isGenerationValid := func() bool {
 		if !checkGeneration {
@@ -335,12 +342,57 @@ func (pc *ProxyChecker) ClearMetrics() {
 	})
 }
 
+// UpdateProxies swaps in a new proxy set and bumps the generation. It deliberately
+// does NOT clear metrics: doing so used to leave /metrics empty (every proxy "down")
+// for up to PROXY_CHECK_INTERVAL until the next scheduled check (#148). The old series
+// are kept so existing proxies never blink; the caller should run an immediate check
+// and then ReconcileMetrics to drop series for proxies that no longer exist.
 func (pc *ProxyChecker) UpdateProxies(newProxies []*models.ProxyConfig) {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
 	atomic.AddUint64(&pc.generation, 1)
-	pc.ClearMetrics()
 	pc.proxies = newProxies
+}
+
+// ReconcileMetrics removes status/latency series and in-memory entries that belong
+// to proxies no longer present in the current set. It is meant to run after an
+// immediate post-update check has populated metrics for the new set, so surviving
+// proxies keep their freshly-refreshed values and only stale ones are pruned.
+func (pc *ProxyChecker) ReconcileMetrics() {
+	pc.mu.RLock()
+	currentKeys := make(map[string]struct{}, len(pc.proxies))
+	currentLabels := make(map[string]struct{}, len(pc.proxies))
+	for _, proxy := range pc.proxies {
+		if proxy.StableID == "" {
+			proxy.StableID = proxy.GenerateStableID()
+		}
+		key := proxyMetricKey(proxy)
+		currentKeys[key] = struct{}{}
+		// label tuple = protocol|address|name|sub_name (first 4 key fields)
+		currentLabels[fmt.Sprintf("%s|%s:%d|%s|%s", proxy.Protocol, proxy.Server, proxy.Port, proxy.Name, proxy.SubName)] = struct{}{}
+	}
+	pc.mu.RUnlock()
+
+	pc.currentMetrics.Range(func(k, _ interface{}) bool {
+		metricKey := k.(string)
+		if _, ok := currentKeys[metricKey]; ok {
+			return true
+		}
+		parts := strings.Split(metricKey, "|")
+		if len(parts) >= 4 {
+			// Only delete the Prometheus series if no surviving proxy shares the
+			// same label tuple (guards against same-label collisions removing a
+			// still-present proxy's series).
+			labelTuple := strings.Join(parts[0:4], "|")
+			if _, used := currentLabels[labelTuple]; !used {
+				metrics.DeleteProxyStatus(parts[0], parts[1], parts[2], parts[3])
+				metrics.DeleteProxyLatency(parts[0], parts[1], parts[2], parts[3])
+			}
+		}
+		pc.currentMetrics.Delete(k)
+		pc.latencyMetrics.Delete(k)
+		return true
+	})
 }
 
 func (pc *ProxyChecker) CheckAllProxies() {
@@ -375,14 +427,7 @@ func (pc *ProxyChecker) GetProxyStatus(name string) (bool, time.Duration, error)
 				proxy.StableID = proxy.GenerateStableID()
 			}
 
-			metricKey = fmt.Sprintf("%s|%s:%d|%s|%s|%s",
-				proxy.Protocol,
-				proxy.Server,
-				proxy.Port,
-				proxy.Name,
-				proxy.SubName,
-				proxy.StableID,
-			)
+			metricKey = proxyMetricKey(proxy)
 			break
 		}
 	}

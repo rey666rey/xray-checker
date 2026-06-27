@@ -151,6 +151,12 @@ func main() {
 			if !xray.IsConfigsEqual(*proxyConfigs, newConfigs) {
 				if err := updateConfiguration(newConfigs, proxyConfigs, xrayRunner, proxyChecker); err != nil {
 					logger.Error("Error updating configuration: %v", err)
+				} else {
+					// Immediately re-check the new proxy set so /metrics is repopulated
+					// right away instead of staying empty until the next scheduled check
+					// (up to PROXY_CHECK_INTERVAL), then drop series for removed proxies.
+					runCheckIteration()
+					proxyChecker.ReconcileMetrics()
 				}
 			} else {
 				logger.Info("Subscriptions checked, no changes")
