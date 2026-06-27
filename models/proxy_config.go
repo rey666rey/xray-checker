@@ -42,7 +42,9 @@ type ProxyConfig struct {
 	Settings         map[string]string
 	StableID         string
 	RawXhttpSettings string
+	RawKcpSettings   string
 	SubName          string
+	GroupName        string
 
 	// Hysteria2 fields
 	HysteriaAuth         string
@@ -146,6 +148,7 @@ func (pc *ProxyConfig) GenerateStableID() string {
 	write("serviceName", pc.ServiceName)
 	write("mode", pc.Mode)
 	write("rawXhttp", pc.RawXhttpSettings)
+	write("rawKcp", pc.RawKcpSettings)
 
 	return hex.EncodeToString(h.Sum(nil))[:16]
 }
