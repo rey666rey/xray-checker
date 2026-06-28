@@ -301,7 +301,7 @@ func (p *Parser) Parse(subscriptionData string) (*ParseResult, error) {
 	// them, so we handle them directly and pass the rest to the normal path.
 	directConfigs, remaining := p.extractDirectProxyLines(cleanedData)
 	if len(directConfigs) > 0 {
-		logger.Info("Parsed %d socks/http proxy(ies) directly", len(directConfigs))
+		logger.Info("Parsed %d direct proxy line(s) (socks/http/wireguard)", len(directConfigs))
 	}
 
 	var proxyConfigs []*models.ProxyConfig
@@ -341,6 +341,10 @@ func (p *Parser) extractDirectProxyLines(cleanedData []byte) ([]*models.ProxyCon
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 		if trimmed != "" {
+			if pc := parseWireGuardURI(trimmed); pc != nil {
+				configs = append(configs, pc)
+				continue
+			}
 			if pc := parseProxyURI(trimmed); pc != nil {
 				configs = append(configs, pc)
 				continue
@@ -350,6 +354,135 @@ func (p *Parser) extractDirectProxyLines(cleanedData []byte) ([]*models.ProxyCon
 	}
 
 	return configs, []byte(strings.Join(remaining, "\n"))
+}
+
+// parseWireGuardURI parses a wg://<base64(conf)> line, where the base64 payload
+// is a standard WireGuard .conf (INI text). An optional #name fragment sets the
+// display name. Returns nil if the line is not a usable WireGuard config.
+func parseWireGuardURI(line string) *models.ProxyConfig {
+	line = strings.TrimSpace(line)
+	if !strings.HasPrefix(line, "wg://") {
+		return nil
+	}
+	line = line[len("wg://"):]
+
+	name := ""
+	if i := strings.IndexByte(line, '#'); i >= 0 {
+		name = line[i+1:]
+		line = line[:i]
+	}
+	line = strings.TrimSpace(line)
+
+	conf, ok := decodeFlexibleBase64(line)
+	if !ok {
+		return nil
+	}
+
+	pc := parseWireGuardConf(string(conf))
+	if pc == nil {
+		return nil
+	}
+	pc.Protocol = "wireguard"
+	if name != "" {
+		if un, err := url.PathUnescape(name); err == nil {
+			name = un
+		}
+		pc.Name = name
+	}
+	if pc.Name == "" {
+		pc.Name = fmt.Sprintf("wireguard-%s", pc.Server)
+	}
+	return pc
+}
+
+// decodeFlexibleBase64 decodes a base64 string trying standard and URL-safe
+// alphabets, with and without padding.
+func decodeFlexibleBase64(s string) ([]byte, bool) {
+	s = strings.TrimSpace(s)
+	for _, enc := range []*base64.Encoding{
+		base64.StdEncoding, base64.RawStdEncoding,
+		base64.URLEncoding, base64.RawURLEncoding,
+	} {
+		if b, err := enc.DecodeString(s); err == nil {
+			return b, true
+		}
+	}
+	return nil, false
+}
+
+// parseWireGuardConf parses a WireGuard .conf (INI) into a ProxyConfig.
+// Server/Port hold the first peer's endpoint. Returns nil if the minimum
+// required fields (private key, peer public key, endpoint) are missing.
+func parseWireGuardConf(text string) *models.ProxyConfig {
+	pc := &models.ProxyConfig{}
+	section := ""
+
+	for _, raw := range strings.Split(text, "\n") {
+		ln := strings.TrimSpace(raw)
+		if ln == "" || strings.HasPrefix(ln, "#") || strings.HasPrefix(ln, ";") {
+			continue
+		}
+		if strings.HasPrefix(ln, "[") && strings.HasSuffix(ln, "]") {
+			section = strings.ToLower(strings.TrimSpace(ln[1 : len(ln)-1]))
+			continue
+		}
+		eq := strings.IndexByte(ln, '=')
+		if eq < 0 {
+			continue
+		}
+		key := strings.ToLower(strings.TrimSpace(ln[:eq]))
+		val := strings.TrimSpace(ln[eq+1:])
+
+		switch section {
+		case "interface":
+			switch key {
+			case "privatekey":
+				pc.WGPrivateKey = val
+			case "address":
+				pc.WGAddresses = splitCSVList(val)
+			case "dns":
+				pc.WGDNS = splitCSVList(val)
+			case "mtu":
+				pc.WGMTU = atoiOrZero(val)
+			}
+		case "peer":
+			switch key {
+			case "publickey":
+				pc.WGPeerPublicKey = val
+			case "presharedkey":
+				pc.WGPreSharedKey = val
+			case "endpoint":
+				if host, portStr, err := net.SplitHostPort(val); err == nil {
+					pc.Server = host
+					pc.Port = atoiOrZero(portStr)
+				}
+			case "allowedips":
+				pc.WGAllowedIPs = splitCSVList(val)
+			case "persistentkeepalive":
+				pc.WGKeepalive = atoiOrZero(val)
+			}
+		}
+	}
+
+	if pc.WGPrivateKey == "" || pc.WGPeerPublicKey == "" || pc.Server == "" || pc.Port == 0 {
+		return nil
+	}
+	return pc
+}
+
+func splitCSVList(s string) []string {
+	var out []string
+	for _, part := range strings.Split(s, ",") {
+		if v := strings.TrimSpace(part); v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+func atoiOrZero(s string) int {
+	n, _ := strconv.Atoi(strings.TrimSpace(s))
+	return n
 }
 
 // parseProxyURI parses a socks/http/https forward-proxy URI into a ProxyConfig.
@@ -944,6 +1077,52 @@ func (p *Parser) parseVMessLink(link string) *parsedLink {
 	return result
 }
 
+// convertWireGuardOutbound fills a ProxyConfig from an xray "wireguard" outbound's
+// settings: secretKey/address/mtu plus the first peer's publicKey/endpoint/
+// allowedIPs/keepAlive/preSharedKey. Server/Port hold the peer endpoint.
+func (p *Parser) convertWireGuardOutbound(settings json.RawMessage, pc *models.ProxyConfig) (*models.ProxyConfig, error) {
+	var wg struct {
+		SecretKey string   `json:"secretKey"`
+		Address   []string `json:"address"`
+		MTU       int      `json:"mtu"`
+		Peers     []struct {
+			PublicKey    string   `json:"publicKey"`
+			PreSharedKey string   `json:"preSharedKey"`
+			Endpoint     string   `json:"endpoint"`
+			KeepAlive    int      `json:"keepAlive"`
+			AllowedIPs   []string `json:"allowedIPs"`
+		} `json:"peers"`
+	}
+	if err := json.Unmarshal(settings, &wg); err != nil {
+		return nil, fmt.Errorf("failed to parse wireguard settings: %v", err)
+	}
+	if len(wg.Peers) == 0 {
+		return nil, fmt.Errorf("no wireguard peers found")
+	}
+	peer := wg.Peers[0]
+	host, portStr, err := net.SplitHostPort(peer.Endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("invalid wireguard endpoint %q: %v", peer.Endpoint, err)
+	}
+	pc.Server = host
+	pc.Port = atoiOrZero(portStr)
+	pc.WGPrivateKey = wg.SecretKey
+	pc.WGAddresses = wg.Address
+	pc.WGMTU = wg.MTU
+	pc.WGPeerPublicKey = peer.PublicKey
+	pc.WGPreSharedKey = peer.PreSharedKey
+	pc.WGAllowedIPs = peer.AllowedIPs
+	pc.WGKeepalive = peer.KeepAlive
+
+	if pc.WGPrivateKey == "" || pc.WGPeerPublicKey == "" || pc.Server == "" || pc.Port == 0 {
+		return nil, fmt.Errorf("incomplete wireguard config (missing secretKey/publicKey/endpoint)")
+	}
+	if pc.Name == "" {
+		pc.Name = fmt.Sprintf("wireguard-%s", pc.Server)
+	}
+	return pc, nil
+}
+
 func (p *Parser) convertOutbound(raw json.RawMessage, index int, originalData map[string]*originalLinkData) (*models.ProxyConfig, error) {
 	var baseOutbound struct {
 		Protocol       string                 `json:"protocol"`
@@ -968,6 +1147,12 @@ func (p *Parser) convertOutbound(raw json.RawMessage, index int, originalData ma
 
 	if pc.Name == "" {
 		pc.Name = baseOutbound.Tag
+	}
+
+	// WireGuard outbounds have a distinct settings shape (secretKey/address/peers)
+	// and no streamSettings, so handle them up front.
+	if baseOutbound.Protocol == "wireguard" {
+		return p.convertWireGuardOutbound(baseOutbound.Settings, pc)
 	}
 
 	var flatSettings libXraySettings

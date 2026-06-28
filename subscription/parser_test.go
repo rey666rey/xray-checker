@@ -1,6 +1,7 @@
 package subscription
 
 import (
+	"encoding/base64"
 	"testing"
 
 	"xray-checker/models"
@@ -157,4 +158,93 @@ func indexOf(s, sub string) int {
 		}
 	}
 	return -1
+}
+
+func TestParseWireGuardURI(t *testing.T) {
+	conf := "[Interface]\n" +
+		"PrivateKey = WBkVvO3vdhF9VOaSokEQPSLpGQajKi2fpwKLODlySmk=\n" +
+		"Address = 10.9.59.216/32\n" +
+		"DNS = 10.12.0.1\n\n" +
+		"[Peer]\n" +
+		"PublicKey = xBsu74OtcatjpRMfW58muk/95FkaiSSYbZeM+6bRZ1Y=\n" +
+		"AllowedIPs = 0.0.0.0/0, ::/0\n" +
+		"Endpoint = wg.example.com:51820\n" +
+		"PersistentKeepalive = 25\n"
+	pc := parseWireGuardURI("wg://" + base64.StdEncoding.EncodeToString([]byte(conf)) + "#WG Node")
+	if pc == nil {
+		t.Fatal("wg parse returned nil")
+	}
+	if pc.Protocol != "wireguard" {
+		t.Errorf("protocol = %q, want wireguard", pc.Protocol)
+	}
+	if pc.WGPrivateKey != "WBkVvO3vdhF9VOaSokEQPSLpGQajKi2fpwKLODlySmk=" || pc.WGPeerPublicKey != "xBsu74OtcatjpRMfW58muk/95FkaiSSYbZeM+6bRZ1Y=" {
+		t.Errorf("keys: priv=%q peer=%q", pc.WGPrivateKey, pc.WGPeerPublicKey)
+	}
+	if pc.Server != "wg.example.com" || pc.Port != 51820 {
+		t.Errorf("endpoint = %s:%d", pc.Server, pc.Port)
+	}
+	if len(pc.WGAddresses) != 1 || pc.WGAddresses[0] != "10.9.59.216/32" {
+		t.Errorf("addresses = %v", pc.WGAddresses)
+	}
+	if len(pc.WGAllowedIPs) != 2 || pc.WGKeepalive != 25 {
+		t.Errorf("allowedIPs=%v keepalive=%d", pc.WGAllowedIPs, pc.WGKeepalive)
+	}
+	if pc.Name != "WG Node" {
+		t.Errorf("name = %q", pc.Name)
+	}
+
+	// url-safe no-padding base64 + name fallback to wireguard-<server>
+	pc2 := parseWireGuardURI("wg://" + base64.RawURLEncoding.EncodeToString([]byte(conf)))
+	if pc2 == nil || pc2.Name != "wireguard-wg.example.com" {
+		t.Errorf("url-safe/no-pad or name fallback failed: %+v", pc2)
+	}
+
+	// non-wireguard lines are not consumed
+	for _, l := range []string{"vless://uuid@h:443?type=tcp#x", "socks5://u:p@1.2.3.4:1080", "awg://abc#x"} {
+		if parseWireGuardURI(l) != nil {
+			t.Errorf("%q should not be consumed by parseWireGuardURI", l)
+		}
+	}
+}
+
+func TestConvertOutboundJSON_WireGuardAndSocksHttp(t *testing.T) {
+	p := NewParser()
+
+	// WireGuard outbound (xray JSON form)
+	wgRaw := []byte(`{
+		"protocol":"wireguard","tag":"WG-DE",
+		"settings":{
+			"secretKey":"WBkVvO3vdhF9VOaSokEQPSLpGQajKi2fpwKLODlySmk=",
+			"address":["10.2.0.2/32"],"mtu":1420,
+			"peers":[{"publicKey":"xBsu74OtcatjpRMfW58muk/95FkaiSSYbZeM+6bRZ1Y=",
+				"endpoint":"de.example.com:51820","allowedIPs":["0.0.0.0/0","::/0"],"keepAlive":25}]
+		}}`)
+	pc, err := p.convertOutbound(wgRaw, 0, nil)
+	if err != nil || pc == nil {
+		t.Fatalf("wireguard convert err=%v pc=%v", err, pc)
+	}
+	if pc.Protocol != "wireguard" || pc.Server != "de.example.com" || pc.Port != 51820 {
+		t.Errorf("wg got protocol=%q %s:%d", pc.Protocol, pc.Server, pc.Port)
+	}
+	if pc.WGPrivateKey == "" || pc.WGPeerPublicKey == "" || pc.WGMTU != 1420 || pc.WGKeepalive != 25 {
+		t.Errorf("wg fields: priv=%q pub=%q mtu=%d ka=%d", pc.WGPrivateKey, pc.WGPeerPublicKey, pc.WGMTU, pc.WGKeepalive)
+	}
+	if len(pc.WGAddresses) != 1 || len(pc.WGAllowedIPs) != 2 {
+		t.Errorf("wg addr=%v allowed=%v", pc.WGAddresses, pc.WGAllowedIPs)
+	}
+	if pc.Name != "WG-DE" {
+		t.Errorf("wg name=%q", pc.Name)
+	}
+
+	// socks outbound with users (standard form) — regression for JSON socks/http
+	sk, err := p.convertOutbound([]byte(`{"protocol":"socks","tag":"S","settings":{"servers":[{"address":"1.2.3.4","port":1080,"users":[{"user":"u","pass":"p"}]}]}}`), 1, nil)
+	if err != nil || sk == nil || sk.Protocol != "socks" || sk.Server != "1.2.3.4" || sk.Port != 1080 || sk.Username != "u" || sk.Password != "p" {
+		t.Fatalf("socks JSON convert failed: %+v err=%v", sk, err)
+	}
+
+	// http outbound, flat form
+	ht, err := p.convertOutbound([]byte(`{"protocol":"http","tag":"H","settings":{"address":"5.6.7.8","port":8080,"user":"x","pass":"y"}}`), 2, nil)
+	if err != nil || ht == nil || ht.Protocol != "http" || ht.Server != "5.6.7.8" || ht.Port != 8080 || ht.Username != "x" || ht.Password != "y" {
+		t.Fatalf("http JSON convert failed: %+v err=%v", ht, err)
+	}
 }

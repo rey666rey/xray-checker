@@ -209,6 +209,60 @@ https://user:pass@host:port?sni=real.example.com&verifyPeerCertByName=real.examp
 | `verifyPeerCertByName` | `vcn` | Проверять сертификат по этому имени вместо хоста |
 | `sni` | — | TLS Server Name (по умолчанию совпадает с хостом) |
 
+### 8. WireGuard
+
+Серверы WireGuard также можно проверять на работоспособность. Добавляйте их как строки подписки (из любого источника — URL, `base64://`, `file://` или inline) по схеме `wg://`, где полезная нагрузка — это **Base64 стандартного `.conf`-файла WireGuard**:
+
+```
+wg://<base64 of the .conf>#name
+```
+
+Декодированный `.conf` — это обычный конфиг WireGuard, который выдаёт ваш провайдер:
+
+```ini
+[Interface]
+PrivateKey = <client private key>
+Address = 10.9.0.2/32
+DNS = 1.1.1.1            # optional, ignored by the checker
+MTU = 1420               # optional (default 1420)
+
+[Peer]
+PublicKey = <server public key>
+PresharedKey = <psk>     # optional
+Endpoint = wg.example.com:51820
+AllowedIPs = 0.0.0.0/0, ::/0
+PersistentKeepalive = 25 # optional
+```
+
+- Проверяется `Endpoint` пира (`host:port`). Используется первый `[Peer]`.
+- Фрагмент `#name` задаёт отображаемое имя (по умолчанию `wireguard-<host>`).
+- Только стандартный, необфусцированный WireGuard. (AmneziaWG / `awg://` не поддерживается.)
+
+WireGuard также работает внутри [JSON-подписки](#6-json-подписка-балансировщики) — outbound `wireguard` в JSON-конфиге Xray разбирается автоматически:
+
+```json
+{
+  "protocol": "wireguard",
+  "settings": {
+    "secretKey": "<client private key>",
+    "address": ["10.9.0.2/32"],
+    "mtu": 1420,
+    "peers": [
+      {
+        "publicKey": "<server public key>",
+        "endpoint": "wg.example.com:51820",
+        "allowedIPs": ["0.0.0.0/0", "::/0"],
+        "keepAlive": 25
+      }
+    ]
+  }
+}
+```
+
+:::note[Режим TUN и производительность]
+WireGuard работает в пространстве пользователя (модуль ядра не требуется). Сетевой уровень — это либо настоящий интерфейс **kernel TUN** (быстрый, масштабируется на множество туннелей), либо userspace-netstack **gVisor** (работает без привилегий, например на macOS, но тяжелее). Для kernel TUN нужны `/dev/net/tun` и `CAP_NET_ADMIN`; в Docker передайте `--cap-add NET_ADMIN --device /dev/net/tun`. Для подписок с большим количеством конфигов WireGuard рекомендуется kernel TUN (и задайте `PROXY_TIMEOUT` с запасом).
+:::
+
 ## Кастомные заголовки запросов
 
 Панели, закрывающие подписку токеном или ожидающие определённого клиента, можно удовлетворить с помощью кастомного `User-Agent` и произвольных заголовков:

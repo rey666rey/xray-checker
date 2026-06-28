@@ -10,6 +10,8 @@ tableOfContents: false
 
 - 🧦 Check plain [SOCKS / HTTP / HTTPS forward proxies](/configuration/subscription#7-socks-http-and-https-proxies) alongside Xray protocols
 
+- 🔒 Check [WireGuard](/configuration/subscription#8-wireguard) servers (userspace, no kernel module required)
+
 - 🔄 Automatic proxy configuration updates from subscription URLs with [configurable intervals](/configuration/envs#subscription_update_interval)
 
 - 📊 [Export metrics](/integrations/metrics) in Prometheus format with proxy status and latency information
@@ -35,6 +37,7 @@ tableOfContents: false
   - 📁 Configuration folders
   - ⚖️ [JSON subscriptions with balancers](/configuration/subscription#6-json-subscription-balancers) — each node tracked individually
   - 🧦 SOCKS / HTTP / HTTPS forward proxies
+  - 🔒 [WireGuard](/configuration/subscription#8-wireguard) (`wg://` or a `wireguard` outbound in JSON)
 
 - 🔧 Custom subscription request headers and `User-Agent` for token-gated or app-specific panels
 

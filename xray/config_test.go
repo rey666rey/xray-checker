@@ -246,3 +246,44 @@ func keysOf(m map[string]json.RawMessage) []string {
 	}
 	return out
 }
+
+func TestGenerateWireGuardConfigBuild(t *testing.T) {
+	wg := &models.ProxyConfig{
+		Protocol: "wireguard", Name: "wg", Server: "1.2.3.4", Port: 51820, Index: 0,
+		WGPrivateKey:    "WBkVvO3vdhF9VOaSokEQPSLpGQajKi2fpwKLODlySmk=",
+		WGPeerPublicKey: "xBsu74OtcatjpRMfW58muk/95FkaiSSYbZeM+6bRZ1Y=",
+		WGAddresses:     []string{"10.0.0.2/32"}, WGAllowedIPs: []string{"0.0.0.0/0", "::/0"},
+		WGKeepalive: 25, WGMTU: 1420,
+	}
+	configBytes := buildsWithXrayCore(t, []*models.ProxyConfig{wg})
+
+	var parsed struct {
+		Outbounds []struct {
+			Protocol       string                 `json:"protocol"`
+			Settings       map[string]interface{} `json:"settings"`
+			StreamSettings map[string]interface{} `json:"streamSettings"`
+		} `json:"outbounds"`
+	}
+	if err := json.Unmarshal(configBytes, &parsed); err != nil {
+		t.Fatalf("parse generated config: %v", err)
+	}
+	var found bool
+	for _, ob := range parsed.Outbounds {
+		if ob.Protocol != "wireguard" {
+			continue
+		}
+		found = true
+		if ob.StreamSettings != nil {
+			t.Errorf("wireguard outbound must not carry streamSettings")
+		}
+		if _, hasAwg := ob.Settings["awg"]; hasAwg {
+			t.Errorf("plain wireguard must not emit an awg block (stock xray-core)")
+		}
+		if ob.Settings["secretKey"] == nil || ob.Settings["peers"] == nil {
+			t.Errorf("wireguard settings missing secretKey/peers: %v", ob.Settings)
+		}
+	}
+	if !found {
+		t.Error("expected a wireguard outbound")
+	}
+}

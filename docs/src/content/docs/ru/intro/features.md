@@ -10,6 +10,8 @@ tableOfContents: false
 
 - 🧦 Проверка обычных [форвард-прокси SOCKS / HTTP / HTTPS](/ru/configuration/subscription#7-socks-http-и-https-прокси) наряду с протоколами Xray
 
+- 🔒 Проверка серверов [WireGuard](/ru/configuration/subscription#8-wireguard) (в пространстве пользователя, без модуля ядра)
+
 - 🔄 Автоматическое обновление конфигурации прокси из подписки (subscription) с [настраиваемым интервалом](/ru/configuration/envs#subscription_update_interval)
 
 - 📊 [Экспорт метрик](/ru/integrations/metrics) в формате Prometheus с информацией о статусе и задержках прокси-серверов
@@ -35,6 +37,7 @@ tableOfContents: false
   - 📁 Папки с конфигурациями
   - ⚖️ [JSON-подписки с балансировщиками](/ru/configuration/subscription#6-json-подписка-балансировщики) — каждый узел отслеживается отдельно
   - 🧦 Форвард-прокси SOCKS / HTTP / HTTPS
+  - 🔒 [WireGuard](/ru/configuration/subscription#8-wireguard) (`wg://` или outbound `wireguard` в JSON)
 
 - 🔧 Кастомные заголовки запросов подписки и `User-Agent` для панелей с токеном или специфичных для приложений
 

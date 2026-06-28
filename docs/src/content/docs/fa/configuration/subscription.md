@@ -209,6 +209,60 @@ https://user:pass@host:port?sni=real.example.com&verifyPeerCertByName=real.examp
 | `verifyPeerCertByName` | `vcn` | تأیید گواهی در برابر این نام به‌جای هاست |
 | `sni` | — | نام سرور TLS (به‌صورت پیش‌فرض هاست) |
 
+### ۸. WireGuard
+
+سرورهای WireGuard نیز می‌توانند از نظر سلامت بررسی شوند. آن‌ها را به‌عنوان خطوط اشتراک اضافه کنید (از هر منبعی — URL، `base64://`، `file://` یا به‌صورت درون‌خطی) با استفاده از اسکیم `wg://`، که در آن payload برابر با **Base64 یک فایل استاندارد WireGuard `.conf`** است:
+
+```
+wg://<base64 of the .conf>#name
+```
+
+فایل `.conf` رمزگشایی‌شده همان پیکربندی معمول WireGuard است که از ارائه‌دهنده خود دریافت می‌کنید:
+
+```ini
+[Interface]
+PrivateKey = <client private key>
+Address = 10.9.0.2/32
+DNS = 1.1.1.1            # optional, ignored by the checker
+MTU = 1420               # optional (default 1420)
+
+[Peer]
+PublicKey = <server public key>
+PresharedKey = <psk>     # optional
+Endpoint = wg.example.com:51820
+AllowedIPs = 0.0.0.0/0, ::/0
+PersistentKeepalive = 25 # optional
+```
+
+- مقدار `Endpoint` همتا (`host:port`) همان چیزی است که بررسی می‌شود. اولین `[Peer]` استفاده می‌شود.
+- فرگمنت `#name` نام نمایشی را تعیین می‌کند (به‌صورت پیش‌فرض `wireguard-<host>`).
+- فقط WireGuard استاندارد و بدون مبهم‌سازی (unobfuscated). (AmneziaWG / `awg://` پشتیبانی نمی‌شود.)
+
+WireGuard در داخل [اشتراک JSON](#۶-اشتراک-json-متعادلکنندهها) نیز کار می‌کند — یک outbound از نوع `wireguard` در پیکربندی JSON مربوط به Xray به‌صورت خودکار تجزیه می‌شود:
+
+```json
+{
+  "protocol": "wireguard",
+  "settings": {
+    "secretKey": "<client private key>",
+    "address": ["10.9.0.2/32"],
+    "mtu": 1420,
+    "peers": [
+      {
+        "publicKey": "<server public key>",
+        "endpoint": "wg.example.com:51820",
+        "allowedIPs": ["0.0.0.0/0", "::/0"],
+        "keepAlive": 25
+      }
+    ]
+  }
+}
+```
+
+:::note[حالت TUN و کارایی]
+WireGuard در فضای کاربری (userspace) اجرا می‌شود (نیازی به ماژول کرنل نیست). لایه شبکه یا یک اینترفیس واقعی **kernel TUN** است (سریع و مقیاس‌پذیر برای تعداد زیادی تونل) یا یک netstack فضای‌کاربری **gVisor** (بدون نیاز به هیچ دسترسی ویژه‌ای کار می‌کند، مثلاً در macOS، اما سنگین‌تر است). برای kernel TUN به `/dev/net/tun` و `CAP_NET_ADMIN` نیاز است؛ در Docker با `--cap-add NET_ADMIN --device /dev/net/tun` آن‌ها را فراهم کنید. برای اشتراک‌هایی با تعداد زیادی پیکربندی WireGuard، استفاده از kernel TUN توصیه می‌شود (و کمی به `PROXY_TIMEOUT` فضای بیشتر بدهید).
+:::
+
 ## هدرهای درخواست سفارشی
 
 پنل‌هایی که اشتراک را پشت یک توکن یا کلاینت خاص قرار می‌دهند، می‌توانند با یک `User-Agent` سفارشی و هدرهای دلخواه برآورده شوند:
