@@ -37,12 +37,17 @@ GET /api/v1/public/proxies
     {
       "stableId": "a1b2c3d4e5f67890",
       "name": "US-Server-1",
+      "groupName": "",
       "online": true,
-      "latencyMs": 150
+      "latencyMs": 150,
+      "lastCheck": 1751130000
     }
   ]
 }
 ```
+
+- `groupName`: имя балансировщика/группы (пусто для несгруппированных прокси).
+- `lastCheck`: Unix-время (в секундах) последней проверки; `0`, если проверки ещё не было.
 
 ## Защищённые эндпоинты
 
@@ -112,16 +117,26 @@ GET /api/v1/proxies
       "stableId": "a1b2c3d4e5f67890",
       "name": "US-Server-1",
       "subName": "Premium VPN",
+      "groupName": "",
       "server": "192.168.1.1",
       "port": 443,
       "protocol": "vless",
       "proxyPort": 10000,
       "online": true,
-      "latencyMs": 150
+      "latencyMs": 150,
+      "lastCheck": 1751130000,
+      "metricsLabels": {
+        "location": "Netherlands, Amsterdam",
+        "hoster": "FreeVDS"
+      }
     }
   ]
 }
 ```
+
+- `groupName`: имя балансировщика/группы (пусто для несгруппированных прокси).
+- `lastCheck`: Unix-время (в секундах) последней проверки; `0`, если проверки ещё не было.
+- `metricsLabels`: заданные оператором лейблы из JSON outbound (см. [Кастомные лейблы метрик](/ru/configuration/subscription#9-кастомные-лейблы-метрик)); отсутствует, если не заданы.
 
 :::note[Сгенерированная конфигурация]
 Когда включён `WEB_SHOW_DETAILS` (а в публичном режиме — также `WEB_TRUSTED_EXTERNAL_AUTH`), каждый элемент дополнительно содержит объект `generatedConfig` — outbound Xray, сгенерированный для этого прокси, с замаскированными секретами (uuid, password, auth, kcp seed). В противном случае он отсутствует.

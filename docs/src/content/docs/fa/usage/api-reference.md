@@ -37,12 +37,17 @@ GET /api/v1/public/proxies
     {
       "stableId": "a1b2c3d4e5f67890",
       "name": "US-Server-1",
+      "groupName": "",
       "online": true,
-      "latencyMs": 150
+      "latencyMs": 150,
+      "lastCheck": 1751130000
     }
   ]
 }
 ```
+
+- `groupName`: نام متعادل‌کننده/گروه (برای پروکسی‌های بدون گروه خالی است).
+- `lastCheck`: مهر زمانی Unix (ثانیه) آخرین بررسی؛ اگر هنوز بررسی نشده باشد `0` است.
 
 ## نقاط پایانی محافظت شده
 
@@ -112,16 +117,26 @@ GET /api/v1/proxies
       "stableId": "a1b2c3d4e5f67890",
       "name": "US-Server-1",
       "subName": "Premium VPN",
+      "groupName": "",
       "server": "192.168.1.1",
       "port": 443,
       "protocol": "vless",
       "proxyPort": 10000,
       "online": true,
-      "latencyMs": 150
+      "latencyMs": 150,
+      "lastCheck": 1751130000,
+      "metricsLabels": {
+        "location": "Netherlands, Amsterdam",
+        "hoster": "FreeVDS"
+      }
     }
   ]
 }
 ```
+
+- `groupName`: نام متعادل‌کننده/گروه (برای پروکسی‌های بدون گروه خالی است).
+- `lastCheck`: مهر زمانی Unix (ثانیه) آخرین بررسی؛ اگر هنوز بررسی نشده باشد `0` است.
+- `metricsLabels`: لیبل‌های تعیین‌شده توسط اپراتور از JSON outbound (به [لیبل‌های سفارشی متریک](/fa/configuration/subscription#۹-لیبلهای-سفارشی-متریک) مراجعه کنید)؛ اگر تنظیم نشده باشد حذف می‌شود.
 
 :::note[پیکربندی تولیدشده]
 وقتی `WEB_SHOW_DETAILS` فعال باشد (و در حالت عمومی، `WEB_TRUSTED_EXTERNAL_AUTH`)، هر آیتم یک شیء `generatedConfig` نیز شامل می‌شود — یعنی outbound مربوط به Xray که برای آن پروکسی تولید شده است، با مخفی‌سازی اطلاعات حساس (uuid، password، auth، kcp seed). در غیر این صورت حذف می‌شود.

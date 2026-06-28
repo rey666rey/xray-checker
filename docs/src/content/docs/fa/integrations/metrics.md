@@ -49,3 +49,13 @@ xray_proxy_status{protocol="vless",address="example.com:443",name="proxy1",stabl
 # TYPE xray_proxy_latency_ms gauge
 xray_proxy_latency_ms{protocol="vless",address="example.com:443",name="proxy1",stable_id="a1b2c3d4e5f67890",sub_name="Premium VPN",group_name="",instance="dc1"} 156
 ```
+
+### لیبل‌های سفارشی
+
+یک outbound در [اشتراک JSON](/fa/configuration/subscription#۹-لیبلهای-سفارشی-متریک) می‌تواند یک شیء `metricsLabels` تعریف کند. مدخل‌های آن به‌عنوان لیبل‌های اضافی روی هر دو متریک آن پروکسی، در کنار لیبل‌های داخلی بالا، افزوده می‌شوند:
+
+```text
+xray_proxy_status{protocol="trojan",address="1.1.1.1:443",name="proxy1",stable_id="a1b2c3d4e5f67890",sub_name="",group_name="",location="Netherlands, Amsterdam",hoster="FreeVDS"} 1
+```
+
+پروکسی‌های مختلف می‌توانند کلیدهای لیبل متفاوتی داشته باشند؛ پروکسی بدون `metricsLabels` تنها مجموعهٔ داخلی را نگه می‌دارد. کلیدها به نام‌های معتبر Prometheus تبدیل می‌شوند و نمی‌توانند لیبل‌های داخلی را بازنویسی کنند. متریک‌ها در هر scrape از مجموعهٔ فعلی پروکسی‌ها ساخته می‌شوند، بنابراین لیبل‌های سفارشی می‌توانند هنگام به‌روزرسانی اشتراک افزوده، تغییر یا حذف شوند بدون آنکه سری‌های دیگر به ۰ بازنشانی شوند.
