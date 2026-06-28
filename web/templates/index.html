@@ -114,6 +114,60 @@
         border-color: var(--border-hover);
       }
 
+      .proto-badge {
+        flex-shrink: 0;
+        font-size: 10px;
+        line-height: 1.5;
+        font-weight: 600;
+        letter-spacing: 0.2px;
+        padding: 0 6px;
+        border-radius: 5px;
+        background: var(--bg-tertiary);
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        white-space: nowrap;
+      }
+      .proto-vless {
+        color: #4f8cff;
+        border-color: rgba(79, 140, 255, 0.35);
+        background: rgba(79, 140, 255, 0.1);
+      }
+      .proto-vmess {
+        color: #9b7dff;
+        border-color: rgba(155, 125, 255, 0.35);
+        background: rgba(155, 125, 255, 0.1);
+      }
+      .proto-trojan {
+        color: #ff6ec7;
+        border-color: rgba(255, 110, 199, 0.35);
+        background: rgba(255, 110, 199, 0.1);
+      }
+      .proto-shadowsocks {
+        color: #2bd576;
+        border-color: rgba(43, 213, 118, 0.35);
+        background: rgba(43, 213, 118, 0.1);
+      }
+      .proto-hysteria {
+        color: #ffae00;
+        border-color: rgba(255, 174, 0, 0.35);
+        background: rgba(255, 174, 0, 0.1);
+      }
+      .proto-wireguard {
+        color: #ff7a4d;
+        border-color: rgba(255, 122, 77, 0.35);
+        background: rgba(255, 122, 77, 0.12);
+      }
+      .proto-socks {
+        color: #2dd4bf;
+        border-color: rgba(45, 212, 191, 0.35);
+        background: rgba(45, 212, 191, 0.1);
+      }
+      .proto-http {
+        color: #94a3b8;
+        border-color: rgba(148, 163, 184, 0.35);
+        background: rgba(148, 163, 184, 0.12);
+      }
+
       .text-primary {
         color: var(--text-primary);
       }
@@ -900,19 +954,27 @@
 
                 <!-- Info -->
                 <div class="flex-1 min-w-0">
-                  {{ if .IsPublic }}
-                  <span
-                    class="text-sm text-primary truncate block"
-                    x-text="item.proxy.name"
-                  ></span>
-                  {{ else }}
-                  <a
-                    :href="item.proxy.url"
-                    target="_blank"
-                    class="text-sm text-primary link-hover truncate block transition-colors"
-                    x-text="item.proxy.name"
-                  ></a>
-                  {{ end }} {{ if .ShowServerDetails }}
+                  <div class="flex items-center gap-1.5 min-w-0">
+                    {{ if .IsPublic }}
+                    <span
+                      class="text-sm text-primary truncate"
+                      x-text="item.proxy.name"
+                    ></span>
+                    {{ else }}
+                    <a
+                      :href="item.proxy.url"
+                      target="_blank"
+                      class="text-sm text-primary link-hover truncate transition-colors"
+                      x-text="item.proxy.name"
+                    ></a>
+                    {{ end }}
+                    <span
+                      class="proto-badge"
+                      :class="'proto-' + item.proxy.protocol"
+                      x-text="protoLabel(item.proxy.protocol)"
+                    ></span>
+                  </div>
+                  {{ if .ShowServerDetails }}
                   <span class="text-xs text-muted truncate block"
                     ><span x-text="item.proxy.serverInfo"></span> · :<span
                       x-text="item.proxy.proxyPort"
@@ -1100,9 +1162,17 @@
 
           proxies: [
             {{ range $.Endpoints }}
-            { name: "{{.Name}}", stableId: "{{.StableID}}", groupName: "{{.GroupName}}", {{ if $.ShowServerDetails }}serverInfo: "{{.ServerInfo}}", proxyPort: {{.ProxyPort}}, {{ end }}{{ if not $.IsPublic }}url: "{{.URL}}", {{ end }}index: {{.Index}}, status: {{.Status}}, latency: "{{ formatLatency .Latency }}", latencyMs: {{ .Latency.Milliseconds }} },
+            { name: "{{.Name}}", protocol: "{{.Protocol}}", stableId: "{{.StableID}}", groupName: "{{.GroupName}}", {{ if $.ShowServerDetails }}serverInfo: "{{.ServerInfo}}", proxyPort: {{.ProxyPort}}, {{ end }}{{ if not $.IsPublic }}url: "{{.URL}}", {{ end }}index: {{.Index}}, status: {{.Status}}, latency: "{{ formatLatency .Latency }}", latencyMs: {{ .Latency.Milliseconds }} },
             {{ end }}
           ],
+
+          protoLabel(p) {
+            return {
+              vless: "VLESS", vmess: "VMess", trojan: "Trojan",
+              shadowsocks: "Shadowsocks", hysteria: "Hysteria2",
+              socks: "SOCKS", http: "HTTP", wireguard: "WireGuard",
+            }[p] || (p ? p.toUpperCase() : "");
+          },
 
           get stats() {
             const online = this.proxies.filter(p => p.status).length;
