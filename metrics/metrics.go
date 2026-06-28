@@ -6,12 +6,12 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"time"
 
 	"xray-checker/logger"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/common/expfmt"
 )
 
@@ -22,69 +22,142 @@ type RemoteWriteConfig struct {
 	Timeout  time.Duration
 }
 
-var (
-	proxyStatus     *prometheus.GaugeVec
-	proxyLatency    *prometheus.GaugeVec
-	metricsInstance string
-	hasInstance     bool
-)
+// baseLabels are the fixed Prometheus labels every proxy series carries. Custom
+// metricsLabels (#124) are appended after these and may not override them.
+var baseLabels = []string{"protocol", "address", "name", "sub_name", "stable_id", "group_name"}
 
-func InitMetrics(instance string) {
-	metricsInstance = instance
-	hasInstance = instance != ""
+var reservedLabels = func() map[string]bool {
+	m := make(map[string]bool, len(baseLabels)+1)
+	for _, l := range baseLabels {
+		m[l] = true
+	}
+	m["instance"] = true
+	return m
+}()
 
-	labels := []string{"protocol", "address", "name", "sub_name", "stable_id", "group_name"}
-	if hasInstance {
-		labels = append(labels, "instance")
+// ProxyMetric is a point-in-time view of one proxy, rendered into metrics at
+// scrape time by Collector. Building metrics from current state (a pull model)
+// instead of pushing into a fixed-label vector lets custom label keys appear and
+// disappear across subscription updates without resetting any other series to 0.
+type ProxyMetric struct {
+	Protocol     string
+	Address      string
+	Name         string
+	SubName      string
+	StableID     string
+	GroupName    string
+	CustomLabels map[string]string
+	Online       bool
+	LatencyMs    float64
+}
+
+// MetricsSource supplies the current proxy snapshot to the Collector. The checker
+// implements it; the interface keeps the metrics package free of a checker import.
+type MetricsSource interface {
+	MetricsSnapshot() []ProxyMetric
+}
+
+// Collector renders xray_proxy_status / xray_proxy_latency_ms from the current
+// proxy snapshot on every scrape. It is an *unchecked* collector (Describe is a
+// no-op) so the registry permits series whose label-name sets differ across the
+// same metric family — required because each proxy may carry different custom
+// metricsLabels.
+type Collector struct {
+	instance    string
+	hasInstance bool
+	source      MetricsSource
+}
+
+func NewCollector(instance string, source MetricsSource) *Collector {
+	return &Collector{
+		instance:    instance,
+		hasInstance: instance != "",
+		source:      source,
+	}
+}
+
+func (c *Collector) Describe(chan<- *prometheus.Desc) {}
+
+func (c *Collector) Collect(ch chan<- prometheus.Metric) {
+	if c.source == nil {
+		return
+	}
+	for _, pm := range c.source.MetricsSnapshot() {
+		names, values := c.labelsFor(pm)
+		statusDesc := prometheus.NewDesc("xray_proxy_status",
+			"Status of proxy connection (1: success, 0: failure)", names, nil)
+		latencyDesc := prometheus.NewDesc("xray_proxy_latency_ms",
+			"Latency of proxy connection in milliseconds, 0 if failed", names, nil)
+
+		status := 0.0
+		if pm.Online {
+			status = 1.0
+		}
+		ch <- prometheus.MustNewConstMetric(statusDesc, prometheus.GaugeValue, status, values...)
+		ch <- prometheus.MustNewConstMetric(latencyDesc, prometheus.GaugeValue, pm.LatencyMs, values...)
+	}
+}
+
+// labelsFor builds aligned label-name/value slices: the fixed base labels, the
+// optional instance label, then sanitized custom labels in deterministic (sorted)
+// order. Custom keys that are invalid, empty, or collide with an already-used name
+// (a reserved label or another custom key) are skipped so MustNewConstMetric never
+// panics on duplicate/invalid labels.
+func (c *Collector) labelsFor(pm ProxyMetric) ([]string, []string) {
+	names := make([]string, len(baseLabels), len(baseLabels)+1+len(pm.CustomLabels))
+	copy(names, baseLabels)
+	values := []string{pm.Protocol, pm.Address, pm.Name, pm.SubName, pm.StableID, pm.GroupName}
+	if c.hasInstance {
+		names = append(names, "instance")
+		values = append(values, c.instance)
 	}
 
-	proxyStatus = promauto.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "xray_proxy_status",
-			Help: "Status of proxy connection (1: success, 0: failure)",
-		},
-		labels,
-	)
-
-	proxyLatency = promauto.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "xray_proxy_latency_ms",
-			Help: "Latency of proxy connection in milliseconds, 0 if failed",
-		},
-		labels,
-	)
-}
-
-func GetProxyStatusMetric() *prometheus.GaugeVec {
-	return proxyStatus
-}
-
-func GetProxyLatencyMetric() *prometheus.GaugeVec {
-	return proxyLatency
-}
-
-func buildLabelValues(protocol, address, name, subName, stableID, groupName string) []string {
-	labels := []string{protocol, address, name, subName, stableID, groupName}
-	if hasInstance {
-		labels = append(labels, metricsInstance)
+	if len(pm.CustomLabels) > 0 {
+		used := make(map[string]bool, len(names))
+		for _, n := range names {
+			used[n] = true
+		}
+		keys := make([]string, 0, len(pm.CustomLabels))
+		for k := range pm.CustomLabels {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			name := sanitizeLabelName(k)
+			if name == "" || used[name] {
+				continue
+			}
+			used[name] = true
+			names = append(names, name)
+			values = append(values, pm.CustomLabels[k])
+		}
 	}
-	return labels
+	return names, values
 }
 
-func RecordProxyStatus(protocol, address, name, subName, stableID, groupName string, value float64) {
-	proxyStatus.WithLabelValues(buildLabelValues(protocol, address, name, subName, stableID, groupName)...).Set(value)
-}
-
-func RecordProxyLatency(protocol, address, name, subName, stableID, groupName string, value time.Duration) {
-	proxyLatency.WithLabelValues(buildLabelValues(protocol, address, name, subName, stableID, groupName)...).Set(float64(value.Milliseconds()))
-}
-
-func DeleteProxyStatus(protocol, address, name, subName, stableID, groupName string) {
-	proxyStatus.DeleteLabelValues(buildLabelValues(protocol, address, name, subName, stableID, groupName)...)
-}
-
-func DeleteProxyLatency(protocol, address, name, subName, stableID, groupName string) {
-	proxyLatency.DeleteLabelValues(buildLabelValues(protocol, address, name, subName, stableID, groupName)...)
+// sanitizeLabelName coerces a custom key to a valid Prometheus label name
+// ([a-zA-Z_][a-zA-Z0-9_]*): invalid characters become "_" and a leading digit is
+// prefixed with "_". Returns "" if nothing usable remains.
+func sanitizeLabelName(k string) string {
+	if k == "" {
+		return ""
+	}
+	b := make([]byte, 0, len(k))
+	for i := 0; i < len(k); i++ {
+		ch := k[i]
+		switch {
+		case ch >= 'a' && ch <= 'z', ch >= 'A' && ch <= 'Z', ch == '_':
+			b = append(b, ch)
+		case ch >= '0' && ch <= '9':
+			if len(b) == 0 {
+				b = append(b, '_')
+			}
+			b = append(b, ch)
+		default:
+			b = append(b, '_')
+		}
+	}
+	return string(b)
 }
 
 func ParseURL(remoteWriteURL string) (*RemoteWriteConfig, error) {

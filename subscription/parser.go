@@ -1123,6 +1123,27 @@ func (p *Parser) convertWireGuardOutbound(settings json.RawMessage, pc *models.P
 	return pc, nil
 }
 
+// sanitizeMetricsLabels trims label keys and drops entries with an empty key or
+// value. It returns nil for an empty result so proxies without custom labels keep
+// a nil map. Prometheus-name validity is enforced later in the metrics collector.
+func sanitizeMetricsLabels(in map[string]string) map[string]string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(in))
+	for k, v := range in {
+		key := strings.TrimSpace(k)
+		if key == "" || v == "" {
+			continue
+		}
+		out[key] = v
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
 func (p *Parser) convertOutbound(raw json.RawMessage, index int, originalData map[string]*originalLinkData) (*models.ProxyConfig, error) {
 	var baseOutbound struct {
 		Protocol       string                 `json:"protocol"`
@@ -1130,6 +1151,7 @@ func (p *Parser) convertOutbound(raw json.RawMessage, index int, originalData ma
 		SendThrough    string                 `json:"sendThrough"`
 		Settings       json.RawMessage        `json:"settings"`
 		StreamSettings *libXrayStreamSettings `json:"streamSettings"`
+		MetricsLabels  map[string]string      `json:"metricsLabels"`
 	}
 	if err := json.Unmarshal(raw, &baseOutbound); err != nil {
 		return nil, err
@@ -1140,9 +1162,10 @@ func (p *Parser) convertOutbound(raw json.RawMessage, index int, originalData ma
 	}
 
 	pc := &models.ProxyConfig{
-		Index:    index,
-		Name:     baseOutbound.SendThrough,
-		Protocol: baseOutbound.Protocol,
+		Index:         index,
+		Name:          baseOutbound.SendThrough,
+		Protocol:      baseOutbound.Protocol,
+		MetricsLabels: sanitizeMetricsLabels(baseOutbound.MetricsLabels),
 	}
 
 	if pc.Name == "" {

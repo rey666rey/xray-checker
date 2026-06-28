@@ -1,20 +1,15 @@
 package checker
 
 import (
-	"fmt"
-	"sync"
 	"testing"
 	"time"
 
 	"xray-checker/metrics"
 	"xray-checker/models"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 )
-
-var metricsOnce sync.Once
-
-func ensureMetrics() { metricsOnce.Do(func() { metrics.InitMetrics("") }) }
 
 func mkProxy(server, name, stableID string) *models.ProxyConfig {
 	return &models.ProxyConfig{
@@ -27,63 +22,106 @@ func mkProxy(server, name, stableID string) *models.ProxyConfig {
 	}
 }
 
-// recordUp mimics what checkProxyInternal writes on a successful check.
+// recordUp mimics what checkProxyInternal stores on a successful check.
 func recordUp(pc *ProxyChecker, p *models.ProxyConfig, lat time.Duration) {
-	addr := fmt.Sprintf("%s:%d", p.Server, p.Port)
-	metrics.RecordProxyStatus(p.Protocol, addr, p.Name, p.SubName, p.StableID, p.GroupName, 1)
-	metrics.RecordProxyLatency(p.Protocol, addr, p.Name, p.SubName, p.StableID, p.GroupName, lat)
-	pc.currentMetrics.Store(proxyMetricKey(p), true)
-	pc.latencyMetrics.Store(proxyMetricKey(p), lat)
+	pc.results.Store(proxyMetricKey(p), proxyResult{
+		status:    true,
+		latency:   lat,
+		lastCheck: time.Now(),
+	})
 }
 
-// Reproduces the #148 scenario: a subscription update must not blank out metrics,
-// and after the post-update check, series for removed proxies must be pruned.
-func TestUpdateProxiesKeepsMetricsAndReconcilePrunesStale(t *testing.T) {
-	ensureMetrics()
+// statusValue gathers the collector and returns the xray_proxy_status value for a
+// given stable_id.
+func statusValue(t *testing.T, c prometheus.Collector, stableID string) (float64, bool) {
+	t.Helper()
+	reg := prometheus.NewRegistry()
+	if err := reg.Register(c); err != nil {
+		t.Fatalf("register collector: %v", err)
+	}
+	mfs, err := reg.Gather()
+	if err != nil {
+		t.Fatalf("gather: %v", err)
+	}
+	for _, mf := range mfs {
+		if mf.GetName() != "xray_proxy_status" {
+			continue
+		}
+		for _, m := range mf.GetMetric() {
+			for _, l := range m.GetLabel() {
+				if l.GetName() == "stable_id" && l.GetValue() == stableID {
+					return m.GetGauge().GetValue(), true
+				}
+			}
+		}
+	}
+	return 0, false
+}
 
+// Reproduces the #148 scenario under the pull-collector model: a subscription
+// update must not blank out a surviving proxy's metric (no blink to 0), removed
+// proxies drop out immediately, and newly added proxies appear once checked.
+func TestUpdateProxiesNoBlinkAndReflectsCurrentSet(t *testing.T) {
 	a := mkProxy("1.1.1.1", "A", "ida")
 	b := mkProxy("2.2.2.2", "B", "idb")
 	pc := NewProxyChecker([]*models.ProxyConfig{a, b}, 10000, "", 5, "", "", 5, 1, "ip")
+	collector := metrics.NewCollector("", pc)
 
 	// Initial check populated A and B.
 	recordUp(pc, a, 100*time.Millisecond)
 	recordUp(pc, b, 200*time.Millisecond)
-	if got := testutil.CollectAndCount(metrics.GetProxyStatusMetric()); got != 2 {
+	if got := testutil.CollectAndCount(collector, "xray_proxy_status"); got != 2 {
 		t.Fatalf("expected 2 status series after initial check, got %d", got)
 	}
 
-	// Subscription update: B removed, C added.
+	// Subscription update: B removed, C added (not yet checked).
 	c := mkProxy("3.3.3.3", "C", "idc")
 	pc.UpdateProxies([]*models.ProxyConfig{a, c})
 
-	// UpdateProxies must NOT clear existing series (the #148 fix): A and B remain,
-	// so /metrics never goes empty between the update and the next check.
-	if got := testutil.CollectAndCount(metrics.GetProxyStatusMetric()); got != 2 {
-		t.Fatalf("UpdateProxies must not clear metrics; expected 2 series, got %d", got)
+	// Surviving A must keep status 1 across the update — never blink to 0.
+	if v, ok := statusValue(t, collector, "ida"); !ok || v != 1 {
+		t.Fatalf("surviving proxy A must keep status 1 across update, got v=%v ok=%v", v, ok)
 	}
-	if v := testutil.ToFloat64(metrics.GetProxyStatusMetric().WithLabelValues("vless", "1.1.1.1:443", "A", "sub", "ida", "")); v != 1 {
-		t.Fatalf("surviving proxy A must keep status 1 across the update, got %v", v)
+	// Only A is emitted now: B is gone (not in current set), C has no result yet.
+	if got := testutil.CollectAndCount(collector, "xray_proxy_status"); got != 1 {
+		t.Fatalf("after update expected 1 series (A), got %d", got)
 	}
 
-	// Immediate post-update check refreshes A and populates C.
-	recordUp(pc, a, 120*time.Millisecond)
+	// Immediate post-update check populates C.
 	recordUp(pc, c, 300*time.Millisecond)
-
-	pc.ReconcileMetrics()
-
-	// After reconcile: A and C present, B pruned.
-	if got := testutil.CollectAndCount(metrics.GetProxyStatusMetric()); got != 2 {
-		t.Fatalf("after reconcile expected 2 series (A,C), got %d", got)
+	if got := testutil.CollectAndCount(collector, "xray_proxy_status"); got != 2 {
+		t.Fatalf("after post-update check expected 2 series (A,C), got %d", got)
 	}
-	if _, ok := pc.currentMetrics.Load(proxyMetricKey(b)); ok {
-		t.Errorf("removed proxy B should be pruned from currentMetrics")
-	}
-	if _, ok := pc.latencyMetrics.Load(proxyMetricKey(b)); ok {
-		t.Errorf("removed proxy B should be pruned from latencyMetrics")
+
+	// B's stale result lingers in the map but is never emitted; PruneStaleResults
+	// removes it for memory hygiene.
+	pc.PruneStaleResults()
+	if _, ok := pc.results.Load(proxyMetricKey(b)); ok {
+		t.Errorf("removed proxy B should be pruned from results")
 	}
 	for _, p := range []*models.ProxyConfig{a, c} {
-		if _, ok := pc.currentMetrics.Load(proxyMetricKey(p)); !ok {
-			t.Errorf("proxy %s should remain in currentMetrics", p.Name)
+		if _, ok := pc.results.Load(proxyMetricKey(p)); !ok {
+			t.Errorf("proxy %s should remain in results", p.Name)
 		}
+	}
+}
+
+func TestGetProxyResultLastCheck(t *testing.T) {
+	a := mkProxy("1.1.1.1", "A", "ida")
+	pc := NewProxyChecker([]*models.ProxyConfig{a}, 10000, "", 5, "", "", 5, 1, "ip")
+
+	// No result yet: not found, lastCheck 0.
+	if _, _, lc, found := pc.GetProxyResult("A"); found || lc != 0 {
+		t.Fatalf("expected no result before check, got found=%v lastCheck=%d", found, lc)
+	}
+
+	before := time.Now().Unix()
+	recordUp(pc, a, 150*time.Millisecond)
+	online, latency, lc, found := pc.GetProxyResult("A")
+	if !found || !online || latency != 150*time.Millisecond {
+		t.Fatalf("unexpected result: online=%v latency=%v found=%v", online, latency, found)
+	}
+	if lc < before {
+		t.Fatalf("lastCheck %d should be >= %d", lc, before)
 	}
 }

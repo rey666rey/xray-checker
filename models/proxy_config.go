@@ -49,6 +49,12 @@ type ProxyConfig struct {
 	SubName              string
 	GroupName            string
 
+	// MetricsLabels holds operator-defined static labels parsed from a JSON
+	// outbound's "metricsLabels" object. They are exported as extra Prometheus
+	// labels and in the API, but are deliberately NOT part of GenerateStableID
+	// (they are metadata, not connection identity).
+	MetricsLabels map[string]string
+
 	// Hysteria2 fields
 	HysteriaAuth         string
 	HysteriaUp           string
