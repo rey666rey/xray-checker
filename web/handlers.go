@@ -20,6 +20,7 @@ var (
 
 type EndpointInfo struct {
 	Name       string
+	Protocol   string
 	ServerInfo string
 	URL        string
 	ProxyPort  int
@@ -62,6 +63,9 @@ func IndexHandler(version string, proxyChecker *checker.ProxyChecker) http.Handl
 					Latency:   ep.Latency,
 					StableID:  ep.StableID,
 					GroupName: ep.GroupName,
+				}
+				if config.CLIConfig.Web.PublicShowProtocol {
+					e.Protocol = ep.Protocol
 				}
 				if showServerDetails {
 					e.ServerInfo = ep.ServerInfo
@@ -171,6 +175,7 @@ func RegisterConfigEndpoints(proxies []*models.ProxyConfig, proxyChecker *checke
 
 		endpoints = append(endpoints, EndpointInfo{
 			Name:       proxy.Name,
+			Protocol:   proxy.Protocol,
 			ServerInfo: fmt.Sprintf("%s:%d", proxy.Server, proxy.Port),
 			URL:        endpoint,
 			ProxyPort:  startPort + proxy.Index,

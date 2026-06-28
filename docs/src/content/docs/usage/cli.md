@@ -83,6 +83,7 @@ All proxies from all subscriptions will be combined and monitored together.
   --web-show-details=false \
   --web-public=false \
   --web-trusted-external-auth=false \
+  --web-public-show-protocol=false \
   --web-custom-assets-path="" \
   --log-level=info \
   --run-once=false
