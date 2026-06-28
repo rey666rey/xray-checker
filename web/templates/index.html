@@ -969,6 +969,7 @@
                     ></a>
                     {{ end }}
                     <span
+                      x-show="item.proxy.protocol"
                       class="proto-badge"
                       :class="'proto-' + item.proxy.protocol"
                       x-text="protoLabel(item.proxy.protocol)"

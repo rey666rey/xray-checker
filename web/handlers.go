@@ -58,12 +58,14 @@ func IndexHandler(version string, proxyChecker *checker.ProxyChecker) http.Handl
 			for i, ep := range allEndpoints {
 				e := EndpointInfo{
 					Name:      ep.Name,
-					Protocol:  ep.Protocol,
 					Index:     ep.Index,
 					Status:    ep.Status,
 					Latency:   ep.Latency,
 					StableID:  ep.StableID,
 					GroupName: ep.GroupName,
+				}
+				if config.CLIConfig.Web.PublicShowProtocol {
+					e.Protocol = ep.Protocol
 				}
 				if showServerDetails {
 					e.ServerInfo = ep.ServerInfo
