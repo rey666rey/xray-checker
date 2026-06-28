@@ -196,6 +196,14 @@ This option requires `METRICS_PROTECTED=true`. The `/metrics` endpoint and API w
 
 Allows server details (`WEB_SHOW_DETAILS`) to be shown in public mode. By default, public mode hides server addresses and ports even when `WEB_SHOW_DETAILS=true`. Enable this only when the dashboard is protected by an **external auth proxy** (e.g. Authelia, Authentik, Cloudflare Access, or nginx basic auth) — you are asserting that the dashboard is already access-controlled, so it is safe to expose details.
 
+### WEB_PUBLIC_SHOW_PROTOCOL
+
+- CLI: `--web-public-show-protocol`
+- Required: No
+- Default: `false`
+
+Shows the protocol badge (VLESS, VMess, Trojan, Shadowsocks, Hysteria2, WireGuard, SOCKS, HTTP) on dashboard cards in public mode. The badge is always shown in normal mode. This affects only the badge — server addresses, ports and config links remain hidden in public mode.
+
 ### WEB_CUSTOM_ASSETS_PATH
 
 - CLI: `--web-custom-assets-path`

@@ -37,6 +37,7 @@ xray-checker --web-public
 | Proxy Name            | ✓ Visible   | ✓ Visible   |
 | Status                | ✓ Visible   | ✓ Visible   |
 | Latency               | ✓ Visible   | ✓ Visible   |
+| Protocol              | ✗ Hidden¹   | ✓ Visible   |
 | Server Address        | ✗ Hidden    | ✓ Visible   |
 | Port                  | ✗ Hidden    | ✓ Visible   |
 | Local Proxy Port      | ✗ Hidden    | ✓ Visible   |
@@ -45,6 +46,14 @@ xray-checker --web-public
 :::tip[Showing details behind an external auth proxy]
 If your public dashboard sits behind an external authentication proxy (Authelia, Authentik, Cloudflare Access, nginx basic auth, …), you can re-enable server details with [`WEB_TRUSTED_EXTERNAL_AUTH=true`](/configuration/envs#web_trusted_external_auth) together with `WEB_SHOW_DETAILS=true`. Only enable this when access is actually controlled by that external layer.
 :::
+
+¹ The protocol badge is hidden in public mode by default. See [Protocol Badge](#protocol-badge) below to enable it.
+
+## Protocol Badge
+
+Each proxy card shows a small colored badge with its protocol (VLESS, VMess, Trojan, Shadowsocks, Hysteria2, WireGuard, SOCKS, HTTP). It is always shown in normal mode.
+
+In public mode the badge is hidden by default. To show it without exposing any other server details, enable [`WEB_PUBLIC_SHOW_PROTOCOL=true`](/configuration/envs#web_public_show_protocol). This affects only the badge — server addresses, ports and config links stay hidden.
 
 ## Grouped View
 
