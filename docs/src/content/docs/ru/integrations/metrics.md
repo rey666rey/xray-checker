@@ -14,7 +14,7 @@ Xray Checker предоставляет две метрики Prometheus для 
 - Тип: Gauge
 - Значения: 1 (работает) или 0 (не работает)
 - Метки:
-  - `protocol`: Протокол прокси (vless/vmess/trojan/shadowsocks/hysteria/socks/http)
+  - `protocol`: Протокол прокси (vless/vmess/trojan/shadowsocks/hysteria/socks/http/wireguard)
   - `address`: Адрес и порт сервера
   - `name`: Имя конфигурации прокси
   - `stable_id`: Стабильный идентификатор для каждого прокси; сохраняет уникальность каждой серии даже при совпадении имён и остаётся неизменным при перезапусках/переупорядочивании

@@ -14,7 +14,7 @@ Status metric indicating proxy availability:
 - Type: Gauge
 - Values: 1 (working) or 0 (failed)
 - Labels:
-  - `protocol`: Proxy protocol (vless/vmess/trojan/shadowsocks/hysteria/socks/http)
+  - `protocol`: Proxy protocol (vless/vmess/trojan/shadowsocks/hysteria/socks/http/wireguard)
   - `address`: Server address and port
   - `name`: Proxy configuration name
   - `stable_id`: Stable per-proxy identifier; keeps each series distinct even when names collide, and stays the same across restarts/reorders

@@ -57,6 +57,16 @@ type ProxyConfig struct {
 	HysteriaHopInterval  int32
 	HysteriaObfs         string
 	HysteriaObfsPassword string
+
+	// WireGuard fields (Server/Port hold the peer endpoint).
+	WGPrivateKey    string
+	WGPeerPublicKey string
+	WGPreSharedKey  string
+	WGAddresses     []string
+	WGAllowedIPs    []string
+	WGMTU           int
+	WGKeepalive     int
+	WGDNS           []string
 }
 
 func (pc *ProxyConfig) Validate() error {
@@ -90,6 +100,10 @@ func (pc *ProxyConfig) Validate() error {
 	case "socks", "http":
 		// Forward proxies need only server/port (checked above); credentials
 		// are optional.
+	case "wireguard":
+		if pc.WGPrivateKey == "" || pc.WGPeerPublicKey == "" {
+			return fmt.Errorf("private key and peer public key are required for WireGuard")
+		}
 	default:
 		return fmt.Errorf("unsupported protocol: %s", pc.Protocol)
 	}
@@ -133,6 +147,11 @@ func (pc *ProxyConfig) GenerateStableID() string {
 	case "hysteria":
 		write("ports", pc.HysteriaPorts)
 		write("obfs", pc.HysteriaObfs)
+	case "wireguard":
+		// Peer public key and tunnel address are public and distinguish configs;
+		// the private key (a secret) is deliberately excluded.
+		write("wgpub", pc.WGPeerPublicKey)
+		write("wgaddr", strings.Join(pc.WGAddresses, ","))
 	}
 
 	write("encryption", pc.Encryption)

@@ -10,6 +10,8 @@ tableOfContents: false
 
 - 🧦 بررسی [پروکسی‌های فورواردِ ساده SOCKS / HTTP / HTTPS](/fa/configuration/subscription#۷-پروکسیهای-socks-http-و-https) در کنار پروتکل‌های Xray
 
+- 🔒 بررسی سرورهای [WireGuard](/fa/configuration/subscription#۸-wireguard) (در فضای کاربری، بدون نیاز به ماژول کرنل)
+
 - 🔄 به‌روزرسانی خودکار پیکربندی پروکسی از URL‌های اشتراک با [فواصل قابل تنظیم](/fa/configuration/envs#subscription_update_interval)
 
 - 📊 [صدور متریک‌ها](/fa/integrations/metrics) در فرمت Prometheus با اطلاعات وضعیت و تأخیر پروکسی
@@ -35,6 +37,7 @@ tableOfContents: false
   - 📁 پوشه‌های پیکربندی
   - ⚖️ [اشتراک‌های JSON با متعادل‌کننده](/fa/configuration/subscription#۶-اشتراک-json-متعادلکنندهها) — هر نود به‌صورت جداگانه ردیابی می‌شود
   - 🧦 پروکسی‌های فورواردِ SOCKS / HTTP / HTTPS
+  - 🔒 [WireGuard](/fa/configuration/subscription#۸-wireguard) (`wg://` یا یک outbound از نوع `wireguard` در JSON)
 
 - 🔧 هدرهای درخواست اشتراک سفارشی و `User-Agent` برای پنل‌هایی که با توکن محدود شده‌اند یا مخصوص اپلیکیشن هستند
 

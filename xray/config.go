@@ -270,9 +270,38 @@ func (g *ConfigGenerator) generateProxyOutbound(proxy *models.ProxyConfig) map[s
 		outbound["settings"] = map[string]interface{}{
 			"servers": []map[string]interface{}{server},
 		}
+
+	case "wireguard":
+		peer := map[string]interface{}{
+			"publicKey": proxy.WGPeerPublicKey,
+			"endpoint":  fmt.Sprintf("%s:%d", proxy.Server, proxy.Port),
+		}
+		if len(proxy.WGAllowedIPs) > 0 {
+			peer["allowedIPs"] = proxy.WGAllowedIPs
+		} else {
+			peer["allowedIPs"] = []string{"0.0.0.0/0", "::/0"}
+		}
+		if proxy.WGPreSharedKey != "" {
+			peer["preSharedKey"] = proxy.WGPreSharedKey
+		}
+		if proxy.WGKeepalive > 0 {
+			peer["keepAlive"] = proxy.WGKeepalive
+		}
+		settings := map[string]interface{}{
+			"secretKey": proxy.WGPrivateKey,
+			"address":   proxy.WGAddresses,
+			"peers":     []map[string]interface{}{peer},
+		}
+		if proxy.WGMTU > 0 {
+			settings["mtu"] = proxy.WGMTU
+		}
+		outbound["settings"] = settings
 	}
 
-	outbound["streamSettings"] = g.generateStreamSettings(proxy)
+	// WireGuard is its own transport and takes no streamSettings.
+	if proxy.Protocol != "wireguard" {
+		outbound["streamSettings"] = g.generateStreamSettings(proxy)
+	}
 
 	return outbound
 }

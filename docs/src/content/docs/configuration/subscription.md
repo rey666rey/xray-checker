@@ -209,6 +209,60 @@ https://user:pass@host:port?sni=real.example.com&verifyPeerCertByName=real.examp
 | `verifyPeerCertByName` | `vcn` | Verify the cert against this name instead of the host |
 | `sni` | — | TLS Server Name (defaults to the host) |
 
+### 8. WireGuard
+
+WireGuard servers can be health-checked too. Add them as subscription lines (any source — URL, `base64://`, `file://`, or inline) using the `wg://` scheme, where the payload is the **Base64 of a standard WireGuard `.conf`**:
+
+```
+wg://<base64 of the .conf>#name
+```
+
+The decoded `.conf` is the regular WireGuard config you get from your provider:
+
+```ini
+[Interface]
+PrivateKey = <client private key>
+Address = 10.9.0.2/32
+DNS = 1.1.1.1            # optional, ignored by the checker
+MTU = 1420               # optional (default 1420)
+
+[Peer]
+PublicKey = <server public key>
+PresharedKey = <psk>     # optional
+Endpoint = wg.example.com:51820
+AllowedIPs = 0.0.0.0/0, ::/0
+PersistentKeepalive = 25 # optional
+```
+
+- The peer `Endpoint` (`host:port`) is what gets checked. The first `[Peer]` is used.
+- The `#name` fragment sets the display name (defaults to `wireguard-<host>`).
+- Standard, unobfuscated WireGuard only. (AmneziaWG / `awg://` is not supported.)
+
+WireGuard also works inside a [JSON subscription](#6-json-subscription-balancers) — a `wireguard` outbound in the Xray JSON config is parsed automatically:
+
+```json
+{
+  "protocol": "wireguard",
+  "settings": {
+    "secretKey": "<client private key>",
+    "address": ["10.9.0.2/32"],
+    "mtu": 1420,
+    "peers": [
+      {
+        "publicKey": "<server public key>",
+        "endpoint": "wg.example.com:51820",
+        "allowedIPs": ["0.0.0.0/0", "::/0"],
+        "keepAlive": 25
+      }
+    ]
+  }
+}
+```
+
+:::note[TUN mode and performance]
+WireGuard runs in userspace (no kernel module needed). The network layer is either a real **kernel TUN** interface (fast, scales to many tunnels) or a **gVisor** userspace netstack (works with no privileges, e.g. macOS, but heavier). Kernel TUN needs `/dev/net/tun` and `CAP_NET_ADMIN`; in Docker pass `--cap-add NET_ADMIN --device /dev/net/tun`. For subscriptions with many WireGuard configs, kernel TUN is recommended (and give `PROXY_TIMEOUT` some headroom).
+:::
+
 ## Custom Request Headers
 
 Panels that gate the subscription behind a token or a specific client can be satisfied with a custom `User-Agent` and arbitrary headers:
