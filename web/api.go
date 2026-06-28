@@ -21,20 +21,25 @@ type ProxyInfo struct {
 	StableID        string                 `json:"stableId"`
 	Name            string                 `json:"name"`
 	SubName         string                 `json:"subName"`
+	GroupName       string                 `json:"groupName"`
 	Server          string                 `json:"server"`
 	Port            int                    `json:"port"`
 	Protocol        string                 `json:"protocol"`
 	ProxyPort       int                    `json:"proxyPort"`
 	Online          bool                   `json:"online"`
 	LatencyMs       int64                  `json:"latencyMs"`
+	LastCheck       int64                  `json:"lastCheck"`
+	MetricsLabels   map[string]string      `json:"metricsLabels,omitempty"`
 	GeneratedConfig map[string]interface{} `json:"generatedConfig,omitempty"`
 }
 
 type PublicProxyInfo struct {
 	StableID  string `json:"stableId"`
 	Name      string `json:"name"`
+	GroupName string `json:"groupName"`
 	Online    bool   `json:"online"`
 	LatencyMs int64  `json:"latencyMs"`
+	LastCheck int64  `json:"lastCheck"`
 }
 
 type StatusResponse struct {
@@ -89,18 +94,21 @@ func writeError(w http.ResponseWriter, message string, code int) {
 	})
 }
 
-func toProxyInfo(proxy *models.ProxyConfig, online bool, latency time.Duration, startPort int, includeDetails bool) ProxyInfo {
+func toProxyInfo(proxy *models.ProxyConfig, online bool, latency time.Duration, lastCheck int64, startPort int, includeDetails bool) ProxyInfo {
 	info := ProxyInfo{
-		Index:     proxy.Index,
-		StableID:  proxy.StableID,
-		Name:      proxy.Name,
-		SubName:   proxy.SubName,
-		Server:    proxy.Server,
-		Port:      proxy.Port,
-		Protocol:  proxy.Protocol,
-		ProxyPort: startPort + proxy.Index,
-		Online:    online,
-		LatencyMs: latency.Milliseconds(),
+		Index:         proxy.Index,
+		StableID:      proxy.StableID,
+		Name:          proxy.Name,
+		SubName:       proxy.SubName,
+		GroupName:     proxy.GroupName,
+		Server:        proxy.Server,
+		Port:          proxy.Port,
+		Protocol:      proxy.Protocol,
+		ProxyPort:     startPort + proxy.Index,
+		Online:        online,
+		LatencyMs:     latency.Milliseconds(),
+		LastCheck:     lastCheck,
+		MetricsLabels: proxy.MetricsLabels,
 	}
 	if includeDetails {
 		outbound := xray.NewConfigGenerator().GenerateProxyOutbound(proxy)
@@ -202,12 +210,14 @@ func APIPublicProxiesHandler(proxyChecker *checker.ProxyChecker) http.HandlerFun
 		result := make([]PublicProxyInfo, 0, len(proxies))
 
 		for _, proxy := range proxies {
-			status, latency, _ := proxyChecker.GetProxyStatus(proxy.Name)
+			status, latency, lastCheck, _ := proxyChecker.GetProxyResult(proxy.Name)
 			result = append(result, PublicProxyInfo{
 				StableID:  proxy.StableID,
 				Name:      proxy.Name,
+				GroupName: proxy.GroupName,
 				Online:    status,
 				LatencyMs: latency.Milliseconds(),
+				LastCheck: lastCheck,
 			})
 		}
 
@@ -229,8 +239,8 @@ func APIProxiesHandler(proxyChecker *checker.ProxyChecker, startPort int) http.H
 		includeDetails := shouldShowServerDetails()
 
 		for _, proxy := range proxies {
-			status, latency, _ := proxyChecker.GetProxyStatus(proxy.Name)
-			result = append(result, toProxyInfo(proxy, status, latency, startPort, includeDetails))
+			status, latency, lastCheck, _ := proxyChecker.GetProxyResult(proxy.Name)
+			result = append(result, toProxyInfo(proxy, status, latency, lastCheck, startPort, includeDetails))
 		}
 
 		writeJSON(w, result)
@@ -267,8 +277,8 @@ func APIProxyHandler(proxyChecker *checker.ProxyChecker, startPort int) http.Han
 			return
 		}
 
-		status, latency, _ := proxyChecker.GetProxyStatus(proxy.Name)
-		writeJSON(w, toProxyInfo(proxy, status, latency, startPort, shouldShowServerDetails()))
+		status, latency, lastCheck, _ := proxyChecker.GetProxyResult(proxy.Name)
+		writeJSON(w, toProxyInfo(proxy, status, latency, lastCheck, startPort, shouldShowServerDetails()))
 	}
 }
 

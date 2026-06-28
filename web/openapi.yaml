@@ -205,6 +205,10 @@ components:
         name:
           type: string
           example: "US-Server-1"
+        groupName:
+          type: string
+          description: Group name (e.g. a balancer group); empty for ungrouped proxies
+          example: ""
         online:
           type: boolean
           example: true
@@ -212,6 +216,11 @@ components:
           type: integer
           format: int64
           example: 150
+        lastCheck:
+          type: integer
+          format: int64
+          description: Unix timestamp (seconds) of the last check; 0 if not checked yet
+          example: 1751130000
 
     ProxyInfo:
       type: object
@@ -229,6 +238,10 @@ components:
           type: string
           description: Subscription name this proxy belongs to
           example: "Premium VPN"
+        groupName:
+          type: string
+          description: Group name (e.g. a balancer group); empty for ungrouped proxies
+          example: ""
         server:
           type: string
           example: "192.168.1.1"
@@ -237,7 +250,7 @@ components:
           example: 443
         protocol:
           type: string
-          enum: [vless, vmess, trojan, shadowsocks]
+          enum: [vless, vmess, trojan, shadowsocks, hysteria, socks, http, wireguard]
           example: "vless"
         proxyPort:
           type: integer
@@ -249,6 +262,19 @@ components:
           type: integer
           format: int64
           example: 150
+        lastCheck:
+          type: integer
+          format: int64
+          description: Unix timestamp (seconds) of the last check; 0 if not checked yet
+          example: 1751130000
+        metricsLabels:
+          type: object
+          additionalProperties:
+            type: string
+          description: Operator-defined static labels from the outbound JSON (metricsLabels), also exported as Prometheus labels
+          example:
+            location: "Netherlands, Amsterdam"
+            hoster: "FreeVDS"
 
     StatusResponse:
       type: object
