@@ -1,11 +1,10 @@
 {{ define "index.html" }}
 <!DOCTYPE html>
-<html lang="en" x-data="dashboard()" :class="{ 'light': !darkMode }" x-cloak>
+<html lang="en" x-data="dashboard()" :class="{ 'light': !darkMode, 'no-bg': hideBackground }" x-cloak>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex, nofollow" />
-    <meta name="color-scheme" content="dark only" />
     <title>
       {{ if and .IsPublic .SubscriptionName }}{{ .SubscriptionName }}{{ else
       }}Xray Checker{{ end }}
@@ -88,6 +87,17 @@
         --filter-offline-bg: rgba(255, 0, 0, 0.15);
         --btn-active-bg: rgba(0, 166, 61, 0.1);
         --btn-active-border: rgba(0, 166, 61, 0.3);
+      }
+
+      /* color-scheme drives native controls/scrollbars. Set via CSS (not a
+         forced `dark only` meta) so the transparent embed below can override it
+         to `normal` — a forced scheme makes the browser paint an opaque canvas
+         and breaks hideBackground=true transparency in an iframe. */
+      html {
+        color-scheme: dark;
+      }
+      html.light {
+        color-scheme: light;
       }
 
       body {
@@ -380,9 +390,17 @@
         background: var(--color-red);
       }
 
-      /* Transparent background */
+      /* Transparent background (for embedding in an iframe).
+         Applied to both <html> and <body>, and paired with `color-scheme:
+         normal` on the root below: a transparent body alone is not enough,
+         because a non-normal color-scheme makes the browser paint an opaque
+         canvas behind it. Neutralizing the scheme on the root lets the
+         transparent document compose over the parent page. */
       .no-bg {
         background: transparent !important;
+      }
+      html.no-bg {
+        color-scheme: normal;
       }
 
       /* Badge mode */
