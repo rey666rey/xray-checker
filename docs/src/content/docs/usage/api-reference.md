@@ -37,12 +37,17 @@ Returns proxy status without sensitive data (no server IPs/ports). Used by the w
     {
       "stableId": "a1b2c3d4e5f67890",
       "name": "US-Server-1",
+      "groupName": "",
       "online": true,
-      "latencyMs": 150
+      "latencyMs": 150,
+      "lastCheck": 1751130000
     }
   ]
 }
 ```
+
+- `groupName`: balancer/group name (empty for ungrouped proxies).
+- `lastCheck`: Unix timestamp (seconds) of the last check; `0` if not checked yet.
 
 ## Protected Endpoints
 
@@ -112,16 +117,26 @@ Returns full information for all proxies.
       "stableId": "a1b2c3d4e5f67890",
       "name": "US-Server-1",
       "subName": "Premium VPN",
+      "groupName": "",
       "server": "192.168.1.1",
       "port": 443,
       "protocol": "vless",
       "proxyPort": 10000,
       "online": true,
-      "latencyMs": 150
+      "latencyMs": 150,
+      "lastCheck": 1751130000,
+      "metricsLabels": {
+        "location": "Netherlands, Amsterdam",
+        "hoster": "FreeVDS"
+      }
     }
   ]
 }
 ```
+
+- `groupName`: balancer/group name (empty for ungrouped proxies).
+- `lastCheck`: Unix timestamp (seconds) of the last check; `0` if not checked yet.
+- `metricsLabels`: operator-defined labels from the outbound JSON (see [Custom Metric Labels](/configuration/subscription#9-custom-metric-labels)); omitted when none are set.
 
 :::note[Generated config]
 When `WEB_SHOW_DETAILS` is enabled (and, in public mode, `WEB_TRUSTED_EXTERNAL_AUTH`), each item also includes a `generatedConfig` object — the Xray outbound generated for that proxy, with secrets (uuid, password, auth, kcp seed) masked. It is omitted otherwise.

@@ -248,3 +248,46 @@ func TestConvertOutboundJSON_WireGuardAndSocksHttp(t *testing.T) {
 		t.Fatalf("http JSON convert failed: %+v err=%v", ht, err)
 	}
 }
+
+func TestConvertOutboundJSON_MetricsLabels(t *testing.T) {
+	p := NewParser()
+
+	raw := []byte(`{
+		"protocol":"trojan","tag":"proxy",
+		"settings":{"servers":[{"address":"1.1.1.1","port":443,"password":"pw"}]},
+		"metricsLabels":{"location":"Netherlands, Amsterdam","hoster":"FreeVDS"," ":"x","empty":""}
+	}`)
+	pc, err := p.convertOutbound(raw, 0, nil)
+	if err != nil || pc == nil {
+		t.Fatalf("convert err=%v pc=%v", err, pc)
+	}
+	if pc.MetricsLabels["location"] != "Netherlands, Amsterdam" || pc.MetricsLabels["hoster"] != "FreeVDS" {
+		t.Errorf("metricsLabels not parsed: %v", pc.MetricsLabels)
+	}
+	// blank key and empty value are dropped by sanitizeMetricsLabels
+	if _, ok := pc.MetricsLabels[" "]; ok {
+		t.Errorf("blank key should be dropped: %v", pc.MetricsLabels)
+	}
+	if _, ok := pc.MetricsLabels["empty"]; ok {
+		t.Errorf("empty value should be dropped: %v", pc.MetricsLabels)
+	}
+	if len(pc.MetricsLabels) != 2 {
+		t.Errorf("expected 2 labels, got %d: %v", len(pc.MetricsLabels), pc.MetricsLabels)
+	}
+
+	// MetricsLabels must NOT affect the connection-identity hash (stableID).
+	pc2, _ := p.convertOutbound([]byte(`{
+		"protocol":"trojan","tag":"proxy",
+		"settings":{"servers":[{"address":"1.1.1.1","port":443,"password":"pw"}]},
+		"metricsLabels":{"location":"Germany"}
+	}`), 0, nil)
+	if pc.GenerateStableID() != pc2.GenerateStableID() {
+		t.Errorf("metricsLabels must not change stableID: %s vs %s", pc.GenerateStableID(), pc2.GenerateStableID())
+	}
+
+	// No metricsLabels -> nil map.
+	pc3, _ := p.convertOutbound([]byte(`{"protocol":"trojan","tag":"p","settings":{"servers":[{"address":"2.2.2.2","port":443,"password":"pw"}]}}`), 0, nil)
+	if pc3.MetricsLabels != nil {
+		t.Errorf("expected nil MetricsLabels, got %v", pc3.MetricsLabels)
+	}
+}

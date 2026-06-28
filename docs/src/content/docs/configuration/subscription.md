@@ -263,6 +263,34 @@ WireGuard also works inside a [JSON subscription](#6-json-subscription-balancers
 WireGuard runs in userspace (no kernel module needed). The network layer is either a real **kernel TUN** interface (fast, scales to many tunnels) or a **gVisor** userspace netstack (works with no privileges, e.g. macOS, but heavier). Kernel TUN needs `/dev/net/tun` and `CAP_NET_ADMIN`; in Docker pass `--cap-add NET_ADMIN --device /dev/net/tun`. For subscriptions with many WireGuard configs, kernel TUN is recommended (and give `PROXY_TIMEOUT` some headroom).
 :::
 
+### 9. Custom Metric Labels
+
+Any outbound in a JSON subscription (sections [3](#3-v2ray-json-file), [4](#4-xray-json-array-multi-config) and [6](#6-json-subscription-balancers)) may carry a `metricsLabels` object with operator-defined static labels. Each entry becomes an extra label on that proxy's `xray_proxy_status` and `xray_proxy_latency_ms` metrics, and is returned by the API under `metricsLabels`. This lets you filter and aggregate by attributes like location or hoster directly in PromQL and Grafana.
+
+```json
+{
+  "protocol": "trojan",
+  "tag": "proxy",
+  "settings": { "servers": [{ "address": "1.1.1.1", "port": 443, "password": "..." }] },
+  "metricsLabels": {
+    "location": "Netherlands, Amsterdam",
+    "hoster": "FreeVDS"
+  }
+}
+```
+
+The labels are then attached to the metric:
+
+```text
+xray_proxy_status{protocol="trojan",address="1.1.1.1:443",name="proxy",...,location="Netherlands, Amsterdam",hoster="FreeVDS"} 1
+```
+
+Notes:
+
+- Keys are sanitized to valid Prometheus label names (e.g. `data center` → `data_center`); keys that collide with built-in labels (`protocol`, `address`, `name`, `sub_name`, `stable_id`, `group_name`, `instance`) are ignored.
+- Labels are a JSON-subscription feature only — share links (`vless://`, …) have nowhere to carry them.
+- Changing a label and updating the subscription applies on the next refresh **without resetting other proxies' series to 0**. See [`metricsLabels` on metrics](/integrations/metrics#custom-labels).
+
 ## Custom Request Headers
 
 Panels that gate the subscription behind a token or a specific client can be satisfied with a custom `User-Agent` and arbitrary headers:

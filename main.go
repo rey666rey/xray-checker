@@ -80,12 +80,6 @@ func main() {
 		}
 	}()
 
-	metrics.InitMetrics(config.CLIConfig.Metrics.Instance)
-
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(metrics.GetProxyStatusMetric())
-	registry.MustRegister(metrics.GetProxyLatencyMetric())
-
 	proxyChecker := checker.NewProxyChecker(
 		*proxyConfigs,
 		config.CLIConfig.Xray.StartPort,
@@ -97,6 +91,12 @@ func main() {
 		config.CLIConfig.Proxy.DownloadMinSize,
 		config.CLIConfig.Proxy.CheckMethod,
 	)
+
+	// The collector renders metrics from the checker's current proxy snapshot on
+	// each scrape, so custom metricsLabels (#124) can change across subscription
+	// updates without resetting other series.
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(metrics.NewCollector(config.CLIConfig.Metrics.Instance, proxyChecker))
 
 	runCheckIteration := func() {
 		logger.Info("Starting proxy check iteration")
@@ -156,7 +156,7 @@ func main() {
 					// right away instead of staying empty until the next scheduled check
 					// (up to PROXY_CHECK_INTERVAL), then drop series for removed proxies.
 					runCheckIteration()
-					proxyChecker.ReconcileMetrics()
+					proxyChecker.PruneStaleResults()
 				}
 			} else {
 				logger.Info("Subscriptions checked, no changes")

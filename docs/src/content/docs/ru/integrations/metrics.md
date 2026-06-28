@@ -49,3 +49,13 @@ xray_proxy_status{protocol="vless",address="example.com:443",name="proxy1",stabl
 # TYPE xray_proxy_latency_ms gauge
 xray_proxy_latency_ms{protocol="vless",address="example.com:443",name="proxy1",stable_id="a1b2c3d4e5f67890",sub_name="Premium VPN",group_name="",instance="dc1"} 156
 ```
+
+### Кастомные лейблы
+
+Outbound в [JSON-подписке](/ru/configuration/subscription#9-кастомные-лейблы-метрик) может содержать объект `metricsLabels`. Его записи добавляются как дополнительные лейблы на обеих метриках этого прокси, рядом со встроенными лейблами выше:
+
+```text
+xray_proxy_status{protocol="trojan",address="1.1.1.1:443",name="proxy1",stable_id="a1b2c3d4e5f67890",sub_name="",group_name="",location="Netherlands, Amsterdam",hoster="FreeVDS"} 1
+```
+
+Разные прокси могут нести разные ключи лейблов; прокси без `metricsLabels` сохраняет только встроенный набор. Ключи приводятся к корректным именам Prometheus и не могут переопределять встроенные лейблы. Метрики формируются из текущего набора прокси на каждый scrape, поэтому кастомные лейблы можно добавлять, менять и удалять при обновлении подписки без сброса других серий в 0.

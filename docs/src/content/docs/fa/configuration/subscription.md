@@ -263,6 +263,34 @@ WireGuard در داخل [اشتراک JSON](#۶-اشتراک-json-متعادلک
 WireGuard در فضای کاربری (userspace) اجرا می‌شود (نیازی به ماژول کرنل نیست). لایه شبکه یا یک اینترفیس واقعی **kernel TUN** است (سریع و مقیاس‌پذیر برای تعداد زیادی تونل) یا یک netstack فضای‌کاربری **gVisor** (بدون نیاز به هیچ دسترسی ویژه‌ای کار می‌کند، مثلاً در macOS، اما سنگین‌تر است). برای kernel TUN به `/dev/net/tun` و `CAP_NET_ADMIN` نیاز است؛ در Docker با `--cap-add NET_ADMIN --device /dev/net/tun` آن‌ها را فراهم کنید. برای اشتراک‌هایی با تعداد زیادی پیکربندی WireGuard، استفاده از kernel TUN توصیه می‌شود (و کمی به `PROXY_TIMEOUT` فضای بیشتر بدهید).
 :::
 
+### ۹. لیبل‌های سفارشی متریک
+
+هر outbound در یک اشتراک JSON (بخش‌های [۳](#۳-فایل-json-v2ray)، [۴](#۴-آرایه-json-xray-چند-پیکربندی) و [۶](#۶-اشتراک-json-متعادلکنندهها)) می‌تواند یک شیء `metricsLabels` با لیبل‌های ثابتِ تعیین‌شده توسط اپراتور داشته باشد. هر مدخل به یک لیبل اضافی روی متریک‌های `xray_proxy_status` و `xray_proxy_latency_ms` آن پروکسی تبدیل می‌شود و در API در فیلد `metricsLabels` بازگردانده می‌شود. این کار امکان فیلتر و تجمیع بر اساس ویژگی‌هایی مانند موقعیت یا میزبان را مستقیماً در PromQL و Grafana فراهم می‌کند.
+
+```json
+{
+  "protocol": "trojan",
+  "tag": "proxy",
+  "settings": { "servers": [{ "address": "1.1.1.1", "port": 443, "password": "..." }] },
+  "metricsLabels": {
+    "location": "Netherlands, Amsterdam",
+    "hoster": "FreeVDS"
+  }
+}
+```
+
+سپس لیبل‌ها به متریک افزوده می‌شوند:
+
+```text
+xray_proxy_status{protocol="trojan",address="1.1.1.1:443",name="proxy",...,location="Netherlands, Amsterdam",hoster="FreeVDS"} 1
+```
+
+نکات:
+
+- کلیدها به نام‌های معتبر لیبل Prometheus تبدیل می‌شوند (مثلاً `data center` ← `data_center`)؛ کلیدهایی که با لیبل‌های داخلی (`protocol`، `address`، `name`، `sub_name`، `stable_id`، `group_name`، `instance`) تداخل دارند نادیده گرفته می‌شوند.
+- این لیبل‌ها فقط ویژگیِ اشتراک JSON هستند — لینک‌های اشتراک (`vless://` و …) جایی برای حمل آن‌ها ندارند.
+- تغییر یک لیبل و به‌روزرسانی اشتراک در به‌روزرسانی بعدی اعمال می‌شود **بدون بازنشانی سری‌های سایر پروکسی‌ها به ۰**. به [`metricsLabels` روی متریک‌ها](/fa/integrations/metrics#لیبلهای-سفارشی) مراجعه کنید.
+
 ## هدرهای درخواست سفارشی
 
 پنل‌هایی که اشتراک را پشت یک توکن یا کلاینت خاص قرار می‌دهند، می‌توانند با یک `User-Agent` سفارشی و هدرهای دلخواه برآورده شوند:
