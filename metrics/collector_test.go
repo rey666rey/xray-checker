@@ -106,6 +106,32 @@ func TestCollectorInstanceAndSanitizeAndReserved(t *testing.T) {
 	}
 }
 
+func TestCollectorSkipsReservedPrefix(t *testing.T) {
+	src := fakeSource{pms: []ProxyMetric{{
+		Protocol: "trojan", Address: "1.1.1.1:443", Name: "A", StableID: "id1",
+		CustomLabels: map[string]string{
+			"__region": "eu",   // Prometheus-reserved prefix -> must be skipped (no panic)
+			"  weird":  "ok",   // sanitizes to "__weird" -> also reserved -> skipped
+			"good":     "keep", // normal -> kept
+		},
+		Online: true, LatencyMs: 1,
+	}}}
+	c := NewCollector("", src)
+
+	// Must not panic at scrape time.
+	got := gatherSeries(t, c)
+	if len(got["xray_proxy_status"]) != 1 {
+		t.Fatalf("expected 1 series, got %v", got)
+	}
+	s := got["xray_proxy_status"][0]
+	if strings.Contains(s, "__region") || strings.Contains(s, "__weird") {
+		t.Errorf("reserved-prefix labels must be dropped: %s", s)
+	}
+	if !strings.Contains(s, "good=keep") {
+		t.Errorf("normal custom label should be kept: %s", s)
+	}
+}
+
 func TestSanitizeLabelName(t *testing.T) {
 	cases := map[string]string{
 		"location":    "location",

@@ -26,15 +26,6 @@ type RemoteWriteConfig struct {
 // metricsLabels (#124) are appended after these and may not override them.
 var baseLabels = []string{"protocol", "address", "name", "sub_name", "stable_id", "group_name"}
 
-var reservedLabels = func() map[string]bool {
-	m := make(map[string]bool, len(baseLabels)+1)
-	for _, l := range baseLabels {
-		m[l] = true
-	}
-	m["instance"] = true
-	return m
-}()
-
 // ProxyMetric is a point-in-time view of one proxy, rendered into metrics at
 // scrape time by Collector. Building metrics from current state (a pull model)
 // instead of pushing into a fixed-label vector lets custom label keys appear and
@@ -100,9 +91,10 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 
 // labelsFor builds aligned label-name/value slices: the fixed base labels, the
 // optional instance label, then sanitized custom labels in deterministic (sorted)
-// order. Custom keys that are invalid, empty, or collide with an already-used name
-// (a reserved label or another custom key) are skipped so MustNewConstMetric never
-// panics on duplicate/invalid labels.
+// order. Custom keys are skipped when they are empty, use the Prometheus-reserved
+// "__" prefix, or collide with an already-used name (a built-in label or another
+// custom key) — otherwise NewDesc would build an invalid descriptor and
+// MustNewConstMetric would panic on the next scrape.
 func (c *Collector) labelsFor(pm ProxyMetric) ([]string, []string) {
 	names := make([]string, len(baseLabels), len(baseLabels)+1+len(pm.CustomLabels))
 	copy(names, baseLabels)
@@ -124,7 +116,10 @@ func (c *Collector) labelsFor(pm ProxyMetric) ([]string, []string) {
 		sort.Strings(keys)
 		for _, k := range keys {
 			name := sanitizeLabelName(k)
-			if name == "" || used[name] {
+			// "__"-prefixed names are reserved by Prometheus and would make the Desc
+			// invalid (panicking MustNewConstMetric), so drop them along with empty
+			// and already-used names.
+			if name == "" || isReservedLabelName(name) || used[name] {
 				continue
 			}
 			used[name] = true
@@ -133,6 +128,12 @@ func (c *Collector) labelsFor(pm ProxyMetric) ([]string, []string) {
 		}
 	}
 	return names, values
+}
+
+// isReservedLabelName reports whether a label name uses the Prometheus-reserved
+// "__" prefix, which is not allowed for user-defined labels.
+func isReservedLabelName(name string) bool {
+	return len(name) >= 2 && name[0] == '_' && name[1] == '_'
 }
 
 // sanitizeLabelName coerces a custom key to a valid Prometheus label name
