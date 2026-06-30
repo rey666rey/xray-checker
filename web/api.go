@@ -210,7 +210,7 @@ func APIPublicProxiesHandler(proxyChecker *checker.ProxyChecker) http.HandlerFun
 		result := make([]PublicProxyInfo, 0, len(proxies))
 
 		for _, proxy := range proxies {
-			status, latency, lastCheck, _ := proxyChecker.GetProxyResult(proxy.Name)
+			status, latency, lastCheck, _ := proxyChecker.GetProxyResultByStableID(proxy.StableID)
 			result = append(result, PublicProxyInfo{
 				StableID:  proxy.StableID,
 				Name:      proxy.Name,
@@ -239,7 +239,7 @@ func APIProxiesHandler(proxyChecker *checker.ProxyChecker, startPort int) http.H
 		includeDetails := shouldShowServerDetails()
 
 		for _, proxy := range proxies {
-			status, latency, lastCheck, _ := proxyChecker.GetProxyResult(proxy.Name)
+			status, latency, lastCheck, _ := proxyChecker.GetProxyResultByStableID(proxy.StableID)
 			result = append(result, toProxyInfo(proxy, status, latency, lastCheck, startPort, includeDetails))
 		}
 
@@ -277,7 +277,7 @@ func APIProxyHandler(proxyChecker *checker.ProxyChecker, startPort int) http.Han
 			return
 		}
 
-		status, latency, lastCheck, _ := proxyChecker.GetProxyResult(proxy.Name)
+		status, latency, lastCheck, _ := proxyChecker.GetProxyResultByStableID(proxy.StableID)
 		writeJSON(w, toProxyInfo(proxy, status, latency, lastCheck, startPort, shouldShowServerDetails()))
 	}
 }
@@ -298,7 +298,7 @@ func APIStatusHandler(proxyChecker *checker.ProxyChecker) http.HandlerFunc {
 		var latencyCount int
 
 		for _, proxy := range proxies {
-			status, latency, _ := proxyChecker.GetProxyStatus(proxy.Name)
+			status, latency, _, _ := proxyChecker.GetProxyResultByStableID(proxy.StableID)
 			if status {
 				online++
 				if latency > 0 {

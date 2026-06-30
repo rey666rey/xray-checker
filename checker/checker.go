@@ -385,19 +385,23 @@ func (pc *ProxyChecker) CheckAllProxies() {
 	wg.Wait()
 }
 
-// GetProxyResult returns the latest check outcome for a proxy by name: online
-// status, latency, last-check time as a Unix timestamp in seconds (0 if never
-// checked), and whether a result was found.
-func (pc *ProxyChecker) GetProxyResult(name string) (bool, time.Duration, int64, bool) {
+// GetProxyResultByStableID returns the latest check outcome for the proxy with the
+// given stable_id: online status, latency, last-check time as a Unix timestamp in
+// seconds (0 if never checked), and whether a result was found.
+//
+// Lookup is by the unique stable_id (and the full metric key it maps to), the same
+// key /metrics uses — so proxies that share a display name are never confused. A
+// previous name-based lookup returned the first same-named proxy's result, making
+// /config/{id}, the dashboard and the JSON API disagree with /metrics (issue #172).
+func (pc *ProxyChecker) GetProxyResultByStableID(stableID string) (bool, time.Duration, int64, bool) {
 	pc.mu.RLock()
 	var metricKey proxyMetricLabels
 	found := false
 	for _, proxy := range pc.proxies {
-		if proxy.Name == name {
-			if proxy.StableID == "" {
-				proxy.StableID = proxy.GenerateStableID()
-			}
-
+		if proxy.StableID == "" {
+			proxy.StableID = proxy.GenerateStableID()
+		}
+		if proxy.StableID == stableID {
 			metricKey = proxyMetricKey(proxy)
 			found = true
 			break
@@ -420,14 +424,6 @@ func (pc *ProxyChecker) GetProxyResult(name string) (bool, time.Duration, int64,
 		lastCheck = r.lastCheck.Unix()
 	}
 	return r.status, r.latency, lastCheck, true
-}
-
-func (pc *ProxyChecker) GetProxyStatus(name string) (bool, time.Duration, error) {
-	status, latency, _, found := pc.GetProxyResult(name)
-	if !found {
-		return false, 0, fmt.Errorf("metric not found")
-	}
-	return status, latency, nil
 }
 
 func (pc *ProxyChecker) GetProxyByStableID(stableID string) (*models.ProxyConfig, bool) {
