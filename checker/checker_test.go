@@ -111,17 +111,38 @@ func TestGetProxyResultLastCheck(t *testing.T) {
 	pc := NewProxyChecker([]*models.ProxyConfig{a}, 10000, "", 5, "", "", 5, 1, "ip")
 
 	// No result yet: not found, lastCheck 0.
-	if _, _, lc, found := pc.GetProxyResult("A"); found || lc != 0 {
+	if _, _, lc, found := pc.GetProxyResultByStableID("ida"); found || lc != 0 {
 		t.Fatalf("expected no result before check, got found=%v lastCheck=%d", found, lc)
 	}
 
 	before := time.Now().Unix()
 	recordUp(pc, a, 150*time.Millisecond)
-	online, latency, lc, found := pc.GetProxyResult("A")
+	online, latency, lc, found := pc.GetProxyResultByStableID("ida")
 	if !found || !online || latency != 150*time.Millisecond {
 		t.Fatalf("unexpected result: online=%v latency=%v found=%v", online, latency, found)
 	}
 	if lc < before {
 		t.Fatalf("lastCheck %d should be >= %d", lc, before)
+	}
+}
+
+// Regression for #172: two proxies with the SAME name but different stable_id must
+// resolve to their own result by stable_id, not to the first same-named proxy's.
+func TestGetProxyResultByStableID_DuplicateNames(t *testing.T) {
+	up := &models.ProxyConfig{Protocol: "socks", Server: "1.1.1.1", Port: 1080, Name: "Dup", StableID: "id-up"}
+	down := &models.ProxyConfig{Protocol: "socks", Server: "2.2.2.2", Port: 1080, Name: "Dup", StableID: "id-down"}
+	pc := NewProxyChecker([]*models.ProxyConfig{up, down}, 10000, "", 5, "", "", 5, 1, "status")
+
+	// up is healthy, down failed — same name, different stable_id.
+	pc.results.Store(proxyMetricKey(up), proxyResult{status: true, latency: 100 * time.Millisecond, lastCheck: time.Now()})
+	pc.results.Store(proxyMetricKey(down), proxyResult{status: false, latency: 0, lastCheck: time.Now()})
+
+	if online, _, _, found := pc.GetProxyResultByStableID("id-up"); !found || !online {
+		t.Errorf("id-up should be online, got found=%v online=%v", found, online)
+	}
+	// The bug: name lookup returned the first ("up") result for "down". By stable_id
+	// it must be offline.
+	if online, _, _, found := pc.GetProxyResultByStableID("id-down"); !found || online {
+		t.Errorf("id-down should be offline, got found=%v online=%v", found, online)
 	}
 }
