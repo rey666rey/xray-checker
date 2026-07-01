@@ -50,6 +50,7 @@ docker run -d \
   -e SUBSCRIPTION_UPDATE=true \
   -e SUBSCRIPTION_UPDATE_INTERVAL=300 \
   -e PROXY_CHECK_INTERVAL=300 \
+  -e PROXY_CHECK_CONCURRENCY=0 \
   -e PROXY_CHECK_METHOD=ip \
   -e PROXY_TIMEOUT=30 \
   -e PROXY_IP_CHECK_URL=https://api.ipify.org?format=text \
@@ -102,6 +103,7 @@ services:
       - SUBSCRIPTION_UPDATE=true
       - SUBSCRIPTION_UPDATE_INTERVAL=300
       - PROXY_CHECK_INTERVAL=300
+      - PROXY_CHECK_CONCURRENCY=0
       - PROXY_CHECK_METHOD=ip
       - PROXY_TIMEOUT=30
       - PROXY_IP_CHECK_URL=https://api.ipify.org?format=text

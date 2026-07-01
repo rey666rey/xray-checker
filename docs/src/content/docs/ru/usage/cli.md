@@ -61,6 +61,7 @@ chmod +x xray-checker
   --subscription-user-agent="" \
   --subscription-header="X-Token: abc" \
   --proxy-check-interval=300 \
+  --proxy-check-concurrency=0 \
   --proxy-timeout=30 \
   --proxy-check-method=ip \
   --proxy-ip-check-url="https://api.ipify.org?format=text" \
