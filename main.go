@@ -109,7 +109,14 @@ func main() {
 		// a large/slow proxy set can take longer than PROXY_CHECK_INTERVAL, so checks
 		// (and metrics) effectively run less often than configured.
 		if interval := config.CLIConfig.Proxy.CheckInterval; interval > 0 && elapsed > time.Duration(interval)*time.Second {
-			logger.Warn("Check cycle took %s, longer than PROXY_CHECK_INTERVAL=%ds — raise PROXY_CHECK_CONCURRENCY or PROXY_CHECK_INTERVAL", elapsed.Round(time.Second), interval)
+			// When a concurrency cap is set, raising it (or the interval) helps. When
+			// unlimited (0), the cycle is already as parallel as it gets, so the only
+			// useful lever is a longer interval.
+			if config.CLIConfig.Proxy.CheckConcurrency > 0 {
+				logger.Warn("Check cycle took %s, longer than PROXY_CHECK_INTERVAL=%ds — raise PROXY_CHECK_CONCURRENCY or PROXY_CHECK_INTERVAL", elapsed.Round(time.Second), interval)
+			} else {
+				logger.Warn("Check cycle took %s, longer than PROXY_CHECK_INTERVAL=%ds — raise PROXY_CHECK_INTERVAL", elapsed.Round(time.Second), interval)
+			}
 		}
 
 		if config.CLIConfig.Metrics.PushURL != "" {

@@ -51,15 +51,17 @@ func TestRunBoundedChecks_Concurrency(t *testing.T) {
 		t.Errorf("expected all 30 checked, got %d", count)
 	}
 
-	// Unlimited (0): all 30 run at once (peak should reach 30).
+	// Unlimited (0): checks are not bounded to a small number. Assert the peak far
+	// exceeds the limited case's cap of 4 rather than exact equality to 30, which
+	// would be timing-sensitive on a loaded/single-CPU runner.
 	var tr2 peakTracker
 	runBoundedChecks(proxies, 0, func(*models.ProxyConfig) {
 		tr2.enter()
 		time.Sleep(10 * time.Millisecond)
 		tr2.leave()
 	})
-	if tr2.peak != 30 {
-		t.Errorf("unlimited: expected peak 30, got %d", tr2.peak)
+	if tr2.peak < 10 {
+		t.Errorf("unlimited: expected substantial parallelism (peak >= 10), got %d", tr2.peak)
 	}
 }
 
