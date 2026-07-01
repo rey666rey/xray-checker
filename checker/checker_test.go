@@ -1,6 +1,8 @@
 package checker
 
 import (
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -10,6 +12,56 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 )
+
+// peakTracker records the maximum number of concurrent calls seen.
+type peakTracker struct {
+	cur, peak int32
+	mu        sync.Mutex
+}
+
+func (p *peakTracker) enter() {
+	n := atomic.AddInt32(&p.cur, 1)
+	p.mu.Lock()
+	if n > p.peak {
+		p.peak = n
+	}
+	p.mu.Unlock()
+}
+func (p *peakTracker) leave() { atomic.AddInt32(&p.cur, -1) }
+
+func TestRunBoundedChecks_Concurrency(t *testing.T) {
+	proxies := make([]*models.ProxyConfig, 30)
+	for i := range proxies {
+		proxies[i] = &models.ProxyConfig{Name: "p", Index: i}
+	}
+
+	// Bounded to 4: peak concurrency must never exceed 4, and all run.
+	var tr peakTracker
+	var count int32
+	runBoundedChecks(proxies, 4, func(*models.ProxyConfig) {
+		tr.enter()
+		time.Sleep(5 * time.Millisecond)
+		atomic.AddInt32(&count, 1)
+		tr.leave()
+	})
+	if tr.peak > 4 {
+		t.Errorf("peak concurrency %d exceeded limit 4", tr.peak)
+	}
+	if count != 30 {
+		t.Errorf("expected all 30 checked, got %d", count)
+	}
+
+	// Unlimited (0): all 30 run at once (peak should reach 30).
+	var tr2 peakTracker
+	runBoundedChecks(proxies, 0, func(*models.ProxyConfig) {
+		tr2.enter()
+		time.Sleep(10 * time.Millisecond)
+		tr2.leave()
+	})
+	if tr2.peak != 30 {
+		t.Errorf("unlimited: expected peak 30, got %d", tr2.peak)
+	}
+}
 
 func mkProxy(server, name, stableID string) *models.ProxyConfig {
 	return &models.ProxyConfig{
@@ -64,7 +116,7 @@ func statusValue(t *testing.T, c prometheus.Collector, stableID string) (float64
 func TestUpdateProxiesNoBlinkAndReflectsCurrentSet(t *testing.T) {
 	a := mkProxy("1.1.1.1", "A", "ida")
 	b := mkProxy("2.2.2.2", "B", "idb")
-	pc := NewProxyChecker([]*models.ProxyConfig{a, b}, 10000, "", 5, "", "", 5, 1, "ip")
+	pc := NewProxyChecker([]*models.ProxyConfig{a, b}, 10000, "", 5, "", "", 5, 1, "ip", 0)
 	collector := metrics.NewCollector("", pc)
 
 	// Initial check populated A and B.
@@ -108,7 +160,7 @@ func TestUpdateProxiesNoBlinkAndReflectsCurrentSet(t *testing.T) {
 
 func TestGetProxyResultLastCheck(t *testing.T) {
 	a := mkProxy("1.1.1.1", "A", "ida")
-	pc := NewProxyChecker([]*models.ProxyConfig{a}, 10000, "", 5, "", "", 5, 1, "ip")
+	pc := NewProxyChecker([]*models.ProxyConfig{a}, 10000, "", 5, "", "", 5, 1, "ip", 0)
 
 	// No result yet: not found, lastCheck 0.
 	if _, _, lc, found := pc.GetProxyResultByStableID("ida"); found || lc != 0 {
@@ -131,7 +183,7 @@ func TestGetProxyResultLastCheck(t *testing.T) {
 func TestGetProxyResultByStableID_DuplicateNames(t *testing.T) {
 	up := &models.ProxyConfig{Protocol: "socks", Server: "1.1.1.1", Port: 1080, Name: "Dup", StableID: "id-up"}
 	down := &models.ProxyConfig{Protocol: "socks", Server: "2.2.2.2", Port: 1080, Name: "Dup", StableID: "id-down"}
-	pc := NewProxyChecker([]*models.ProxyConfig{up, down}, 10000, "", 5, "", "", 5, 1, "status")
+	pc := NewProxyChecker([]*models.ProxyConfig{up, down}, 10000, "", 5, "", "", 5, 1, "status", 0)
 
 	// up is healthy, down failed — same name, different stable_id.
 	pc.results.Store(proxyMetricKey(up), proxyResult{status: true, latency: 100 * time.Millisecond, lastCheck: time.Now()})

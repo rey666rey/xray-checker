@@ -90,6 +90,7 @@ func main() {
 		config.CLIConfig.Proxy.DownloadTimeout,
 		config.CLIConfig.Proxy.DownloadMinSize,
 		config.CLIConfig.Proxy.CheckMethod,
+		config.CLIConfig.Proxy.CheckConcurrency,
 	)
 
 	// The collector renders metrics from the checker's current proxy snapshot on
@@ -100,7 +101,16 @@ func main() {
 
 	runCheckIteration := func() {
 		logger.Info("Starting proxy check iteration")
+		start := time.Now()
 		proxyChecker.CheckAllProxies()
+		elapsed := time.Since(start)
+
+		// Warn if a cycle overruns the interval: with PROXY_CHECK_CONCURRENCY set,
+		// a large/slow proxy set can take longer than PROXY_CHECK_INTERVAL, so checks
+		// (and metrics) effectively run less often than configured.
+		if interval := config.CLIConfig.Proxy.CheckInterval; interval > 0 && elapsed > time.Duration(interval)*time.Second {
+			logger.Warn("Check cycle took %s, longer than PROXY_CHECK_INTERVAL=%ds — raise PROXY_CHECK_CONCURRENCY or PROXY_CHECK_INTERVAL", elapsed.Round(time.Second), interval)
+		}
 
 		if config.CLIConfig.Metrics.PushURL != "" {
 			pushConfig, err := metrics.ParseURL(config.CLIConfig.Metrics.PushURL)
@@ -124,7 +134,12 @@ func main() {
 	}
 
 	checkScheduler := gocron.NewScheduler(time.UTC)
-	checkScheduler.Every(config.CLIConfig.Proxy.CheckInterval).Seconds().Do(func() {
+	// SingletonMode: if a check cycle overruns the interval, the next tick is skipped
+	// instead of starting a second concurrent cycle. Without a concurrency limit a
+	// cycle is bounded by PROXY_TIMEOUT so this rarely triggers, but with
+	// PROXY_CHECK_CONCURRENCY a slow cycle degrades to "runs less often" rather than
+	// piling up overlapping runs.
+	checkScheduler.Every(config.CLIConfig.Proxy.CheckInterval).Seconds().SingletonMode().Do(func() {
 		runCheckIteration()
 	})
 	checkScheduler.StartAsync()

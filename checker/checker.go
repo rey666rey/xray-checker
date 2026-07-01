@@ -16,20 +16,21 @@ import (
 )
 
 type ProxyChecker struct {
-	proxies         []*models.ProxyConfig
-	startPort       int
-	ipCheck         string
-	currentIP       string
-	httpClient      *http.Client
-	results         sync.Map // proxyMetricLabels -> proxyResult
-	ipInitialized   bool
-	ipCheckTimeout  int
-	genMethodURL    string
-	downloadURL     string
-	downloadTimeout int
-	downloadMinSize int64
-	checkMethod     string
-	mu              sync.RWMutex
+	proxies          []*models.ProxyConfig
+	startPort        int
+	ipCheck          string
+	currentIP        string
+	httpClient       *http.Client
+	results          sync.Map // proxyMetricLabels -> proxyResult
+	ipInitialized    bool
+	ipCheckTimeout   int
+	genMethodURL     string
+	downloadURL      string
+	downloadTimeout  int
+	downloadMinSize  int64
+	checkMethod      string
+	checkConcurrency int // max proxies checked in parallel per cycle; 0 = unlimited
+	mu               sync.RWMutex
 }
 
 // proxyResult is the latest check outcome for one proxy. Metrics are rendered from
@@ -42,7 +43,7 @@ type proxyResult struct {
 	lastCheck time.Time
 }
 
-func NewProxyChecker(proxies []*models.ProxyConfig, startPort int, ipCheckURL string, ipCheckTimeout int, genMethodURL string, downloadURL string, downloadTimeout int, downloadMinSize int64, checkMethod string) *ProxyChecker {
+func NewProxyChecker(proxies []*models.ProxyConfig, startPort int, ipCheckURL string, ipCheckTimeout int, genMethodURL string, downloadURL string, downloadTimeout int, downloadMinSize int64, checkMethod string, checkConcurrency int) *ProxyChecker {
 	return &ProxyChecker{
 		proxies:   proxies,
 		startPort: startPort,
@@ -50,12 +51,13 @@ func NewProxyChecker(proxies []*models.ProxyConfig, startPort int, ipCheckURL st
 		httpClient: &http.Client{
 			Timeout: time.Second * time.Duration(ipCheckTimeout),
 		},
-		ipCheckTimeout:  ipCheckTimeout,
-		genMethodURL:    genMethodURL,
-		downloadURL:     downloadURL,
-		downloadTimeout: downloadTimeout,
-		downloadMinSize: downloadMinSize,
-		checkMethod:     checkMethod,
+		ipCheckTimeout:   ipCheckTimeout,
+		genMethodURL:     genMethodURL,
+		downloadURL:      downloadURL,
+		downloadTimeout:  downloadTimeout,
+		downloadMinSize:  downloadMinSize,
+		checkMethod:      checkMethod,
+		checkConcurrency: checkConcurrency,
 	}
 }
 
@@ -374,12 +376,30 @@ func (pc *ProxyChecker) CheckAllProxies() {
 	copy(proxiesToCheck, pc.proxies)
 	pc.mu.RUnlock()
 
+	runBoundedChecks(proxiesToCheck, pc.checkConcurrency, pc.checkProxyInternal)
+}
+
+// runBoundedChecks runs check(p) for every proxy concurrently. concurrency == 0
+// keeps the original behavior (all at once); a positive value bounds how many run
+// simultaneously via a semaphore, so large subscriptions don't open thousands of
+// connections in one burst. Local socks ports are unchanged — each check still
+// dials its own fixed port; this only throttles how many run at a time.
+func runBoundedChecks(proxies []*models.ProxyConfig, concurrency int, check func(*models.ProxyConfig)) {
+	var sem chan struct{}
+	if concurrency > 0 {
+		sem = make(chan struct{}, concurrency)
+	}
+
 	var wg sync.WaitGroup
-	for _, proxy := range proxiesToCheck {
+	for _, proxy := range proxies {
 		wg.Add(1)
 		go func(p *models.ProxyConfig) {
 			defer wg.Done()
-			pc.checkProxyInternal(p)
+			if sem != nil {
+				sem <- struct{}{}
+				defer func() { <-sem }()
+			}
+			check(p)
 		}(proxy)
 	}
 	wg.Wait()

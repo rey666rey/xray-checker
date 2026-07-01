@@ -79,6 +79,16 @@ Extra HTTP headers sent with every subscription request, each as a `Key: Value` 
 
 Time in seconds between proxy availability checks. Each check verifies all configured proxies.
 
+### PROXY_CHECK_CONCURRENCY
+
+- CLI: `--proxy-check-concurrency`
+- Required: No
+- Default: `0` (unlimited)
+
+Maximum number of proxies checked in parallel within one cycle. `0` (the default) keeps the original behavior — every proxy is checked at once, so a cycle takes about as long as the slowest single proxy. A positive value bounds how many checks run simultaneously, limiting peak load and open connections on large subscriptions (the fixed per-proxy local ports are unchanged — checks are just dispatched in waves).
+
+With a limit, a cycle's worst case is roughly `⌈N / concurrency⌉ × PROXY_TIMEOUT` (N = number of proxies), so keep `PROXY_CHECK_INTERVAL` at least that large. If a cycle overruns the interval it is logged as a warning and the next scheduled cycle is skipped — checks simply run less often rather than overlapping.
+
 ### PROXY_CHECK_METHOD
 
 - CLI: `--proxy-check-method`
