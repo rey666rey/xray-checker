@@ -70,11 +70,23 @@ export default defineConfig({
         baseUrl: "https://github.com/kutovoys/xray-checker/edit/main/docs/",
       },
       customCss: ["./src/styles/custom.css"],
-      social: {
-        github: "https://github.com/kutovoys/xray-checker",
-        telegram: "https://t.me/+VEzFQmaTZcQ5ZGYy",
-        linkedin: "https://www.linkedin.com/in/kutovoys/",
-      },
+      social: [
+        {
+          icon: "github",
+          label: "GitHub",
+          href: "https://github.com/kutovoys/xray-checker",
+        },
+        {
+          icon: "telegram",
+          label: "Telegram",
+          href: "https://t.me/+VEzFQmaTZcQ5ZGYy",
+        },
+        {
+          icon: "linkedin",
+          label: "LinkedIn",
+          href: "https://www.linkedin.com/in/kutovoys/",
+        },
+      ],
       defaultLocale: "root",
       locales: {
         root: {
