@@ -1,0 +1,5 @@
+.git
+.env
+compose.yaml
+.DS_Store
+docs

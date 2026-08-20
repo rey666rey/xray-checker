@@ -52,7 +52,47 @@ Full list of features available in the [documentation](https://xray-checker.kuto
 
 ## 🚀 Quick Start
 
-### Docker
+### Docker Compose (this repository)
+
+The included [`compose.yaml`](compose.yaml) builds the local ARM64 image, reads
+subscription credentials from `.env`, limits proxy checks to 20 concurrent
+connections, and exposes the dashboard only on the Mac itself.
+
+```bash
+cp .env.example .env
+# Edit .env and replace the example URLs and HWID.
+
+colima start iphone
+DOCKER_CONTEXT=colima-iphone docker-compose up -d --build
+```
+
+Open <http://127.0.0.1:2112> after the container starts. Multiple subscription
+URLs are comma-separated. Add a URL fragment such as `#220V`, `#LETO`, or
+`#MASTER` to show nodes grouped by subscription in the dashboard. Keep the
+whole `SUBSCRIPTION_URL` value quoted in `.env` so `#` is not treated as a
+comment.
+
+Useful commands:
+
+```bash
+# Status and logs
+DOCKER_CONTEXT=colima-iphone docker-compose ps
+DOCKER_CONTEXT=colima-iphone docker-compose logs -f xray-checker
+
+# Stop/start only Xray Checker
+DOCKER_CONTEXT=colima-iphone docker-compose stop
+DOCKER_CONTEXT=colima-iphone docker-compose start
+
+# Stop the complete iPhone-routed Colima VM
+colima stop iphone
+```
+
+Always specifying `DOCKER_CONTEXT=colima-iphone` keeps this project separate
+from containers in the default Colima profile. See the
+[Russian README](README_RU.md#локальный-запуск-на-macos-через-сеть-iphone) for
+the complete macOS, USB iPhone, and troubleshooting guide.
+
+### Docker without Compose
 
 ```bash
 docker run -d \
@@ -61,7 +101,7 @@ docker run -d \
   kutovoys/xray-checker
 ```
 
-### Docker Compose
+### Minimal Docker Compose
 
 ```yaml
 services:

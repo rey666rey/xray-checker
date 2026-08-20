@@ -42,7 +42,162 @@ Xray Checker - это инструмент для мониторинга дос�
 
 ## 🚀 Быстрый старт
 
-### Docker
+### Docker Compose из этого репозитория
+
+Готовый [`compose.yaml`](compose.yaml) собирает локальный ARM64-образ, получает
+ссылки подписок и HWID из `.env`, ограничивает число одновременных проверок до
+20 и публикует панель только на самом Mac.
+
+```bash
+cp .env.example .env
+```
+
+Откройте `.env` и замените заглушки настоящими значениями. Несколько подписок
+указываются через запятую в одной строке:
+
+```dotenv
+SUBSCRIPTION_URL="https://example.com/220v#220V,https://example.com/wssub#LETO,https://example.com/heltoma#MASTER"
+HWID="ваш-hwid"
+```
+
+Часть после `#` задаёт название группы в панели и не отправляется серверу
+подписки. Всё значение `SUBSCRIPTION_URL` должно оставаться в кавычках, иначе
+`.env` воспримет `#` как начало комментария. Настоящие ссылки и HWID нельзя
+добавлять в Git; файл `.env` уже исключён через `.gitignore`.
+
+Запуск:
+
+```bash
+colima start iphone
+DOCKER_CONTEXT=colima-iphone docker-compose up -d --build
+```
+
+После запуска панель доступна по адресу <http://127.0.0.1:2112>.
+
+## Локальный запуск на macOS через сеть iPhone
+
+В этой конфигурации основной Mac может оставаться в Wi-Fi-сети, а контейнер
+работает внутри отдельного профиля Colima `iphone` и использует интернет iPhone,
+подключённого по USB-C. Переменные `NETWORK_SSID` и `NETWORK_PASSWORD` для этого
+не нужны: выбор сети выполняет Colima, а не Docker Compose.
+
+### Что требуется
+
+- macOS с установленными `colima`, `docker` и `docker-compose`;
+- iPhone, подключённый по USB-C и отмеченный на Mac как доверенный;
+- включённый на iPhone режим модема;
+- отдельный профиль Colima с именем `iphone`.
+
+Текущий проект уже рассчитан на существующий профиль `iphone`. Если его нужно
+создать заново, сначала найдите имя USB-интерфейса:
+
+```bash
+networksetup -listallhardwareports
+```
+
+Найдите блок iPhone USB и запомните `Device`, например `en7`. Затем создайте
+профиль, заменив `en7` на своё значение:
+
+```bash
+colima start iphone \
+  --arch aarch64 \
+  --cpus 2 \
+  --memory 4 \
+  --disk 30 \
+  --network-address \
+  --network-mode bridged \
+  --network-interface en7 \
+  --network-preferred-route \
+  --dns 1.1.1.1 \
+  --dns 8.8.8.8
+```
+
+При первой настройке macOS может запросить пароль администратора для сетевого
+компонента Colima.
+
+Префикс `DOCKER_CONTEXT=colima-iphone` важен: он направляет команду именно в
+профиль iPhone и не затрагивает контейнеры обычного профиля `colima`.
+
+### Повседневные команды
+
+Проверить состояние:
+
+```bash
+colima status iphone
+DOCKER_CONTEXT=colima-iphone docker-compose ps
+```
+
+Посмотреть логи:
+
+```bash
+DOCKER_CONTEXT=colima-iphone docker-compose logs -f xray-checker
+```
+
+Перезапустить панель после изменения `.env` или `compose.yaml`:
+
+```bash
+DOCKER_CONTEXT=colima-iphone docker-compose up -d --build --force-recreate
+```
+
+Остановить только Xray Checker, сохранив контейнер:
+
+```bash
+DOCKER_CONTEXT=colima-iphone docker-compose stop
+```
+
+Запустить его снова:
+
+```bash
+DOCKER_CONTEXT=colima-iphone docker-compose start
+```
+
+Полностью выключить отдельную виртуальную машину Colima:
+
+```bash
+colima stop iphone
+```
+
+После полного выключения запуск выполняется так:
+
+```bash
+colima start iphone
+DOCKER_CONTEXT=colima-iphone docker-compose up -d
+```
+
+### Проверка и устранение проблем
+
+Если панель не открывается, последовательно выполните:
+
+```bash
+colima status iphone
+DOCKER_CONTEXT=colima-iphone docker-compose ps
+DOCKER_CONTEXT=colima-iphone docker-compose logs --tail=100 xray-checker
+curl -fsS http://127.0.0.1:2112/health
+```
+
+Ответ `OK` от последней команды означает, что веб-сервер работает. Ошибка
+доступа к `docker.sock` обычно означает, что профиль `iphone` не запущен.
+
+После отключения и повторного подключения iPhone безопаснее перезапустить
+профиль:
+
+```bash
+colima stop iphone
+colima start iphone
+DOCKER_CONTEXT=colima-iphone docker-compose up -d
+```
+
+В `compose.yaml` установлены `PROXY_CHECK_CONCURRENCY=20` и интервал проверки
+600 секунд. Неограниченная проверка сотен нод одновременно перегружает мобильный
+канал и сервис определения IP, из-за чего появляются завышенный latency, `EOF`
+и ложный статус offline.
+
+Порт опубликован как `127.0.0.1:2112:2112`, поэтому панель доступна только на
+этом Mac и не открыта для других устройств в локальной сети.
+
+## Другие варианты запуска
+
+### Docker без Compose
 
 ```bash
 docker run -d \
@@ -51,7 +206,7 @@ docker run -d \
   kutovoys/xray-checker
 ```
 
-### Docker Compose
+### Минимальный Docker Compose
 
 ```yaml
 services:

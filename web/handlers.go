@@ -20,6 +20,7 @@ var (
 
 type EndpointInfo struct {
 	Name       string
+	SubName    string
 	Protocol   string
 	ServerInfo string
 	URL        string
@@ -58,6 +59,7 @@ func IndexHandler(version string, proxyChecker *checker.ProxyChecker) http.Handl
 			for i, ep := range allEndpoints {
 				e := EndpointInfo{
 					Name:      ep.Name,
+					SubName:   ep.SubName,
 					Index:     ep.Index,
 					Status:    ep.Status,
 					Latency:   ep.Latency,
@@ -174,6 +176,7 @@ func RegisterConfigEndpoints(proxies []*models.ProxyConfig, proxyChecker *checke
 
 		endpoints = append(endpoints, EndpointInfo{
 			Name:       proxy.Name,
+			SubName:    proxy.SubName,
 			Protocol:   proxy.Protocol,
 			ServerInfo: fmt.Sprintf("%s:%d", proxy.Server, proxy.Port),
 			URL:        endpoint,

@@ -1,10 +1,28 @@
 package web
 
 import (
+	"bytes"
+	"strings"
 	"testing"
 
 	"xray-checker/config"
 )
+
+func TestRenderIndexIncludesSubscriptionName(t *testing.T) {
+	var out bytes.Buffer
+	err := RenderIndex(&out, PageData{
+		Endpoints: []EndpointInfo{{
+			Name:    "node-1",
+			SubName: "LETO",
+		}},
+	})
+	if err != nil {
+		t.Fatalf("RenderIndex() error = %v", err)
+	}
+	if !strings.Contains(out.String(), `subName: "LETO"`) {
+		t.Fatal("rendered dashboard does not include the subscription name")
+	}
+}
 
 func TestMaskMiddle(t *testing.T) {
 	cases := map[string]string{

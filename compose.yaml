@@ -1,0 +1,18 @@
+services:
+  xray-checker:
+    build:
+      context: .
+      args:
+        BUILDPLATFORM: linux/arm64
+        TARGETOS: linux
+        TARGETARCH: arm64
+    image: xray-checker:local
+    environment:
+      SUBSCRIPTION_URL: ${SUBSCRIPTION_URL:?add SUBSCRIPTION_URL to .env}
+      SUBSCRIPTION_JSON_FORMAT: "true"
+      SUBSCRIPTION_HEADERS: "X-Hwid: ${HWID:?add HWID to .env}"
+      PROXY_CHECK_CONCURRENCY: "20"
+      PROXY_CHECK_INTERVAL: "600"
+    ports:
+      - "127.0.0.1:2112:2112"
+    restart: unless-stopped

@@ -936,12 +936,12 @@
             <!-- Group header (balancer groups) -->
             <template x-if="item.type === 'header'">
               <button
-                @click="toggleGroup(item.block.group)"
+                @click="toggleGroup(item.block.key)"
                 class="group-header card-flat w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-left transition-colors"
               >
                 <svg
                   class="w-3.5 h-3.5 text-muted transition-transform flex-shrink-0"
-                  :class="collapsedGroups[item.block.group] && '-rotate-90'"
+                  :class="collapsedGroups[item.block.key] && '-rotate-90'"
                   fill="none" stroke="currentColor" viewBox="0 0 24 24"
                 >
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -1181,7 +1181,7 @@
 
           proxies: [
             {{ range $.Endpoints }}
-            { name: "{{.Name}}", protocol: "{{.Protocol}}", stableId: "{{.StableID}}", groupName: "{{.GroupName}}", {{ if $.ShowServerDetails }}serverInfo: "{{.ServerInfo}}", proxyPort: {{.ProxyPort}}, {{ end }}{{ if not $.IsPublic }}url: "{{.URL}}", {{ end }}index: {{.Index}}, status: {{.Status}}, latency: "{{ formatLatency .Latency }}", latencyMs: {{ .Latency.Milliseconds }} },
+            { name: "{{.Name}}", subName: "{{.SubName}}", protocol: "{{.Protocol}}", stableId: "{{.StableID}}", groupName: "{{.GroupName}}", {{ if $.ShowServerDetails }}serverInfo: "{{.ServerInfo}}", proxyPort: {{.ProxyPort}}, {{ end }}{{ if not $.IsPublic }}url: "{{.URL}}", {{ end }}index: {{.Index}}, status: {{.Status}}, latency: "{{ formatLatency .Latency }}", latencyMs: {{ .Latency.Milliseconds }} },
             {{ end }}
           ],
 
@@ -1208,7 +1208,7 @@
             let r = this.proxies;
             if (this.search) {
               const q = this.search.toLowerCase();
-              r = r.filter(p => p.name.toLowerCase().includes(q) || (p.serverInfo && p.serverInfo.toLowerCase().includes(q)));
+              r = r.filter(p => p.name.toLowerCase().includes(q) || p.subName.toLowerCase().includes(q) || (p.serverInfo && p.serverInfo.toLowerCase().includes(q)));
             }
             if (this.filter === 'online') r = r.filter(p => p.status);
             else if (this.filter === 'offline') r = r.filter(p => !p.status);
@@ -1232,17 +1232,17 @@
             });
           },
 
-          // Partition filteredProxies into render blocks: one block per balancer
-          // group (proxies that share a non-empty groupName) plus a final block for
-          // ungrouped proxies. Subscriptions without groups yield a single block,
-          // so the layout is unchanged for them.
+          // Partition proxies by subscription. If a source does not expose a
+          // subscription name, retain the previous balancer grouping fallback.
           get proxyBlocks() {
             const groups = new Map();
             const ungrouped = [];
             for (const p of this.filteredProxies) {
-              if (p.groupName) {
-                if (!groups.has(p.groupName)) groups.set(p.groupName, []);
-                groups.get(p.groupName).push(p);
+              const label = p.subName || p.groupName;
+              const key = p.subName ? 's:' + p.subName : (p.groupName ? 'g:' + p.groupName : '');
+              if (key) {
+                if (!groups.has(key)) groups.set(key, { label, proxies: [] });
+                groups.get(key).proxies.push(p);
               } else {
                 ungrouped.push(p);
               }
@@ -1253,10 +1253,11 @@
             if (ungrouped.length) {
               blocks.push({ key: '_ungrouped', group: '', proxies: ungrouped, online: 0, total: ungrouped.length });
             }
-            for (const [name, proxies] of groups) {
+            for (const [key, value] of groups) {
+              const proxies = value.proxies;
               blocks.push({
-                key: 'g:' + name,
-                group: name,
+                key,
+                group: value.label,
                 proxies,
                 online: proxies.filter(p => p.status).length,
                 total: proxies.length,
@@ -1272,8 +1273,8 @@
             const items = [];
             for (const b of this.proxyBlocks) {
               if (b.group) {
-                items.push({ type: 'header', key: 'h:' + b.group, block: b });
-                if (this.collapsedGroups[b.group]) continue;
+                items.push({ type: 'header', key: 'h:' + b.key, block: b });
+                if (this.collapsedGroups[b.key]) continue;
               }
               for (const p of b.proxies) {
                 items.push({ type: 'proxy', key: p.stableId, proxy: p });
