@@ -140,16 +140,22 @@ func main() {
 		return
 	}
 
-	checkScheduler := gocron.NewScheduler(time.UTC)
-	// SingletonMode: if a check cycle overruns the interval, the next tick is skipped
-	// instead of starting a second concurrent cycle. Without a concurrency limit a
-	// cycle is bounded by PROXY_TIMEOUT so this rarely triggers, but with
-	// PROXY_CHECK_CONCURRENCY a slow cycle degrades to "runs less often" rather than
-	// piling up overlapping runs.
-	checkScheduler.Every(config.CLIConfig.Proxy.CheckInterval).Seconds().SingletonMode().Do(func() {
-		runCheckIteration()
-	})
-	checkScheduler.StartAsync()
+	if config.CLIConfig.Proxy.InitialCheckOnly {
+		// Keep serving the in-memory result after the initial batched sweep. Running
+		// in a goroutine makes the dashboard available while that first sweep fills in.
+		go runCheckIteration()
+	} else {
+		checkScheduler := gocron.NewScheduler(time.UTC)
+		// SingletonMode: if a check cycle overruns the interval, the next tick is skipped
+		// instead of starting a second concurrent cycle. Without a concurrency limit a
+		// cycle is bounded by PROXY_TIMEOUT so this rarely triggers, but with
+		// PROXY_CHECK_CONCURRENCY a slow cycle degrades to "runs less often" rather than
+		// piling up overlapping runs.
+		checkScheduler.Every(config.CLIConfig.Proxy.CheckInterval).Seconds().SingletonMode().Do(func() {
+			runCheckIteration()
+		})
+		checkScheduler.StartAsync()
+	}
 
 	if config.CLIConfig.Subscription.Update {
 		updateScheduler := gocron.NewScheduler(time.UTC)

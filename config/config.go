@@ -33,6 +33,7 @@ type CLI struct {
 
 	Proxy struct {
 		CheckInterval    int    `name:"proxy-check-interval" help:"Interval for proxy checks in seconds" default:"300" env:"PROXY_CHECK_INTERVAL"`
+		InitialCheckOnly bool   `name:"proxy-initial-check-only" help:"Run one full check after startup and keep its results without scheduled full rechecks" default:"false" env:"PROXY_INITIAL_CHECK_ONLY"`
 		CheckConcurrency int    `name:"proxy-check-concurrency" help:"Max proxies checked in parallel per cycle (0 = unlimited)" default:"0" env:"PROXY_CHECK_CONCURRENCY"`
 		CheckMethod      string `name:"proxy-check-method" help:"Method for checking proxy, ip, status or download" default:"ip" env:"PROXY_CHECK_METHOD"`
 		IpCheckUrl       string `name:"proxy-ip-check-url" help:"Service URL for IP checking" default:"https://api.ipify.org?format=text" env:"PROXY_IP_CHECK_URL"`

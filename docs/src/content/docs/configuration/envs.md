@@ -79,6 +79,14 @@ Extra HTTP headers sent with every subscription request, each as a `Key: Value` 
 
 Time in seconds between proxy availability checks. Each check verifies all configured proxies.
 
+### PROXY_INITIAL_CHECK_ONLY
+
+- CLI: `--proxy-initial-check-only`
+- Required: No
+- Default: `false`
+
+When enabled, runs one full proxy check after startup, keeps the results in memory, and disables scheduled full rechecks. Restarting the process starts a new full check. This does not disable subscription updates; disable `SUBSCRIPTION_UPDATE` as well if the proxy set must remain unchanged.
+
 ### PROXY_CHECK_CONCURRENCY
 
 - CLI: `--proxy-check-concurrency`

@@ -9,10 +9,23 @@ services:
     image: xray-checker:local
     environment:
       SUBSCRIPTION_URL: ${SUBSCRIPTION_URL:?add SUBSCRIPTION_URL to .env}
+      # Keep the completed first-pass results instead of triggering another
+      # full sweep whenever the panel returns the same set in a new order.
+      SUBSCRIPTION_UPDATE: "false"
       SUBSCRIPTION_JSON_FORMAT: "true"
       SUBSCRIPTION_HEADERS: "X-Hwid: ${HWID:?add HWID to .env}"
+      # A moderate batch protects the iPhone/mobile NAT from connection bursts.
       PROXY_CHECK_CONCURRENCY: "20"
       PROXY_CHECK_INTERVAL: "600"
+      PROXY_INITIAL_CHECK_ONLY: "true"
+      PROXY_CHECK_METHOD: "ip"
+      PROXY_IP_CHECK_URL: "https://api.ipify.org?format=text"
+      PROXY_TIMEOUT: "10"
     ports:
       - "127.0.0.1:2112:2112"
+    volumes:
+      - xray-geo:/app/geo
     restart: unless-stopped
+
+volumes:
+  xray-geo:

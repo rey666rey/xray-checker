@@ -13,6 +13,20 @@ import (
 	"github.com/prometheus/client_golang/prometheus/testutil"
 )
 
+func TestFailedProxiesReturnsOnlyMissingAndOffline(t *testing.T) {
+	online := mkProxy("1.1.1.1", "online", "id-online")
+	offline := mkProxy("2.2.2.2", "offline", "id-offline")
+	missing := mkProxy("3.3.3.3", "missing", "id-missing")
+	pc := NewProxyChecker([]*models.ProxyConfig{online, offline, missing}, 10000, "", 3, "", "", 5, 1, "ip", 20)
+	pc.results.Store(proxyMetricKey(online), proxyResult{status: true})
+	pc.results.Store(proxyMetricKey(offline), proxyResult{status: false})
+
+	failed := pc.failedProxies([]*models.ProxyConfig{online, offline, missing})
+	if len(failed) != 2 || failed[0] != offline || failed[1] != missing {
+		t.Fatalf("expected offline and missing proxies, got %#v", failed)
+	}
+}
+
 // peakTracker records the maximum number of concurrent calls seen.
 type peakTracker struct {
 	cur, peak int32

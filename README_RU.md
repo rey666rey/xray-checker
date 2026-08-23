@@ -1,260 +1,301 @@
-# Xray Checker
+# Xray Checker — массовая проверка прокси через сеть iPhone
 
-[![GitHub Release](https://img.shields.io/github/v/release/kutovoys/xray-checker?style=flat&color=blue)](https://github.com/kutovoys/xray-checker/releases/latest)
-[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/kutovoys/xray-checker/build-publish.yml)](https://github.com/kutovoys/xray-checker/actions/workflows/build-publish.yml)
-[![DockerHub](https://img.shields.io/badge/DockerHub-kutovoys%2Fxray--checker-blue)](https://hub.docker.com/r/kutovoys/xray-checker/)
-[![Documentation](https://img.shields.io/badge/docs-xray--checker.kutovoy.dev-blue)](https://xray-checker.kutovoy.dev/)
-[![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://demo-xray-checker.kutovoy.dev/)
-[![Telegram Chat](https://img.shields.io/badge/Telegram-Chat-blue?logo=telegram)](https://t.me/+uZCGx_FRY0tiOGIy)
-[![GitHub License](https://img.shields.io/github/license/kutovoys/xray-checker?color=greeen)](https://github.com/kutovoys/xray-checker/blob/main/LICENSE)
-[![ru](https://img.shields.io/badge/lang-ru-blue)](https://github.com/kutovoys/xray-checker/blob/main/README_RU.md)
-[![en](https://img.shields.io/badge/lang-en-red)](https://github.com/kutovoys/xray-checker/blob/main/README.md)
+Этот репозиторий настроен для конкретной задачи: быстро проверять большую
+подписку Xray из российской мобильной сети, пока сам Mac продолжает работать
+через Wi-Fi.
 
-Xray Checker - это инструмент для мониторинга доступности прокси-серверов с поддержкой протоколов VLESS, VMess, Trojan и Shadowsocks. Он автоматически тестирует соединения через Xray Core и предоставляет метрики для Prometheus, а также API-эндпоинты для интеграции с системами мониторинга.
+Checker запускается в отдельной виртуальной машине Colima, основной маршрут
+которой привязан к iPhone по USB. Он загружает все серверы из подписок,
+проверяет их ограниченными пачками, повторяет неудачные попытки и сохраняет
+готовый снимок результатов в локальной панели.
 
-<div align="center">
-  <img src=".github/screen/xray-checker.webp" alt="Dashboard Screenshot">
-</div>
+[English version](README.md)
 
-> [!TIP]
-> **Попробуйте демо:** Посмотрите Xray Checker в действии на [demo-xray-checker.kutovoy.dev](https://demo-xray-checker.kutovoy.dev/)
+## Что именно проверяется
 
-## 🚀 Основные возможности
+Это не ICMP ping.
 
-- 🔍 Мониторинг работоспособности Xray-прокси серверов (VLESS, VMess, Trojan, Shadowsocks)
-- 🔄 Автоматическое обновление конфигурации из подписки (поддержка нескольких подписок)
-- 📊 Экспорт метрик в формате Prometheus с поддержкой Pushgateway
-- 🌐 REST API с документацией OpenAPI/Swagger
-- 🌓 Веб-интерфейс с темной/светлой темой
-- 🎨 Полная кастомизация веб-интерфейса (свой логотип, стили или весь шаблон)
-- 📄 Публичная страница статуса для VPN-сервисов (без аутентификации)
-- 📥 Эндпоинты для интеграции с системами мониторинга (Uptime Kuma и др.)
-- 🔒 Защита метрик и веб-интерфейса с помощью Basic Auth
-- 🐳 Поддержка Docker и Docker Compose
-- 🌍 Автоматическое управление geo-файлами (geoip.dat, geosite.dat)
-- 📝 Гибкая загрузка конфигурации:
-  - URL-подписки (base64, JSON)
-  - Share-ссылки (vless://, vmess://, trojan://, ss://)
-  - JSON-файлы конфигурации
-  - Папки с конфигурациями
+Для каждой ноды VLESS, VMess, Trojan или Shadowsocks Xray поднимает локальный
+SOCKS5-порт. Через него checker отправляет HTTP `GET` на `api.ipify.org` и
+измеряет время до первого байта ответа. Сервер считается онлайн, если запрос
+успешен, а полученный публичный IP отличается от прямого IP checker.
 
-Полный список возможностей доступен в [документации](https://xray-checker.kutovoy.dev/ru/intro/features).
+Соединение с каждым прокси-сервером начинается именно из мобильной сети iPhone.
+`api.ipify.org` используется только как контрольная точка, подтверждающая, что
+трафик действительно прошёл через прокси. Расположение самого IP-сервиса не
+меняет исходную сеть теста.
 
-## 🚀 Быстрый старт
+Режим по умолчанию рассчитан на большие подписки:
 
-### Docker Compose из этого репозитория
+- все серверы проходят первую проверку пачками по 20;
+- повторно проверяются только ошибки, пачками по 10;
+- успешная повторная попытка заменяет первый неудачный результат;
+- после завершения снимок остаётся в памяти без плановых полных перепроверок;
+- перезапуск checker начинает новый полный проход.
 
-Готовый [`compose.yaml`](compose.yaml) собирает локальный ARM64-образ, получает
-ссылки подписок и HWID из `.env`, ограничивает число одновременных проверок до
-20 и публикует панель только на самом Mac.
+Статус offline может означать, что прокси недоступен именно из текущей мобильной
+сети, запрос превысил таймаут, прокси не смог открыть тестовый URL или мобильное
+соединение прервалось во время проверки.
+
+## Схема сети
+
+```text
+Панель на Mac: 127.0.0.1:2112
+        │
+        └── профиль Colima: iphone
+                │ основной маршрут: col0
+                └── режим модема iPhone по USB
+                        │
+                        └── мобильная сеть РФ → прокси-сервер → api.ipify.org
+```
+
+Через iPhone идут только виртуальная машина Colima и её контейнеры. Основной
+маршрут самого Mac может оставаться на Wi-Fi.
+
+## Требования
+
+- Mac на Apple Silicon с macOS;
+- Colima и Docker CLI;
+- Docker Compose как плагин Docker или отдельная команда `docker-compose`;
+- iPhone, подключённый по USB и отмеченный на Mac как доверенный;
+- включённый на iPhone режим модема;
+- ссылки подписок и HWID, который ожидает сервис подписки.
+
+Готовая Compose-сборка рассчитана на `linux/arm64`.
+
+В примерах ниже используется отдельная команда `docker-compose`. Если установлен
+только плагин Docker Compose, заменяйте `docker-compose --context colima-iphone`
+на `docker --context colima-iphone compose`.
+
+## Первоначальная настройка
+
+Создайте локальный файл окружения:
 
 ```bash
 cp .env.example .env
 ```
 
-Откройте `.env` и замените заглушки настоящими значениями. Несколько подписок
-указываются через запятую в одной строке:
+Откройте `.env` и замените обе заглушки:
 
 ```dotenv
-SUBSCRIPTION_URL="https://example.com/220v#220V,https://example.com/wssub#LETO,https://example.com/heltoma#MASTER"
-HWID="ваш-hwid"
+SUBSCRIPTION_URL="https://example.com/subscription#GROUP"
+HWID="ваш-device-id"
 ```
 
-Часть после `#` задаёт название группы в панели и не отправляется серверу
-подписки. Всё значение `SUBSCRIPTION_URL` должно оставаться в кавычках, иначе
-`.env` воспримет `#` как начало комментария. Настоящие ссылки и HWID нельзя
-добавлять в Git; файл `.env` уже исключён через `.gitignore`.
+Несколько подписок указываются через запятую:
 
-Запуск:
-
-```bash
-colima start iphone
-DOCKER_CONTEXT=colima-iphone docker-compose up -d --build
+```dotenv
+SUBSCRIPTION_URL="https://example.com/one#ONE,https://example.com/two#TWO"
 ```
 
-После запуска панель доступна по адресу <http://127.0.0.1:2112>.
+Часть после `#` становится названием группы в панели и не отправляется серверу
+подписки. Оставляйте всё значение в кавычках, иначе `.env` воспримет `#` как
+начало комментария.
 
-## Локальный запуск на macOS через сеть iPhone
+Файл `.env` исключён из Git. Не добавляйте в коммит настоящие ссылки подписок
+и HWID.
 
-В этой конфигурации основной Mac может оставаться в Wi-Fi-сети, а контейнер
-работает внутри отдельного профиля Colima `iphone` и использует интернет iPhone,
-подключённого по USB-C. Переменные `NETWORK_SSID` и `NETWORK_PASSWORD` для этого
-не нужны: выбор сети выполняет Colima, а не Docker Compose.
+## Как найти интерфейс iPhone
 
-### Что требуется
-
-- macOS с установленными `colima`, `docker` и `docker-compose`;
-- iPhone, подключённый по USB-C и отмеченный на Mac как доверенный;
-- включённый на iPhone режим модема;
-- отдельный профиль Colima с именем `iphone`.
-
-Текущий проект уже рассчитан на существующий профиль `iphone`. Если его нужно
-создать заново, сначала найдите имя USB-интерфейса:
+Подключите и разблокируйте iPhone, включите режим модема и выполните:
 
 ```bash
 networksetup -listallhardwareports
 ```
 
-Найдите блок iPhone USB и запомните `Device`, например `en7`. Затем создайте
-профиль, заменив `en7` на своё значение:
+Найдите блок iPhone USB и значение `Device`, обычно это `en7`. По умолчанию
+скрипт запуска использует `en7`.
+
+## Запуск
+
+Когда iPhone подключён:
 
 ```bash
-colima start iphone \
-  --arch aarch64 \
-  --cpus 2 \
-  --memory 4 \
-  --disk 30 \
-  --network-address \
-  --network-mode bridged \
-  --network-interface en7 \
-  --network-preferred-route \
-  --dns 1.1.1.1 \
-  --dns 8.8.8.8
+./start.sh
 ```
 
-При первой настройке macOS может запросить пароль администратора для сетевого
-компонента Colima.
-
-Префикс `DOCKER_CONTEXT=colima-iphone` важен: он направляет команду именно в
-профиль iPhone и не затрагивает контейнеры обычного профиля `colima`.
-
-### Повседневные команды
-
-Проверить состояние:
+Если USB-интерфейс называется иначе:
 
 ```bash
-colima status iphone
-DOCKER_CONTEXT=colima-iphone docker-compose ps
+IPHONE_INTERFACE=en8 ./start.sh
 ```
 
-Посмотреть логи:
+Скрипт последовательно:
+
+1. проверяет наличие `.env`, Colima, Docker, Compose и интерфейса iPhone;
+2. при необходимости останавливает старый профиль Colima `iphone`;
+3. запускает bridge-daemon vmnet, привязанный к USB-интерфейсу iPhone;
+4. запускает Colima и проверяет, что основной IPv4-маршрут использует `col0`;
+5. собирает и запускает Xray Checker в Docker-контексте `colima-iphone`.
+
+При первой настройке vmnet macOS может запросить разрешение администратора.
+
+После запуска откройте панель:
+
+<http://127.0.0.1:2112>
+
+Панель становится доступна сразу, пока результаты первой проходки ещё
+постепенно заполняются.
+
+## Как следить за проверкой
+
+Состояние контейнера:
 
 ```bash
-DOCKER_CONTEXT=colima-iphone docker-compose logs -f xray-checker
+docker-compose --context colima-iphone ps
 ```
 
-Перезапустить панель после изменения `.env` или `compose.yaml`:
+Логи в реальном времени:
 
 ```bash
-DOCKER_CONTEXT=colima-iphone docker-compose up -d --build --force-recreate
+docker-compose --context colima-iphone logs -f xray-checker
 ```
 
-Остановить только Xray Checker, сохранив контейнер:
+Проверка веб-сервера:
 
 ```bash
-DOCKER_CONTEXT=colima-iphone docker-compose stop
-```
-
-Запустить его снова:
-
-```bash
-DOCKER_CONTEXT=colima-iphone docker-compose start
-```
-
-Полностью выключить отдельную виртуальную машину Colima:
-
-```bash
-colima stop iphone
-```
-
-После полного выключения запуск выполняется так:
-
-```bash
-colima start iphone
-DOCKER_CONTEXT=colima-iphone docker-compose up -d
-```
-
-### Проверка и устранение проблем
-
-Если панель не открывается, последовательно выполните:
-
-```bash
-colima status iphone
-DOCKER_CONTEXT=colima-iphone docker-compose ps
-DOCKER_CONTEXT=colima-iphone docker-compose logs --tail=100 xray-checker
 curl -fsS http://127.0.0.1:2112/health
 ```
 
-Ответ `OK` от последней команды означает, что веб-сервер работает. Ошибка
-доступа к `docker.sock` обычно означает, что профиль `iphone` не запущен.
+Кнопка `Auto` в правом верхнем углу только обновляет значения, уже доступные
+через API. Она не запускает новую проверку серверов. В стандартном одноразовом
+режиме после завершения проходки результаты больше не меняются.
 
-После отключения и повторного подключения iPhone безопаснее перезапустить
-профиль:
+## Как начать новую полную проверку
 
-```bash
-colima stop iphone
-colima start iphone
-DOCKER_CONTEXT=colima-iphone docker-compose up -d
-```
-
-В `compose.yaml` установлены `PROXY_CHECK_CONCURRENCY=20` и интервал проверки
-600 секунд. Неограниченная проверка сотен нод одновременно перегружает мобильный
-канал и сервис определения IP, из-за чего появляются завышенный latency, `EOF`
-и ложный статус offline.
-
-Порт опубликован как `127.0.0.1:2112:2112`, поэтому панель доступна только на
-этом Mac и не открыта для других устройств в локальной сети.
-
-## Другие варианты запуска
-
-### Docker без Compose
+Чтобы перезапустить только checker, не перестраивая сеть Colima:
 
 ```bash
-docker run -d \
-  -e SUBSCRIPTION_URL=https://your-subscription-url/sub \
-  -p 2112:2112 \
-  kutovoys/xray-checker
+docker-compose --context colima-iphone restart xray-checker
 ```
 
-### Минимальный Docker Compose
+После изменения кода, `.env` или `compose.yaml` пересоберите контейнер:
 
-```yaml
-services:
-  xray-checker:
-    image: kutovoys/xray-checker
-    environment:
-      - SUBSCRIPTION_URL=https://your-subscription-url/sub
-    ports:
-      - "2112:2112"
+```bash
+docker-compose --context colima-iphone up -d --build --force-recreate
 ```
 
-Подробная документация по установке и настройке доступна на [xray-checker.kutovoy.dev](https://xray-checker.kutovoy.dev/ru/intro/quick-start)
+Если iPhone отсоединяли, подключали заново или он сменил сеть, используйте
+`./start.sh`. Скрипт заново создаст и проверит bridge перед запуском checker.
 
-## 📈 Статистика проекта
+## Как остановить всё полностью
 
-<a href="https://star-history.com/#kutovoys/xray-checker&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=kutovoys/xray-checker&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=kutovoys/xray-checker&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=kutovoys/xray-checker&type=Date" />
- </picture>
-</a>
+```bash
+./stop.sh
+```
 
-## 🤝 Участие в разработке
+Скрипт удаляет Compose-контейнеры, останавливает виртуальную машину Colima
+`iphone` и её bridge-daemon. Именованный том `xray-geo` сохраняется, чтобы при
+следующем запуске не загружать geo-файлы повторно.
 
-Мы рады любому вкладу в развитие Xray Checker! Если вы хотите помочь:
+Остановить только checker, оставив Colima включённой:
 
-1. Сделайте форк репозитория
-2. Создайте ветку для ваших изменений
-3. Внесите изменения и протестируйте их
-4. Создайте Pull Request
+```bash
+docker-compose --context colima-iphone stop xray-checker
+```
 
-Подробнее о том, как внести свой вклад, читайте в [руководстве для контрибьюторов](https://xray-checker.kutovoy.dev/ru/contributing/development-guide).
+## Текущие настройки проверки
 
-<p align="center">
-Спасибо всем контрибьюторам, которые помогли улучшить Xray Checker:
-</p>
-<p align="center">
-<a href="https://github.com/kutovoys/xray-checker/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=kutovoys/xray-checker" />
-</a>
-</p>
-<p align="center">
-  Сделано с помощью <a rel="noopener noreferrer" target="_blank" href="https://contrib.rocks">contrib.rocks</a>
-</p>
+Локальные значения находятся в [`compose.yaml`](compose.yaml):
 
----
+| Переменная | Значение | Назначение |
+| --- | --- | --- |
+| `SUBSCRIPTION_UPDATE` | `false` | Не менять исходный набор серверов |
+| `SUBSCRIPTION_JSON_FORMAT` | `true` | Запрашивать полные JSON-конфигурации |
+| `PROXY_CHECK_CONCURRENCY` | `20` | Размер параллельной пачки первой проходки |
+| `PROXY_CHECK_INTERVAL` | `600` | Интервал Auto; период проверок при отключённом одноразовом режиме |
+| `PROXY_INITIAL_CHECK_ONLY` | `true` | Выполнить один полный проход после запуска |
+| `PROXY_CHECK_METHOD` | `ip` | Проверять сервер HTTP-запросом через прокси |
+| `PROXY_IP_CHECK_URL` | `https://api.ipify.org?format=text` | Получать выходной IP прокси |
+| `PROXY_TIMEOUT` | `10` | Таймаут одного запроса в секундах |
 
-## Рекомендация VPN
+При методе `ip` ошибки первой попытки автоматически перепроверяются с половиной
+значения `PROXY_CHECK_CONCURRENCY`.
 
-Для безопасного и надежного доступа в интернет мы рекомендуем [BlancVPN](https://getblancvpn.com/pricing?promo=klugscl&ref=xc-readme). Используйте промокод `KLUGSCL` для получения скидки 15% на вашу подписку.
+Если мобильный канал даёт много `EOF` или таймаутов, уменьшите параллелизм. Если
+проверка стабильна, но идёт слишком долго, увеличивайте его постепенно. Чем
+выше значение, тем больше одновременных соединений Xray и тем выше нагрузка на
+радиоканал и NAT iPhone.
+
+Все поддерживаемые переменные перечислены в
+[`docs/src/content/docs/ru/configuration/envs.md`](docs/src/content/docs/ru/configuration/envs.md).
+
+## Полезные адреса
+
+| URL | Что находится |
+| --- | --- |
+| `/` | Локальная панель |
+| `/health` | Состояние процесса; возвращает `OK` |
+| `/metrics` | Метрики Prometheus |
+| `/api/v1/public/proxies` | Текущий снимок для кнопки Auto |
+| `/api/v1/status` | Сводное состояние checker |
+| `/api/v1/config` | Активная конфигурация без секретов |
+| `/api/v1/docs` | Интерактивная документация OpenAPI |
+
+Compose публикует порт только на `127.0.0.1`, поэтому панель недоступна другим
+устройствам в локальной сети.
+
+## Решение проблем
+
+### Скрипт сообщает, что у iPhone нет IPv4-адреса
+
+Разблокируйте iPhone, проверьте доверие к Mac, включите режим модема и
+переподключите USB-кабель. Снова уточните имя интерфейса и при необходимости
+передайте его через `IPHONE_INTERFACE`.
+
+### Colima запускается, но checker не стартует
+
+Посмотрите маршруты виртуальной машины:
+
+```bash
+colima ssh --profile iphone -- ip -4 route show default
+```
+
+В основном маршруте должно быть `dev col0`. `start.sh` специально не запускает
+checker без этого маршрута, иначе тесты могли бы пойти через неправильную сеть.
+
+### Как убедиться, что Mac и checker выходят через разные сети
+
+```bash
+curl -fsS https://api.ipify.org
+docker-compose --context colima-iphone exec xray-checker \
+  curl -fsS https://api.ipify.org
+```
+
+Первая команда должна показать выходной IP Wi-Fi на Mac, вторая — мобильный IP
+iPhone.
+
+### Результаты исчезли
+
+Результаты хранятся в памяти. Перезапуск или пересоздание контейнера специально
+очищает их и начинает новую полную проходку.
+
+### Одновременно стало слишком много offline-серверов
+
+Убедитесь, что iPhone оставался подключённым до конца проходки, и посмотрите
+логи. Если большинство ошибок — таймауты или сбросы соединений, уменьшите
+`PROXY_CHECK_CONCURRENCY` либо увеличьте `PROXY_TIMEOUT`, пересоберите контейнер
+и повторите проверку.
+
+## Разработка
+
+Запуск тестов Go:
+
+```bash
+go test ./...
+```
+
+Проверка рабочих скриптов и Compose:
+
+```bash
+bash -n start.sh stop.sh
+docker-compose --context colima-iphone config --quiet
+```
+
+## Происхождение проекта
+
+Репозиторий основан на
+[`kutovoys/xray-checker`](https://github.com/kutovoys/xray-checker) и сохраняет
+его лицензию. Локальные изменения сосредоточены на стабильной идентификации
+серверов с одинаковыми именами, ограниченных пачках, повторе ошибок,
+одноразовом снимке результатов и изолированном запуске Colima через сеть iPhone.

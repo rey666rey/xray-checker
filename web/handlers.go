@@ -82,6 +82,7 @@ func IndexHandler(version string, proxyChecker *checker.ProxyChecker) http.Handl
 			Host:                       config.CLIConfig.Metrics.Host,
 			Port:                       config.CLIConfig.Metrics.Port,
 			CheckInterval:              config.CLIConfig.Proxy.CheckInterval,
+			InitialCheckOnly:           config.CLIConfig.Proxy.InitialCheckOnly,
 			IPCheckUrl:                 config.CLIConfig.Proxy.IpCheckUrl,
 			CheckMethod:                config.CLIConfig.Proxy.CheckMethod,
 			StatusCheckUrl:             config.CLIConfig.Proxy.StatusCheckUrl,

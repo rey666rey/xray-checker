@@ -377,6 +377,33 @@ func (pc *ProxyChecker) CheckAllProxies() {
 	pc.mu.RUnlock()
 
 	runBoundedChecks(proxiesToCheck, pc.checkConcurrency, pc.checkProxyInternal)
+
+	// Mobile links occasionally reset otherwise healthy proxy connections during
+	// a large sweep. Match app-style URL tests by retrying only first-pass failures;
+	// successes are never needlessly checked twice. A smaller retry batch reduces
+	// NAT/radio pressure and any successful attempt becomes the retained result.
+	if pc.checkMethod == "ip" {
+		failed := pc.failedProxies(proxiesToCheck)
+		if len(failed) > 0 {
+			retryConcurrency := pc.checkConcurrency
+			if retryConcurrency > 1 {
+				retryConcurrency /= 2
+			}
+			logger.Info("Retrying %d first-pass failures with concurrency %d", len(failed), retryConcurrency)
+			runBoundedChecks(failed, retryConcurrency, pc.checkProxyInternal)
+		}
+	}
+}
+
+func (pc *ProxyChecker) failedProxies(proxies []*models.ProxyConfig) []*models.ProxyConfig {
+	failed := make([]*models.ProxyConfig, 0)
+	for _, proxy := range proxies {
+		result, ok := pc.results.Load(proxyMetricKey(proxy))
+		if !ok || !result.(proxyResult).status {
+			failed = append(failed, proxy)
+		}
+	}
+	return failed
 }
 
 // runBoundedChecks runs check(p) for every proxy concurrently. concurrency == 0

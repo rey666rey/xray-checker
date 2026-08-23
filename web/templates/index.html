@@ -1068,7 +1068,7 @@
           200/503 for monitoring</span
         >
         <span class="truncate max-w-full"
-          >Check: {{.CheckMethod}} · Interval: {{.CheckInterval}}s · Timeout:
+          >Check: {{.CheckMethod}} · {{if .InitialCheckOnly}}Initial pass only{{else}}Interval: {{.CheckInterval}}s{{end}} · Timeout:
           {{.Timeout}}s · {{ if eq .CheckMethod "ip" }}{{.IPCheckUrl}}{{ else if
           eq .CheckMethod "status" }}{{.StatusCheckUrl}}{{ else if eq
           .CheckMethod "download" }}{{.DownloadUrl}}{{ end }}</span
@@ -1409,7 +1409,7 @@
               const json = await res.json();
               if (json.success && json.data) {
                 json.data.forEach(updated => {
-                  const proxy = this.proxies.find(p => p.name === updated.name);
+                  const proxy = this.proxies.find(p => p.stableId === updated.stableId);
                   if (proxy) {
                     proxy.status = updated.online;
                     proxy.latencyMs = updated.latencyMs;

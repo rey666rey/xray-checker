@@ -51,6 +51,7 @@ type StatusResponse struct {
 
 type ConfigResponse struct {
 	CheckInterval              int      `json:"checkInterval"`
+	InitialCheckOnly           bool     `json:"initialCheckOnly"`
 	CheckMethod                string   `json:"checkMethod"`
 	Timeout                    int      `json:"timeout"`
 	StartPort                  int      `json:"startPort"`
@@ -336,6 +337,7 @@ func APIConfigHandler(proxyChecker *checker.ProxyChecker) http.HandlerFunc {
 		subNames := CollectSubscriptionNames(proxyChecker.GetProxies())
 		writeJSON(w, ConfigResponse{
 			CheckInterval:              config.CLIConfig.Proxy.CheckInterval,
+			InitialCheckOnly:           config.CLIConfig.Proxy.InitialCheckOnly,
 			CheckMethod:                config.CLIConfig.Proxy.CheckMethod,
 			Timeout:                    config.CLIConfig.Proxy.Timeout,
 			StartPort:                  config.CLIConfig.Xray.StartPort,
