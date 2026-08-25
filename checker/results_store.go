@@ -31,6 +31,8 @@ type persistedProxyResult struct {
 	Unstable  bool   `json:"unstable,omitempty"`
 	LatencyNS int64  `json:"latencyNs"`
 	LastCheck int64  `json:"lastCheck"`
+	LastError string `json:"lastError,omitempty"`
+	ExitIP    string `json:"exitIp,omitempty"`
 }
 
 // SetResultsFile restores the most recent completed sweep and enables atomic,
@@ -107,6 +109,8 @@ func (pc *ProxyChecker) loadResults() error {
 			unstable:  item.Unstable,
 			latency:   time.Duration(item.LatencyNS),
 			lastCheck: time.Unix(item.LastCheck, 0),
+			lastError: item.LastError,
+			exitIP:    item.ExitIP,
 		})
 		restored++
 	}
@@ -225,6 +229,8 @@ func (pc *ProxyChecker) persistResults() error {
 			Unstable:  result.unstable,
 			LatencyNS: int64(result.latency),
 			LastCheck: result.lastCheck.Unix(),
+			LastError: result.lastError,
+			ExitIP:    result.exitIP,
 		})
 	}
 

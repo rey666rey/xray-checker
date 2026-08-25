@@ -11,6 +11,8 @@ func PrepareProxyConfigs(proxies []*models.ProxyConfig) {
 	for i := range proxies {
 		proxies[i].Index = i
 	}
+	models.AssignLogicalIDs(proxies)
+	models.AssignTopologyIDs(proxies)
 	// Assign final StableIDs over the whole set so that identical-connection configs
 	// are separated deterministically (see models.AssignStableIDs).
 	models.AssignStableIDs(proxies)
@@ -20,7 +22,11 @@ func PrepareProxyConfigs(proxies []*models.ProxyConfig) {
 // of its custom metricsLabels, so a change to labels alone (same connection) is
 // still detected as a subscription change and triggers a refresh (#124).
 func configSignature(cfg *models.ProxyConfig) string {
-	base := cfg.GenerateStableID()
+	base := cfg.GenerateRevisionID()
+	// Display metadata is part of the subscription view even though it does not
+	// alter connectivity. Including it makes renames visible without forcing a
+	// connectivity recheck after the config reload.
+	base += "\x1d" + cfg.Name + "\x1d" + cfg.SubName + "\x1d" + cfg.GroupName
 	if len(cfg.MetricsLabels) == 0 {
 		return base
 	}

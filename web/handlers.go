@@ -19,18 +19,32 @@ var (
 )
 
 type EndpointInfo struct {
-	Name       string
-	SubName    string
-	Protocol   string
-	ServerInfo string
-	URL        string
-	ProxyPort  int
-	Index      int
-	Status     bool
-	Unstable   bool
-	Latency    time.Duration
-	StableID   string
-	GroupName  string
+	Name                 string
+	SubName              string
+	Protocol             string
+	ServerInfo           string
+	URL                  string
+	ProxyPort            int
+	Index                int
+	Status               bool
+	Unstable             bool
+	Latency              time.Duration
+	StableID             string
+	HostID               string
+	NodeID               string
+	GroupName            string
+	MonitorState         checker.NodeState
+	PreviousAddress      string
+	ResolvedIPs          []string
+	PreviousResolvedIPs  []string
+	AddressChangedAt     int64
+	Failures             int
+	LastError            string
+	NextCheck            int64
+	ExitIP               string
+	EndpointFirstSeen    int64
+	EndpointLastSeen     int64
+	EndpointMissingPolls int
 }
 
 func IndexHandler(version string, proxyChecker *checker.ProxyChecker) http.HandlerFunc {
@@ -59,14 +73,20 @@ func IndexHandler(version string, proxyChecker *checker.ProxyChecker) http.Handl
 			endpoints = make([]EndpointInfo, len(allEndpoints))
 			for i, ep := range allEndpoints {
 				e := EndpointInfo{
-					Name:      ep.Name,
-					SubName:   ep.SubName,
-					Index:     ep.Index,
-					Status:    ep.Status,
-					Unstable:  ep.Unstable,
-					Latency:   ep.Latency,
-					StableID:  ep.StableID,
-					GroupName: ep.GroupName,
+					Name:             ep.Name,
+					SubName:          ep.SubName,
+					Index:            ep.Index,
+					Status:           ep.Status,
+					Unstable:         ep.Unstable,
+					Latency:          ep.Latency,
+					StableID:         ep.StableID,
+					HostID:           ep.HostID,
+					NodeID:           ep.NodeID,
+					GroupName:        ep.GroupName,
+					MonitorState:     ep.MonitorState,
+					AddressChangedAt: ep.AddressChangedAt,
+					Failures:         ep.Failures,
+					NextCheck:        ep.NextCheck,
 				}
 				if config.CLIConfig.Web.PublicShowProtocol {
 					e.Protocol = ep.Protocol
@@ -177,20 +197,36 @@ func RegisterConfigEndpoints(proxies []*models.ProxyConfig, proxyChecker *checke
 		endpoint := fmt.Sprintf("./config/%s", proxy.StableID)
 
 		status, unstable, latency, _, _ := proxyChecker.GetProxyResultDetailsByStableID(proxy.StableID)
+		monitor, _ := proxyChecker.GetNodeMonitorByStableID(proxy.StableID)
+		observation, _ := proxyChecker.GetEndpointObservation(proxy)
 
 		endpoints = append(endpoints, EndpointInfo{
-			Name:       proxy.Name,
-			SubName:    proxy.SubName,
-			Protocol:   proxy.Protocol,
-			ServerInfo: fmt.Sprintf("%s:%d", proxy.Server, proxy.Port),
-			URL:        endpoint,
-			ProxyPort:  startPort + proxy.Index,
-			Index:      proxy.Index,
-			Status:     status,
-			Unstable:   unstable,
-			Latency:    latency,
-			StableID:   proxy.StableID,
-			GroupName:  proxy.GroupName,
+			Name:                 proxy.Name,
+			SubName:              proxy.SubName,
+			Protocol:             proxy.Protocol,
+			ServerInfo:           fmt.Sprintf("%s:%d", proxy.Server, proxy.Port),
+			URL:                  endpoint,
+			ProxyPort:            startPort + proxy.Index,
+			Index:                proxy.Index,
+			Status:               status,
+			Unstable:             unstable,
+			Latency:              latency,
+			StableID:             proxy.StableID,
+			HostID:               proxy.HostID,
+			NodeID:               proxy.NodeID,
+			GroupName:            proxy.GroupName,
+			MonitorState:         monitor.State,
+			PreviousAddress:      monitor.PreviousAddress,
+			ResolvedIPs:          monitor.ResolvedIPs,
+			PreviousResolvedIPs:  monitor.PreviousResolvedIPs,
+			AddressChangedAt:     monitor.AddressChangedAt,
+			Failures:             monitor.ConsecutiveFailures,
+			LastError:            monitor.LastError,
+			NextCheck:            monitor.NextCheck,
+			ExitIP:               monitor.ExitIP,
+			EndpointFirstSeen:    observation.FirstSeenAt,
+			EndpointLastSeen:     observation.LastSeenAt,
+			EndpointMissingPolls: observation.MissingPolls,
 		})
 	}
 

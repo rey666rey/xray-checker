@@ -9,9 +9,12 @@ services:
     image: xray-checker:local
     environment:
       SUBSCRIPTION_URL: ${SUBSCRIPTION_URL:?add SUBSCRIPTION_URL to .env}
-      # Keep the completed first-pass results instead of triggering another
-      # full sweep whenever the panel returns the same set in a new order.
-      SUBSCRIPTION_UPDATE: "false"
+      # Poll panel metadata, but only check new or changed nodes.
+      SUBSCRIPTION_UPDATE: "true"
+      SUBSCRIPTION_UPDATE_INTERVAL: "60"
+      # Four samples discover rotating pools (including hosts with many nodes)
+      # faster; only newly seen endpoints trigger proxy checks.
+      SUBSCRIPTION_POOL_SAMPLES: "4"
       SUBSCRIPTION_JSON_FORMAT: "true"
       SUBSCRIPTION_HEADERS: "X-Hwid: ${HWID:?add HWID to .env}"
       # Fast app-style pass: two Apple URL tests, keeping the best latency.
@@ -30,6 +33,9 @@ services:
       NETWORK_STATUS_FILE: "/app/runtime/network-status.json"
       NETWORK_STATUS_MAX_AGE: "15"
       RESULTS_FILE: "/app/data/results.json"
+      # Deliberately not cleared by start.sh: IP replacement history survives runs.
+      NODE_HISTORY_FILE: "/app/data/node-history.json"
+      WEB_SHOW_DETAILS: "true"
     ports:
       - "127.0.0.1:2112:2112"
     volumes:

@@ -15,23 +15,42 @@ keeps the completed snapshot available in a local dashboard.
 
 This is not an ICMP ping.
 
-For each VLESS, VMess, Trojan, or Shadowsocks node, Xray exposes a local SOCKS5
-port. The checker sends an HTTP `GET` to `api.ipify.org` through that port and
-measures time to first response byte. A node is online when the request succeeds
-and the returned public IP differs from the checker's direct public IP.
+For each node, Xray exposes a local SOCKS5 port. The checker sends two proxied
+HTTP `GET` requests to the tiny `captive.apple.com/hotspot-detect.html` page,
+measures time to first byte, and retains the best result. If both requests fail,
+the slower `api.ipify.org` check is used as a fallback. After an endpoint change,
+the IP check is mandatory even when the Apple URL test succeeds.
 
-The connection to every proxy server originates from the iPhone's mobile
-network. `api.ipify.org` is only the destination used to confirm that traffic
-actually passed through the proxy; it does not determine the source network of
-the test.
+Every proxy connection originates from the iPhone's mobile network. The test
+destination does not determine the source network: the result answers whether
+the node works from the current Russian mobile connection through Xray.
 
 The default run is designed for large subscriptions:
 
-- all nodes are checked once, in batches of 20;
+- all nodes are checked once, in batches of 30;
 - only failed nodes are retried, in batches of 10;
 - any successful retry replaces the first failed result;
-- the final snapshot stays in memory without scheduled full rechecks;
+- no further bulk sweep runs after completion; only due nodes are checked;
 - restarting the checker starts a new full run.
+
+After the full sweep, the checker becomes a repair queue. A failed node is
+confirmed after 30 seconds and 2 minutes; three failed rounds produce
+`Needs replacement`. Unstable nodes run again after 5 minutes, while healthy
+nodes are staggered across a 45–60 minute window. Subscriptions are sampled twice
+per minute, but only new or changed bindings are tested.
+
+The checker stores a many-to-many topology: a `Host` is one subscription
+entry/inbound, a `Node` is one physical endpoint/IP, and the checkable binding is
+their pair. Reality, TLS, and Hysteria bindings on one IP retain independent
+results while appearing under the same node. One host may also rotate across a
+pool of nodes. Alternating `A → B → A → B` samples therefore add both endpoints
+instead of being discarded as noise. New endpoints are checked immediately;
+missing endpoints remain visible as `Missing` and detach after 30 successful
+polls without a sighting.
+
+The dashboard defaults to the node-centric view, showing working bindings per
+physical endpoint. The `Hosts` toggle restores the subscription-entry view. A
+single binding or every binding on one node can be rechecked manually.
 
 An offline result can mean that the proxy is unavailable from the current
 mobile network, the request timed out, the proxy could not reach the test URL,
@@ -165,9 +184,9 @@ Health check:
 curl -fsS http://127.0.0.1:2112/health
 ```
 
-The `Auto` button in the top-right corner only refreshes values already exposed
-by the API. It does not start another proxy test. In the default one-pass mode,
-the displayed results remain unchanged after the run completes.
+The `Auto` button in the top-right corner only enables or disables dashboard API
+refresh; it does not start a proxy test. It is enabled by default and refreshes
+every 5 seconds, so targeted background checks appear without reloading the page.
 
 The pill beside `Auto` shows the live iPhone route state and mobile public IP:
 
@@ -228,10 +247,12 @@ The local defaults live in [`compose.yaml`](compose.yaml):
 
 | Setting | Value | Purpose |
 | --- | --- | --- |
-| `SUBSCRIPTION_UPDATE` | `false` | Keep the initially loaded proxy set |
+| `SUBSCRIPTION_UPDATE` | `true` | Poll for new, changed, renamed, and removed nodes |
+| `SUBSCRIPTION_UPDATE_INTERVAL` | `60` | Subscription polling interval |
+| `SUBSCRIPTION_POOL_SAMPLES` | `4` | Samples per poll for discovering rotating endpoint pools |
 | `SUBSCRIPTION_JSON_FORMAT` | `true` | Request complete JSON proxy configs |
 | `PROXY_CHECK_CONCURRENCY` | `30` | Limit the fast first-pass batch size |
-| `PROXY_CHECK_INTERVAL` | `600` | UI Auto-refresh interval; check interval when one-pass mode is disabled |
+| `PROXY_CHECK_INTERVAL` | `600` | Legacy full-cycle interval; no bulk cycles run in initial-only mode |
 | `PROXY_INITIAL_CHECK_ONLY` | `true` | Run one full check after startup |
 | `PROXY_CHECK_METHOD` | `urltest` | Run two fast proxied GETs and retain the best result |
 | `PROXY_URL_TEST_URL` | `http://captive.apple.com/hotspot-detect.html` | Primary tiny Apple page |
@@ -243,6 +264,7 @@ The local defaults live in [`compose.yaml`](compose.yaml):
 | `NETWORK_STATUS_FILE` | `/app/runtime/network-status.json` | Pause checks when the host monitor reports an outage |
 | `NETWORK_STATUS_MAX_AGE` | `15` | Treat a silent monitor as offline after 15 seconds |
 | `RESULTS_FILE` | `/app/data/results.json` | Persist a completed sweep across checker/Colima restarts |
+| `NODE_HISTORY_FILE` | `/app/data/node-history.json` | Persist repair states, endpoint changes, and short history across runs |
 
 If both fast Apple requests fail, the checker tries `ipify`. A node that succeeds
 only through this fallback or the retry pass is shown in yellow as `unstable`.
@@ -263,6 +285,9 @@ All supported environment variables are documented in
 | `/health` | Process health; returns `OK` |
 | `/metrics` | Prometheus metrics |
 | `/api/v1/public/proxies` | Current proxy snapshot used by Auto refresh |
+| `POST /api/v1/proxies/{stableID}/recheck` | Queue one node for immediate verification |
+| `/api/v1/nodes` | Physical endpoints with all attached host/inbound bindings |
+| `POST /api/v1/nodes/{nodeID}/recheck` | Recheck every binding attached to one endpoint |
 | `/api/v1/status` | Aggregate checker status |
 | `/api/v1/config` | Active non-secret configuration |
 | `/api/v1/network` | iPhone route state and current mobile IP |

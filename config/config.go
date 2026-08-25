@@ -26,6 +26,7 @@ type CLI struct {
 		URLs           []string `name:"subscription-url" help:"URL(s) of the subscription (can be specified multiple times)" required:"true" env:"SUBSCRIPTION_URL"`
 		Update         bool     `name:"subscription-update" help:"Whether to recheck the subscription" default:"true" env:"SUBSCRIPTION_UPDATE"`
 		UpdateInterval int      `name:"subscription-update-interval" help:"Interval for subscription updates in seconds" default:"300" env:"SUBSCRIPTION_UPDATE_INTERVAL"`
+		PoolSamples    int      `name:"subscription-pool-samples" help:"Independent subscription samples per update used to discover rotating host endpoints" default:"2" env:"SUBSCRIPTION_POOL_SAMPLES"`
 		JSONFormat     bool     `name:"subscription-json-format" help:"Request full JSON configs from the panel (sends app-like headers so grouped/balancer nodes are returned individually instead of collapsed share links)" default:"false" env:"SUBSCRIPTION_JSON_FORMAT"`
 		UserAgent      string   `name:"subscription-user-agent" help:"Custom User-Agent for subscription requests (overrides the default and the --subscription-json-format preset)" default:"" env:"SUBSCRIPTION_USER_AGENT"`
 		Headers        []string `name:"subscription-header" help:"Extra HTTP header for subscription requests in 'Key: Value' form (repeatable; env: comma-separated)" env:"SUBSCRIPTION_HEADERS"`
@@ -33,7 +34,7 @@ type CLI struct {
 
 	Proxy struct {
 		CheckInterval    int    `name:"proxy-check-interval" help:"Interval for proxy checks in seconds" default:"300" env:"PROXY_CHECK_INTERVAL"`
-		InitialCheckOnly bool   `name:"proxy-initial-check-only" help:"Run one full check after startup and keep its results without scheduled full rechecks" default:"false" env:"PROXY_INITIAL_CHECK_ONLY"`
+		InitialCheckOnly bool   `name:"proxy-initial-check-only" help:"Run one full check after startup without scheduled bulk rechecks; targeted repair checks continue" default:"false" env:"PROXY_INITIAL_CHECK_ONLY"`
 		CheckConcurrency int    `name:"proxy-check-concurrency" help:"Max proxies checked in parallel per cycle (0 = unlimited)" default:"0" env:"PROXY_CHECK_CONCURRENCY"`
 		CheckMethod      string `name:"proxy-check-method" help:"Method for checking proxy: urltest, ip, status or download" default:"ip" env:"PROXY_CHECK_METHOD"`
 		IpCheckUrl       string `name:"proxy-ip-check-url" help:"Service URL for IP checking" default:"https://api.ipify.org?format=text" env:"PROXY_IP_CHECK_URL"`
@@ -78,6 +79,7 @@ type CLI struct {
 	NetworkStatusFile   string      `name:"network-status-file" help:"Path to a route-monitor status JSON file; unavailable status pauses proxy checks" default:"" env:"NETWORK_STATUS_FILE"`
 	NetworkStatusMaxAge int         `name:"network-status-max-age" help:"Maximum network status age in seconds before checks are paused" default:"15" env:"NETWORK_STATUS_MAX_AGE"`
 	ResultsFile         string      `name:"results-file" help:"Path to a persistent proxy-results snapshot" default:"" env:"RESULTS_FILE"`
+	NodeHistoryFile     string      `name:"node-history-file" help:"Path to persistent logical-node repair history" default:"" env:"NODE_HISTORY_FILE"`
 	Version             VersionFlag `name:"version" help:"Print version information and quit"`
 	RunOnce             bool        `name:"run-once" help:"Run one check cycle and exit" default:"false" env:"RUN_ONCE"`
 	LogLevel            string      `name:"log-level" help:"Log level (debug|info|warn|error|none)" default:"info" env:"LOG_LEVEL"`

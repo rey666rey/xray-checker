@@ -92,6 +92,34 @@ func TestGenerateStableID_AlpnOrderIndependent(t *testing.T) {
 	}
 }
 
+func TestGenerateIDs_RawJSONKeyOrderIndependent(t *testing.T) {
+	left := baseProxy()
+	left.Type = "xhttp"
+	left.RawXhttpSettings = `{"mode":"auto","extra":{"noSSEHeader":true,"scMaxBufferedPosts":30}}`
+	right := baseProxy()
+	right.Type = "xhttp"
+	right.RawXhttpSettings = `{"extra":{"scMaxBufferedPosts":30,"noSSEHeader":true},"mode":"auto"}`
+
+	if left.GenerateStableID() != right.GenerateStableID() {
+		t.Fatal("public StableID changed only because raw JSON key order changed")
+	}
+	if left.GenerateRevisionID() != right.GenerateRevisionID() {
+		t.Fatal("private revision ID changed only because raw JSON key order changed")
+	}
+}
+
+func TestGenerateRevisionID_IgnoresVolatileSNI(t *testing.T) {
+	left := baseProxy()
+	right := baseProxy()
+	right.SNI = "rotated.example.com"
+	if left.GenerateRevisionID() != right.GenerateRevisionID() {
+		t.Fatal("monitoring revision must ignore panel-rotated SNI")
+	}
+	if left.GenerateStableID() == right.GenerateStableID() {
+		t.Fatal("public connection StableID should still describe the active SNI")
+	}
+}
+
 func mk(name, path, fp string) *ProxyConfig {
 	p := baseProxy()
 	p.Name = name

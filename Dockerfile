@@ -25,7 +25,7 @@ RUN go mod download
 COPY . .
 
 RUN CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-  go build -ldflags="-s -w -X main.version=${GIT_TAG} -X main.commit=${GIT_COMMIT}" -a -installsuffix cgo -o /usr/bin/xray-checker . && \
+  go build -ldflags="-s -w -X main.version=${GIT_TAG} -X main.commit=${GIT_COMMIT}" -o /usr/bin/xray-checker . && \
   upx --best --lzma /usr/bin/xray-checker
 
 FROM alpine:3.21

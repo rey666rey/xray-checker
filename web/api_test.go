@@ -2,10 +2,15 @@ package web
 
 import (
 	"bytes"
+	"encoding/json"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"xray-checker/checker"
 	"xray-checker/config"
+	"xray-checker/models"
+	"xray-checker/xray"
 )
 
 func TestRenderIndexIncludesSubscriptionName(t *testing.T) {
@@ -21,6 +26,33 @@ func TestRenderIndexIncludesSubscriptionName(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), `subName: "LETO"`) {
 		t.Fatal("rendered dashboard does not include the subscription name")
+	}
+}
+
+func TestAPINodesGroupsSeveralHostsOnOneEndpoint(t *testing.T) {
+	proxies := []*models.ProxyConfig{
+		{Protocol: "vless", Security: "reality", Name: "Germany (s1)", Server: "192.0.2.10", Port: 443, UUID: "00000000-0000-4000-8000-000000000001"},
+		{Protocol: "vless", Security: "tls", Name: "Germany (s1 v2)", Server: "192.0.2.10", Port: 8443, UUID: "00000000-0000-4000-8000-000000000002"},
+		{Protocol: "hysteria", Name: "Germany (s1 v3)", Server: "192.0.2.10", Port: 8444, HysteriaAuth: "secret"},
+	}
+	xray.PrepareProxyConfigs(proxies)
+	proxyChecker := checker.NewProxyChecker(proxies, 10000, "", 1, "", "", 1, 1, "urltest", 1)
+	proxyChecker.SetEndpointPool(checker.NewEndpointPool(proxies))
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest("GET", "/api/v1/nodes", nil)
+	APINodesHandler(proxyChecker, 10000).ServeHTTP(recorder, request)
+	if recorder.Code != 200 {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	var response struct {
+		Data []NodeGroupInfo `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Data) != 1 || response.Data[0].TotalBindings != 3 || response.Data[0].HostCount != 3 {
+		t.Fatalf("node groups=%#v, want one node with three bindings", response.Data)
 	}
 }
 

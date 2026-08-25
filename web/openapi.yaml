@@ -84,6 +84,66 @@ paths:
               schema:
                 $ref: '#/components/schemas/APIErrorResponse'
 
+  /api/v1/proxies/{stableID}/recheck:
+    post:
+      summary: Recheck one proxy now
+      description: Queues an immediate targeted check. Endpoint changes also verify the proxy exit IP.
+      tags:
+        - Proxies
+      parameters:
+        - name: stableID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Recheck queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
+
+  /api/v1/nodes:
+    get:
+      summary: List physical endpoint nodes
+      description: Groups every host/inbound binding that currently uses the same endpoint IP.
+      tags:
+        - Nodes
+      responses:
+        '200':
+          description: Node-centric topology
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/NodeGroupInfo'
+
+  /api/v1/nodes/{nodeID}/recheck:
+    post:
+      summary: Recheck every binding on one node
+      tags:
+        - Nodes
+      parameters:
+        - name: nodeID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Node recheck queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIResponse'
+
   /api/v1/status:
     get:
       summary: Get system status
@@ -244,6 +304,15 @@ components:
           format: int64
           description: Unix timestamp (seconds) of the last check; 0 if not checked yet
           example: 1751130000
+        monitorState:
+          $ref: '#/components/schemas/NodeState'
+        consecutiveFailures:
+          type: integer
+          example: 0
+        addressChangedAt:
+          type: integer
+          format: int64
+          description: Unix timestamp of the most recent endpoint change
 
     ProxyInfo:
       type: object
@@ -294,6 +363,54 @@ components:
           format: int64
           description: Unix timestamp (seconds) of the last check; 0 if not checked yet
           example: 1751130000
+        logicalId:
+          type: string
+          description: Stable identity of one checkable host/endpoint binding
+        hostId:
+          type: string
+          description: Subscription host/inbound identity, shared by every endpoint in its pool
+        nodeId:
+          type: string
+          description: Physical endpoint identity, shared by every host bound to the same server
+        monitorState:
+          $ref: '#/components/schemas/NodeState'
+        previousAddress:
+          type: string
+          description: Previous configured endpoint after a change
+        resolvedIps:
+          type: array
+          items:
+            type: string
+        previousResolvedIps:
+          type: array
+          items:
+            type: string
+        addressChangedAt:
+          type: integer
+          format: int64
+        consecutiveFailures:
+          type: integer
+        consecutiveSuccesses:
+          type: integer
+        lastSuccess:
+          type: integer
+          format: int64
+        lastError:
+          type: string
+        exitIp:
+          type: string
+        nextCheck:
+          type: integer
+          format: int64
+        endpointFirstSeen:
+          type: integer
+          format: int64
+        endpointLastSeen:
+          type: integer
+          format: int64
+        endpointMissingPolls:
+          type: integer
+          description: Successful subscription polls since this endpoint was last observed
         metricsLabels:
           type: object
           additionalProperties:
@@ -302,6 +419,34 @@ components:
           example:
             location: "Netherlands, Amsterdam"
             hoster: "FreeVDS"
+
+    NodeGroupInfo:
+      type: object
+      properties:
+        nodeId:
+          type: string
+        server:
+          type: string
+          description: Endpoint address; omitted when server details are disabled
+        state:
+          type: string
+          enum: [unknown, healthy, unstable, degraded, offline, missing]
+        totalBindings:
+          type: integer
+        onlineBindings:
+          type: integer
+        unstableBindings:
+          type: integer
+        repairBindings:
+          type: integer
+        hostCount:
+          type: integer
+        missing:
+          type: boolean
+        bindings:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProxyInfo'
 
     StatusResponse:
       type: object
@@ -323,6 +468,25 @@ components:
           type: integer
           format: int64
           example: 200
+        needsReplacement:
+          type: integer
+          example: 2
+        verifying:
+          type: integer
+          example: 1
+
+    NodeState:
+      type: string
+      enum:
+        - unknown
+        - healthy
+        - unstable
+        - suspected
+        - needs_replacement
+        - ip_changed
+        - verifying_new_ip
+        - fixed
+        - new_ip_failed
 
     ConfigResponse:
       type: object
@@ -332,12 +496,12 @@ components:
           example: 300
         initialCheckOnly:
           type: boolean
-          description: Run one full check after startup without scheduled full rechecks
+          description: Run one full check after startup without scheduled bulk rechecks; targeted repair checks continue
           example: false
         checkMethod:
           type: string
-          enum: [ip, status, download]
-          example: "ip"
+          enum: [urltest, ip, status, download]
+          example: "urltest"
         timeout:
           type: integer
           example: 30
@@ -347,6 +511,10 @@ components:
         subscriptionUpdate:
           type: boolean
           example: true
+        subscriptionPoolSamples:
+          type: integer
+          description: Independent subscription samples merged per update cycle
+          example: 4
         subscriptionUpdateInterval:
           type: integer
           example: 300

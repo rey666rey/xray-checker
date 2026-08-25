@@ -245,6 +245,20 @@
       .status-unstable {
         background: var(--color-yellow);
       }
+      .state-badge {
+        display: inline-flex;
+        margin-top: 3px;
+        padding: 1px 6px;
+        border-radius: 5px;
+        border: 1px solid var(--border);
+        font-size: 10px;
+        line-height: 1.5;
+        color: var(--text-muted);
+        background: var(--bg-tertiary);
+      }
+      .state-attention { color: var(--color-red); border-color: color-mix(in srgb, var(--color-red) 35%, transparent); }
+      .state-verifying { color: var(--color-yellow); border-color: color-mix(in srgb, var(--color-yellow) 35%, transparent); }
+      .state-fixed { color: var(--color-green); border-color: color-mix(in srgb, var(--color-green) 35%, transparent); }
       .latency-good {
         color: var(--color-green);
       }
@@ -731,7 +745,7 @@
           >
             0
           </div>
-          <div class="text-xs text-muted mt-0.5">Total</div>
+          <div class="text-xs text-muted mt-0.5" x-text="viewMode === 'nodes' ? 'Nodes' : 'Bindings'"></div>
         </div>
         <div class="card rounded-lg p-2 sm:p-4 text-center">
           <div
@@ -740,7 +754,7 @@
           >
             0
           </div>
-          <div class="text-xs text-muted mt-0.5">Online</div>
+          <div class="text-xs text-muted mt-0.5" x-text="viewMode === 'nodes' ? 'Nodes online' : 'Online'"></div>
         </div>
         <div class="card rounded-lg p-2 sm:p-4 text-center">
           <div
@@ -749,7 +763,7 @@
           >
             0
           </div>
-          <div class="text-xs text-muted mt-0.5">Offline</div>
+          <div class="text-xs text-muted mt-0.5" x-text="viewMode === 'nodes' ? 'Nodes offline' : 'Offline'"></div>
         </div>
         <div class="card rounded-lg p-2 sm:p-4 text-center">
           <div class="text-base sm:text-xl font-semibold text-primary">
@@ -932,6 +946,20 @@
           </div>
 
           <div class="flex gap-2 sm:gap-3 flex-1 sm:flex-none justify-end">
+			{{ if not .IsPublic }}
+			<div class="flex gap-1 p-1 rounded-lg card-flat">
+			  <button
+				@click="setViewMode('nodes')"
+				:class="viewMode === 'nodes' ? 'filter-all' : 'text-muted hover:text-secondary'"
+				class="px-3 py-1 rounded text-xs font-medium"
+			  >Nodes</button>
+			  <button
+				@click="setViewMode('hosts')"
+				:class="viewMode === 'hosts' ? 'filter-all' : 'text-muted hover:text-secondary'"
+				class="px-3 py-1 rounded text-xs font-medium"
+			  >Hosts</button>
+			</div>
+			{{ end }}
             <div class="flex gap-1 p-1 rounded-lg card-flat">
               <button
                 @click="setFilter('all')"
@@ -954,6 +982,21 @@
               >
                 Offline
               </button>
+              <button
+                @click="setFilter('repair')"
+                :class="filter === 'repair' ? 'filter-offline' : 'text-muted hover:text-secondary'"
+                class="hidden md:block px-3 py-1 rounded text-xs font-medium"
+              >Repair</button>
+              <button
+                @click="setFilter('changed')"
+                :class="filter === 'changed' ? 'filter-all' : 'text-muted hover:text-secondary'"
+                class="hidden lg:block px-3 py-1 rounded text-xs font-medium"
+              >Changed</button>
+              <button
+                @click="setFilter('unstable')"
+                :class="filter === 'unstable' ? 'filter-all' : 'text-muted hover:text-secondary'"
+                class="hidden xl:block px-3 py-1 rounded text-xs font-medium"
+              >Unstable</button>
             </div>
 
             <select
@@ -980,25 +1023,36 @@
           <div :style="item.type === 'header' ? 'grid-column: 1 / -1' : ''">
             <!-- Group header (balancer groups) -->
             <template x-if="item.type === 'header'">
-              <button
-                @click="toggleGroup(item.block.key)"
-                class="group-header card-flat w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-left transition-colors"
-              >
-                <svg
-                  class="w-3.5 h-3.5 text-muted transition-transform flex-shrink-0"
-                  :class="collapsedGroups[item.block.key] && '-rotate-90'"
-                  fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                >
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                </svg>
-                <span class="text-sm font-medium text-primary truncate flex-1" x-text="item.block.group"></span>
-                <span class="text-xs text-muted tabular-nums flex-shrink-0"
-                  ><span
-                    :class="item.block.online === item.block.total ? 'latency-good' : (item.block.online === 0 ? 'latency-bad' : '')"
-                    x-text="item.block.online"
-                  ></span>/<span x-text="item.block.total"></span
-                ></span>
-              </button>
+			  <div class="group-header card-flat w-full flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors">
+				<button @click="toggleGroup(item.block.key)" class="flex items-center gap-2 text-left flex-1 min-w-0">
+				  <svg
+					class="w-3.5 h-3.5 text-muted transition-transform flex-shrink-0"
+					:class="collapsedGroups[item.block.key] && '-rotate-90'"
+					fill="none" stroke="currentColor" viewBox="0 0 24 24"
+				  >
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+				  </svg>
+				  <span class="text-sm font-medium text-primary truncate flex-1" x-text="item.block.group"></span>
+				  <span class="text-xs text-muted tabular-nums flex-shrink-0"
+					><span
+					  :class="item.block.online === item.block.total ? 'latency-good' : (item.block.online === 0 ? 'latency-bad' : '')"
+					  x-text="item.block.online"
+					></span>/<span x-text="item.block.total"></span
+				  ></span>
+				</button>
+				{{ if not .IsPublic }}
+				<button
+				  x-show="item.block.nodeId"
+				  @click="recheckNode(item.block.nodeId)"
+				  class="p-1.5 rounded text-muted btn-icon transition-all flex-shrink-0"
+				  title="Recheck all host bindings on this node"
+				>
+				  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M5.5 15a7 7 0 0011.5 2M18.5 9A7 7 0 007 7" />
+				  </svg>
+				</button>
+				{{ end }}
+			  </div>
             </template>
 
             <!-- Proxy card -->
@@ -1045,6 +1099,18 @@
                     ></span
                   ></span>
                   {{ end }}
+                  <span
+                    class="state-badge"
+					:class="stateClass(item.proxy.missingPolls > 0 ? 'missing' : item.proxy.monitorState)"
+					x-text="stateLabel(item.proxy.missingPolls > 0 ? 'missing' : item.proxy.monitorState)"
+                  ></span>
+                  {{ if .ShowServerDetails }}
+                  <span
+                    x-show="item.proxy.previousAddress && item.proxy.addressChangedAt"
+                    class="text-[10px] text-muted truncate block mt-0.5"
+                    :title="'Changed ' + formatTimestamp(item.proxy.addressChangedAt)"
+                  ><span x-text="item.proxy.previousAddress"></span> → <span x-text="item.proxy.currentResolved || item.proxy.serverInfo"></span></span>
+                  {{ end }}
                 </div>
 
                 <!-- Latency -->
@@ -1068,6 +1134,15 @@
                 </div>
 
                 {{ if not .IsPublic }}
+                <button
+                  @click="recheckProxy(item.proxy)"
+                  class="p-1.5 rounded text-muted btn-icon transition-all"
+                  title="Recheck now"
+                >
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M5.5 15a7 7 0 0011.5 2M18.5 9A7 7 0 007 7" />
+                  </svg>
+                </button>
                 <!-- Copy -->
                 <button
                   @click="copyUrl(item.proxy)"
@@ -1176,13 +1251,15 @@
       function dashboard() {
         return {
           darkMode: localStorage.getItem('darkMode') !== 'false',
-          autoRefresh: localStorage.getItem('autoRefresh') === 'true',
-          countdown: {{ .CheckInterval }},
+          autoRefresh: localStorage.getItem('autoRefresh') !== 'false',
+          refreshSeconds: 5,
+          countdown: 5,
           countdownInterval: null,
           search: '',
           searchOpen: false,
           filter: localStorage.getItem('filter') || 'all',
           sort: localStorage.getItem('sort') || 'default',
+          viewMode: localStorage.getItem('viewMode') || {{ if .IsPublic }}'hosts'{{ else }}'nodes'{{ end }},
           toasts: [],
           initialLoad: true,
           networkStatus: {
@@ -1251,7 +1328,7 @@
 
           proxies: [
             {{ range $.Endpoints }}
-            { name: "{{.Name}}", subName: "{{.SubName}}", protocol: "{{.Protocol}}", stableId: "{{.StableID}}", groupName: "{{.GroupName}}", {{ if $.ShowServerDetails }}serverInfo: "{{.ServerInfo}}", proxyPort: {{.ProxyPort}}, {{ end }}{{ if not $.IsPublic }}url: "{{.URL}}", {{ end }}index: {{.Index}}, status: {{.Status}}, unstable: {{.Unstable}}, latency: "{{ formatLatency .Latency }}", latencyMs: {{ .Latency.Milliseconds }} },
+            { name: "{{.Name}}", subName: "{{.SubName}}", protocol: "{{.Protocol}}", stableId: "{{.StableID}}", hostId: "{{.HostID}}", nodeId: "{{.NodeID}}", groupName: "{{.GroupName}}", monitorState: "{{.MonitorState}}", missingPolls: {{.EndpointMissingPolls}}, previousAddress: "{{if .PreviousResolvedIPs}}{{joinStrings .PreviousResolvedIPs}}{{else}}{{.PreviousAddress}}{{end}}", currentResolved: "{{joinStrings .ResolvedIPs}}", addressChangedAt: {{.AddressChangedAt}}, failures: {{.Failures}}, nextCheck: {{.NextCheck}}, exitIp: "{{.ExitIP}}", {{ if $.ShowServerDetails }}serverInfo: "{{.ServerInfo}}", proxyPort: {{.ProxyPort}}, {{ end }}{{ if not $.IsPublic }}url: "{{.URL}}", {{ end }}index: {{.Index}}, status: {{.Status}}, unstable: {{.Unstable}}, latency: "{{ formatLatency .Latency }}", latencyMs: {{ .Latency.Milliseconds }} },
             {{ end }}
           ],
 
@@ -1263,7 +1340,42 @@
             }[p] || (p ? p.toUpperCase() : "");
           },
 
+          stateLabel(state) {
+            return {
+              healthy: 'Healthy', unstable: 'Unstable', suspected: 'Suspected',
+              needs_replacement: 'Needs replacement', ip_changed: 'IP changed',
+              verifying_new_ip: 'Verifying new IP', fixed: 'Fixed',
+              new_ip_failed: 'New IP failed', missing: 'Missing from subscription', unknown: 'Waiting for check',
+            }[state] || 'Waiting for check';
+          },
+
+          stateClass(state) {
+            if (['needs_replacement', 'new_ip_failed', 'suspected', 'missing'].includes(state)) return 'state-attention';
+            if (['ip_changed', 'verifying_new_ip', 'unstable'].includes(state)) return 'state-verifying';
+            if (['healthy', 'fixed'].includes(state)) return 'state-fixed';
+            return '';
+          },
+
+          formatTimestamp(timestamp) {
+            return timestamp ? new Date(timestamp * 1000).toLocaleString() : '';
+          },
+
           get stats() {
+			if (this.viewMode === 'nodes') {
+			  const nodes = new Map();
+			  for (const p of this.proxies) {
+				const key = p.nodeId || p.serverInfo || p.stableId;
+				if (!nodes.has(key)) nodes.set(key, []);
+				nodes.get(key).push(p);
+			  }
+			  const groups = [...nodes.values()];
+			  const onlineNodes = groups.filter(bindings => bindings.some(p => p.status)).length;
+			  const withLatency = this.proxies.filter(p => p.status && p.latencyMs > 0);
+			  return {
+				total: groups.length, online: onlineNodes, offline: groups.length - onlineNodes,
+				avgLatency: withLatency.length ? Math.round(withLatency.reduce((s, p) => s + p.latencyMs, 0) / withLatency.length) : 0
+			  };
+			}
             const online = this.proxies.filter(p => p.status).length;
             const withLatency = this.proxies.filter(p => p.status && p.latencyMs > 0);
             return {
@@ -1282,6 +1394,9 @@
             }
             if (this.filter === 'online') r = r.filter(p => p.status);
             else if (this.filter === 'offline') r = r.filter(p => !p.status);
+            else if (this.filter === 'repair') r = r.filter(p => p.missingPolls > 0 || ['needs_replacement', 'new_ip_failed'].includes(p.monitorState));
+            else if (this.filter === 'changed') r = r.filter(p => ['ip_changed', 'verifying_new_ip', 'fixed'].includes(p.monitorState));
+            else if (this.filter === 'unstable') r = r.filter(p => p.monitorState === 'unstable');
 
             return [...r].sort((a, b) => {
               if (this.sort === 'latency-asc') {
@@ -1305,6 +1420,26 @@
           // Partition proxies by subscription. If a source does not expose a
           // subscription name, retain the previous balancer grouping fallback.
           get proxyBlocks() {
+			if (this.viewMode === 'nodes') {
+			  const nodes = new Map();
+			  for (const p of this.filteredProxies) {
+				const key = p.nodeId || ('endpoint:' + (p.serverInfo || p.stableId));
+				if (!nodes.has(key)) {
+				  const endpoint = (p.serverInfo || 'Endpoint').replace(/:\d+$/, '');
+				  nodes.set(key, { label: 'Node · ' + endpoint, proxies: [], nodeId: p.nodeId });
+				}
+				nodes.get(key).proxies.push(p);
+			  }
+			  return [...nodes.entries()].map(([key, value]) => ({
+				key: 'n:' + key, group: value.label, nodeId: value.nodeId,
+				proxies: value.proxies,
+				online: value.proxies.filter(p => p.status).length,
+				total: value.proxies.length,
+			  })).sort((a, b) => {
+				const aBroken = a.total - a.online, bBroken = b.total - b.online;
+				return bBroken - aBroken || a.group.localeCompare(b.group);
+			  });
+			}
             const groups = new Map();
             const ungrouped = [];
             for (const p of this.filteredProxies) {
@@ -1356,6 +1491,11 @@
           toggleGroup(name) {
             this.collapsedGroups[name] = !this.collapsedGroups[name];
           },
+
+		  setViewMode(mode) {
+			this.viewMode = mode;
+			localStorage.setItem('viewMode', mode);
+		  },
 
           init() {
             const params = new URLSearchParams(window.location.search);
@@ -1464,7 +1604,7 @@
           },
 
           startCountdown() {
-            this.countdown = {{ .CheckInterval }};
+            this.countdown = this.refreshSeconds;
             this.countdownInterval = setInterval(() => {
               if (--this.countdown <= 0) this.refreshData();
             }, 1000);
@@ -1473,7 +1613,7 @@
           stopCountdown() {
             clearInterval(this.countdownInterval);
             this.countdownInterval = null;
-            this.countdown = {{ .CheckInterval }};
+            this.countdown = this.refreshSeconds;
           },
 
           async refreshNetworkStatus() {
@@ -1495,9 +1635,26 @@
 
           async refreshData() {
             try {
-              const res = await fetch('./api/v1/public/proxies');
+              const privateDashboard = {{ if .IsPublic }}false{{ else }}true{{ end }};
+              const res = await fetch(privateDashboard ? './api/v1/proxies' : './api/v1/public/proxies');
               const json = await res.json();
               if (json.success && json.data) {
+                if (privateDashboard) {
+                  this.proxies = json.data.map(updated => ({
+                    name: updated.name, subName: updated.subName || '', protocol: updated.protocol || '',
+                    stableId: updated.stableId, hostId: updated.hostId || '', nodeId: updated.nodeId || '', groupName: updated.groupName || '',
+                    serverInfo: updated.server ? updated.server + ':' + updated.port : '',
+                    proxyPort: updated.proxyPort, url: './config/' + updated.stableId,
+                    index: updated.index, status: updated.online, unstable: updated.unstable,
+                    latencyMs: updated.latencyMs, latency: updated.latencyMs > 0 ? updated.latencyMs + 'ms' : 'n/a',
+                    monitorState: updated.monitorState || 'unknown',
+					missingPolls: updated.endpointMissingPolls || 0,
+                    previousAddress: (updated.previousResolvedIps || []).join(', ') || updated.previousAddress || '',
+                    currentResolved: (updated.resolvedIps || []).join(', '),
+                    addressChangedAt: updated.addressChangedAt || 0, failures: updated.consecutiveFailures || 0,
+                    nextCheck: updated.nextCheck || 0, exitIp: updated.exitIp || '',
+                  }));
+                } else {
                 json.data.forEach(updated => {
                   const proxy = this.proxies.find(p => p.stableId === updated.stableId);
                   if (proxy) {
@@ -1505,8 +1662,12 @@
                     proxy.unstable = updated.unstable;
                     proxy.latencyMs = updated.latencyMs;
                     proxy.latency = updated.latencyMs > 0 ? updated.latencyMs + 'ms' : 'n/a';
+                    proxy.monitorState = updated.monitorState || 'unknown';
+                    proxy.failures = updated.consecutiveFailures || 0;
+                    proxy.addressChangedAt = updated.addressChangedAt || 0;
                   }
                 });
+                }
                 // Update badge proxy if in badge mode
                 if (this.badgeMode && this.badgeProxy) {
                   const updated = json.data.find(p => p.stableId === this.badgeProxy.stableId);
@@ -1521,8 +1682,31 @@
             } catch (e) {
               console.error('Failed to refresh:', e);
             }
-            this.countdown = {{ .CheckInterval }};
+            this.countdown = this.refreshSeconds;
           },
+
+          async recheckProxy(proxy) {
+            try {
+              const res = await fetch('./api/v1/proxies/' + encodeURIComponent(proxy.stableId) + '/recheck', { method: 'POST' });
+              if (!res.ok) throw new Error('request failed');
+              this.showToast('Recheck queued');
+              setTimeout(() => this.refreshData(), 1500);
+            } catch (e) {
+              this.showToast('Could not start recheck');
+            }
+          },
+
+		  async recheckNode(nodeId) {
+			if (!nodeId) return;
+			try {
+			  const res = await fetch('./api/v1/nodes/' + encodeURIComponent(nodeId) + '/recheck', { method: 'POST' });
+			  if (!res.ok) throw new Error('request failed');
+			  this.showToast('Node recheck queued');
+			  setTimeout(() => this.refreshData(), 1500);
+			} catch (e) {
+			  this.showToast('Could not recheck node');
+			}
+		  },
 
           async copyUrl(proxy) {
             const url = new URL(proxy.url, location.href).toString();

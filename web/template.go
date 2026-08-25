@@ -24,6 +24,9 @@ func init() {
 			}
 			return fmt.Sprintf("%dms", d.Milliseconds())
 		},
+		"joinStrings": func(values []string) string {
+			return strings.Join(values, ", ")
+		},
 	}
 
 	indexTmpl, err = template.New("index.html").Funcs(funcMap).ParseFS(content, "templates/*.html")

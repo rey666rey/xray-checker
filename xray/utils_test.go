@@ -49,4 +49,18 @@ func TestIsConfigsEqual_DetectsMetricsLabelChange(t *testing.T) {
 	if IsConfigsEqual(old, diffConn) {
 		t.Errorf("different server must be detected as a change")
 	}
+
+	// Private credentials are excluded from the public StableID, but must still
+	// trigger a config reload and targeted verification.
+	rotatedPassword := []*models.ProxyConfig{trojan("1.1.1.1", map[string]string{"location": "NL"})}
+	rotatedPassword[0].Password = "new-password"
+	if IsConfigsEqual(old, rotatedPassword) {
+		t.Errorf("rotated credentials must be detected as a change")
+	}
+
+	renamed := []*models.ProxyConfig{trojan("1.1.1.1", map[string]string{"location": "NL"})}
+	renamed[0].Name = "renamed"
+	if IsConfigsEqual(old, renamed) {
+		t.Errorf("a renamed node must refresh dashboard metadata")
+	}
 }

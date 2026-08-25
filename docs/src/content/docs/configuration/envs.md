@@ -42,6 +42,14 @@ Enables automatic updates of proxy configuration from subscription source. When 
 
 Time in seconds between subscription update checks. Only used when `SUBSCRIPTION_UPDATE` is enabled.
 
+### SUBSCRIPTION_POOL_SAMPLES
+
+- CLI: `--subscription-pool-samples`
+- Required: No
+- Default: `2`
+
+Independent subscription responses merged during every update cycle. Increase this when one host rotates among several physical nodes. Every newly observed endpoint is checked once; additional samples do not repeat checks for known endpoints. The local Compose profile uses `4`.
+
 ### SUBSCRIPTION_JSON_FORMAT
 
 - CLI: `--subscription-json-format`
@@ -85,7 +93,7 @@ Time in seconds between proxy availability checks. Each check verifies all confi
 - Required: No
 - Default: `false`
 
-When enabled, runs one full proxy check after startup, keeps the results in memory, and disables scheduled full rechecks. Restarting the process starts a new full check. This does not disable subscription updates; disable `SUBSCRIPTION_UPDATE` as well if the proxy set must remain unchanged.
+When enabled, runs one full proxy check after startup and disables scheduled bulk rechecks. The targeted repair monitor may still recheck due, unstable, or changed nodes. Restarting the process starts a new full check.
 
 ### PROXY_CHECK_CONCURRENCY
 
@@ -409,3 +417,11 @@ Maximum accepted age of the network status file in seconds. If the monitor stops
 - Default: None
 
 Path to a persistent JSON snapshot of proxy results. A completed proxy set is restored after a process or VM restart, and `PROXY_INITIAL_CHECK_ONLY=true` skips repeating the full sweep when every current proxy has a saved result.
+
+### NODE_HISTORY_FILE
+
+- CLI: `--node-history-file`
+- Required: No
+- Default: None
+
+Path to persistent binding repair history. Unlike the disposable full-sweep snapshot, this file retains endpoint changes, repair states, exit IPs, and recent node events across fresh runs. During a running container, subscription samples build a many-to-many host/node endpoint pool; an endpoint detaches only after 30 successful polls without a sighting.

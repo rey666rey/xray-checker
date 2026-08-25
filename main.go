@@ -50,6 +50,7 @@ func main() {
 	}
 
 	logger.Info("Loaded %d proxy configurations", len(*proxyConfigs))
+	endpointPool := checker.NewEndpointPool(*proxyConfigs)
 
 	if config.CLIConfig.Web.Public {
 		if name := subscription.GetSubscriptionName(); name != "" {
@@ -92,6 +93,7 @@ func main() {
 		config.CLIConfig.Proxy.CheckMethod,
 		config.CLIConfig.Proxy.CheckConcurrency,
 	)
+	proxyChecker.SetEndpointPool(endpointPool)
 	proxyChecker.SetNetworkStatusFile(
 		config.CLIConfig.NetworkStatusFile,
 		time.Duration(config.CLIConfig.NetworkStatusMaxAge)*time.Second,
@@ -105,6 +107,9 @@ func main() {
 	)
 	if err := proxyChecker.SetResultsFile(config.CLIConfig.ResultsFile); err != nil {
 		logger.Warn("Could not restore saved proxy results: %v", err)
+	}
+	if err := proxyChecker.SetMonitorFile(config.CLIConfig.NodeHistoryFile); err != nil {
+		logger.Warn("Could not restore node repair history: %v", err)
 	}
 
 	// The collector renders metrics from the checker's current proxy snapshot on
@@ -174,10 +179,15 @@ func main() {
 		})
 		checkScheduler.StartAsync()
 	}
+	// Targeted monitoring continues even in initial-check-only mode: healthy nodes
+	// are staggered, while suspected/changed nodes follow short confirmation rounds.
+	proxyChecker.StartMonitorScheduler(10 * time.Second)
 
 	if config.CLIConfig.Subscription.Update {
+		var pendingMassFingerprint string
+		var pendingMassConfirmations int
 		updateScheduler := gocron.NewScheduler(time.UTC)
-		updateScheduler.Every(config.CLIConfig.Subscription.UpdateInterval).Seconds().WaitForSchedule().Do(func() {
+		updateScheduler.Every(config.CLIConfig.Subscription.UpdateInterval).Seconds().WaitForSchedule().SingletonMode().Do(func() {
 			logger.Info("Checking subscriptions for updates...")
 			newConfigs, err := subscription.ReadFromMultipleSources(config.CLIConfig.Subscription.URLs)
 			if err != nil {
@@ -194,18 +204,91 @@ func main() {
 				}
 			}
 
+			// A panel response is a sample of a many-to-many topology: one host may
+			// select a different node on every request. Merge several immediate samples
+			// into the long-lived endpoint pool instead of waiting for one Server to
+			// repeat five times and discarding the other legitimate members.
+			reads := [][]*models.ProxyConfig{newConfigs}
+			sampleCount := config.CLIConfig.Subscription.PoolSamples
+			if sampleCount < 1 {
+				sampleCount = 1
+			}
+			for sample := 1; sample < sampleCount; sample++ {
+				nextSample, sampleErr := subscription.ReadFromMultipleSources(config.CLIConfig.Subscription.URLs)
+				if sampleErr != nil {
+					logger.Warn("Subscription pool sample %d/%d failed; continuing: %v", sample+1, sampleCount, sampleErr)
+					continue
+				}
+				if config.CLIConfig.Proxy.ResolveDomains {
+					resolved, err := subscription.ResolveDomainsForConfigs(nextSample)
+					if err != nil {
+						logger.Warn("Subscription pool sample %d/%d DNS resolution failed; continuing: %v", sample+1, sampleCount, err)
+						continue
+					}
+					nextSample = resolved
+				}
+				reads = append(reads, nextSample)
+			}
+			poolStats := checker.EndpointPoolStats{}
+			newConfigs, poolStats = endpointPool.Observe(reads...)
+			if poolStats.Added > 0 || poolStats.Updated > 0 || poolStats.Detached > 0 {
+				logger.Info("Endpoint pool: %d bindings, %d added, %d updated, %d detached, %d temporarily missing",
+					poolStats.Bindings, poolStats.Added, poolStats.Updated, poolStats.Detached, poolStats.Missing)
+			}
+
 			if !xray.IsConfigsEqual(*proxyConfigs, newConfigs) {
-				if err := updateConfiguration(newConfigs, proxyConfigs, xrayRunner, proxyChecker); err != nil {
+				preflight := checker.PlanProxyUpdate(*proxyConfigs, newConfigs)
+				changedCount := preflight.Count(checker.ProxyChanged)
+				for _, change := range preflight.Changes {
+					if change.Kind == checker.ProxyChanged {
+						logger.Info("Subscription change sample fields: %s", strings.Join(change.ChangedFields, ", "))
+						break
+					}
+				}
+				massChange := changedCount >= 100 &&
+					preflight.Count(checker.ProxyAdded) == 0 && preflight.Count(checker.ProxyRemoved) == 0
+				if massChange {
+					fingerprint := checker.ProxySetRevisionFingerprint(newConfigs)
+					if fingerprint == pendingMassFingerprint {
+						pendingMassConfirmations++
+					} else {
+						pendingMassFingerprint = fingerprint
+						pendingMassConfirmations = 1
+					}
+					for _, change := range preflight.Changes {
+						if change.Kind == checker.ProxyChanged {
+							logger.Warn("Large subscription diff sample changed fields: %s", strings.Join(change.ChangedFields, ", "))
+							break
+						}
+					}
+					if pendingMassConfirmations < 2 {
+						logger.Warn("Deferring large subscription diff (%d changed nodes) until the same revision is returned twice", changedCount)
+						return
+					}
+					logger.Warn("Large subscription diff confirmed twice; applying %d changed nodes in bounded batches", changedCount)
+				} else {
+					pendingMassFingerprint = ""
+					pendingMassConfirmations = 0
+				}
+				plan, err := updateConfiguration(newConfigs, proxyConfigs, xrayRunner, proxyChecker)
+				if err != nil {
 					logger.Error("Error updating configuration: %v", err)
 				} else {
-					// Immediately re-check the new proxy set so /metrics is repopulated
-					// right away instead of staying empty until the next scheduled check
-					// (up to PROXY_CHECK_INTERVAL), then drop series for removed proxies.
-					runCheckIteration()
+					logger.Info("Subscription diff: %d added, %d changed, %d renamed, %d removed",
+						plan.Count(checker.ProxyAdded), plan.Count(checker.ProxyChanged),
+						plan.Count(checker.ProxyRenamed), plan.Count(checker.ProxyRemoved))
+					if err := proxyChecker.CheckUpdatedProxies(plan.ProxiesToCheck()); err != nil {
+						logger.Warn("Could not verify updated nodes immediately: %v", err)
+					}
 					proxyChecker.PruneStaleResults()
 				}
 			} else {
 				logger.Info("Subscriptions checked, no changes")
+			}
+			if changed := proxyChecker.RefreshResolvedIPs(); len(changed) > 0 {
+				if err := proxyChecker.CheckUpdatedProxies(changed); err != nil {
+					logger.Warn("Could not verify nodes after DNS change: %v", err)
+				}
 			}
 		})
 		updateScheduler.StartAsync()
@@ -226,6 +309,8 @@ func main() {
 	protectedHandler.Handle("/config/", web.ConfigStatusHandler(proxyChecker))
 	protectedHandler.Handle("/api/v1/proxies/", web.APIProxyHandler(proxyChecker, config.CLIConfig.Xray.StartPort))
 	protectedHandler.Handle("/api/v1/proxies", web.APIProxiesHandler(proxyChecker, config.CLIConfig.Xray.StartPort))
+	protectedHandler.Handle("/api/v1/nodes/", web.APINodesHandler(proxyChecker, config.CLIConfig.Xray.StartPort))
+	protectedHandler.Handle("/api/v1/nodes", web.APINodesHandler(proxyChecker, config.CLIConfig.Xray.StartPort))
 	protectedHandler.Handle("/api/v1/config", web.APIConfigHandler(proxyChecker))
 	protectedHandler.Handle("/api/v1/status", web.APIStatusHandler(proxyChecker))
 	protectedHandler.Handle("/api/v1/system/info", web.APISystemInfoHandler(version, startTime))
@@ -268,9 +353,12 @@ func main() {
 }
 
 func updateConfiguration(newConfigs []*models.ProxyConfig, currentConfigs *[]*models.ProxyConfig,
-	xrayRunner *xray.Runner, proxyChecker *checker.ProxyChecker) error {
+	xrayRunner *xray.Runner, proxyChecker *checker.ProxyChecker) (checker.ProxyUpdatePlan, error) {
 
 	logger.Info("Subscription changed, updating configuration...")
+	// First pass assigns carried logical IDs before Xray preparation. The final
+	// plan is rebuilt after validation in case Xray excludes an invalid node.
+	checker.PlanProxyUpdate(*currentConfigs, newConfigs)
 
 	xray.PrepareProxyConfigs(newConfigs)
 
@@ -283,24 +371,28 @@ func updateConfiguration(newConfigs []*models.ProxyConfig, currentConfigs *[]*mo
 		config.CLIConfig.Xray.LogLevel,
 	)
 	if err != nil {
-		return err
+		return checker.ProxyUpdatePlan{}, err
 	}
 	newConfigs = validProxies
+	plan := checker.PlanProxyUpdate(*currentConfigs, newConfigs)
 
-	if err := xrayRunner.Stop(); err != nil {
-		return err
+	if err := proxyChecker.WithChecksPaused(func() error {
+		if err := xrayRunner.Stop(); err != nil {
+			return err
+		}
+		if err := xrayRunner.Start(); err != nil {
+			return err
+		}
+		proxyChecker.ApplyProxyUpdate(newConfigs, plan)
+		return nil
+	}); err != nil {
+		return checker.ProxyUpdatePlan{}, err
 	}
-
-	if err := xrayRunner.Start(); err != nil {
-		return err
-	}
-
-	proxyChecker.UpdateProxies(newConfigs)
 
 	*currentConfigs = newConfigs
 
 	web.RegisterConfigEndpoints(newConfigs, proxyChecker, config.CLIConfig.Xray.StartPort)
 
 	logger.Info("Configuration updated: %d proxies", len(newConfigs))
-	return nil
+	return plan, nil
 }
