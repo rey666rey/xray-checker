@@ -39,6 +39,7 @@ type PageData struct {
 	CheckInterval              int
 	InitialCheckOnly           bool
 	IPCheckUrl                 string
+	URLTestUrl                 string
 	SimulateLatency            bool
 	CheckMethod                string
 	StatusCheckUrl             string

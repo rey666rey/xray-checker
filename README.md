@@ -230,18 +230,23 @@ The local defaults live in [`compose.yaml`](compose.yaml):
 | --- | --- | --- |
 | `SUBSCRIPTION_UPDATE` | `false` | Keep the initially loaded proxy set |
 | `SUBSCRIPTION_JSON_FORMAT` | `true` | Request complete JSON proxy configs |
-| `PROXY_CHECK_CONCURRENCY` | `20` | Limit the first-pass batch size |
+| `PROXY_CHECK_CONCURRENCY` | `30` | Limit the fast first-pass batch size |
 | `PROXY_CHECK_INTERVAL` | `600` | UI Auto-refresh interval; check interval when one-pass mode is disabled |
 | `PROXY_INITIAL_CHECK_ONLY` | `true` | Run one full check after startup |
-| `PROXY_CHECK_METHOD` | `ip` | Verify each node with a proxied HTTP request |
-| `PROXY_IP_CHECK_URL` | `https://api.ipify.org?format=text` | Return the exit IP |
-| `PROXY_TIMEOUT` | `10` | Per-request timeout in seconds |
+| `PROXY_CHECK_METHOD` | `urltest` | Run two fast proxied GETs and retain the best result |
+| `PROXY_URL_TEST_URL` | `http://captive.apple.com/hotspot-detect.html` | Primary tiny Apple page |
+| `PROXY_URL_TEST_ATTEMPTS` | `2` | Number of fast attempts |
+| `PROXY_IP_CHECK_URL` | `https://api.ipify.org?format=text` | Fallback only when Apple fails |
+| `PROXY_TIMEOUT` | `4` | Fast-attempt timeout in seconds |
+| `PROXY_RETRY_TIMEOUT` | `10` | Failed-node retry timeout |
+| `PROXY_RETRY_CONCURRENCY` | `10` | Failed-node retry concurrency |
 | `NETWORK_STATUS_FILE` | `/app/runtime/network-status.json` | Pause checks when the host monitor reports an outage |
 | `NETWORK_STATUS_MAX_AGE` | `15` | Treat a silent monitor as offline after 15 seconds |
 | `RESULTS_FILE` | `/app/data/results.json` | Persist a completed sweep across checker/Colima restarts |
 
-When using the `ip` method, failed first attempts are automatically retried at
-half of `PROXY_CHECK_CONCURRENCY`.
+If both fast Apple requests fail, the checker tries `ipify`. A node that succeeds
+only through this fallback or the retry pass is shown in yellow as `unstable`.
+Remaining failures are checked once more in a separate slower batch.
 
 If the mobile link produces many `EOF` or timeout errors, lower concurrency. If
 the run is stable but too slow, increase it gradually. A larger value creates

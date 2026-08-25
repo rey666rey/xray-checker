@@ -242,6 +242,9 @@
       .status-offline {
         background: var(--color-red);
       }
+      .status-unstable {
+        background: var(--color-yellow);
+      }
       .latency-good {
         color: var(--color-green);
       }
@@ -561,7 +564,7 @@
         <div class="badge-card" :class="badgeClasses" :style="badgeStyle">
           <div
             class="badge-status"
-            :class="badgeProxy.status ? 'status-online pulse' : 'status-offline'"
+            :class="badgeProxy.unstable ? 'status-unstable pulse' : (badgeProxy.status ? 'status-online pulse' : 'status-offline')"
           ></div>
           <span
             x-show="badgeShowName"
@@ -1008,7 +1011,7 @@
                 <div class="relative flex-shrink-0">
                   <div
                     class="w-2 h-2 rounded-full"
-                    :class="item.proxy.status ? 'status-online pulse' : 'status-offline'"
+                    :class="item.proxy.unstable ? 'status-unstable pulse' : (item.proxy.status ? 'status-online pulse' : 'status-offline')"
                   ></div>
                 </div>
 
@@ -1112,6 +1115,7 @@
         <span class="truncate max-w-full"
           >Check: {{.CheckMethod}} · {{if .InitialCheckOnly}}Initial pass only{{else}}Interval: {{.CheckInterval}}s{{end}} · Timeout:
           {{.Timeout}}s · {{ if eq .CheckMethod "ip" }}{{.IPCheckUrl}}{{ else if
+          eq .CheckMethod "urltest" }}{{.URLTestUrl}}{{ else if
           eq .CheckMethod "status" }}{{.StatusCheckUrl}}{{ else if eq
           .CheckMethod "download" }}{{.DownloadUrl}}{{ end }}</span
         >
@@ -1247,7 +1251,7 @@
 
           proxies: [
             {{ range $.Endpoints }}
-            { name: "{{.Name}}", subName: "{{.SubName}}", protocol: "{{.Protocol}}", stableId: "{{.StableID}}", groupName: "{{.GroupName}}", {{ if $.ShowServerDetails }}serverInfo: "{{.ServerInfo}}", proxyPort: {{.ProxyPort}}, {{ end }}{{ if not $.IsPublic }}url: "{{.URL}}", {{ end }}index: {{.Index}}, status: {{.Status}}, latency: "{{ formatLatency .Latency }}", latencyMs: {{ .Latency.Milliseconds }} },
+            { name: "{{.Name}}", subName: "{{.SubName}}", protocol: "{{.Protocol}}", stableId: "{{.StableID}}", groupName: "{{.GroupName}}", {{ if $.ShowServerDetails }}serverInfo: "{{.ServerInfo}}", proxyPort: {{.ProxyPort}}, {{ end }}{{ if not $.IsPublic }}url: "{{.URL}}", {{ end }}index: {{.Index}}, status: {{.Status}}, unstable: {{.Unstable}}, latency: "{{ formatLatency .Latency }}", latencyMs: {{ .Latency.Milliseconds }} },
             {{ end }}
           ],
 
@@ -1498,6 +1502,7 @@
                   const proxy = this.proxies.find(p => p.stableId === updated.stableId);
                   if (proxy) {
                     proxy.status = updated.online;
+                    proxy.unstable = updated.unstable;
                     proxy.latencyMs = updated.latencyMs;
                     proxy.latency = updated.latencyMs > 0 ? updated.latencyMs + 'ms' : 'n/a';
                   }
@@ -1507,6 +1512,7 @@
                   const updated = json.data.find(p => p.stableId === this.badgeProxy.stableId);
                   if (updated) {
                     this.badgeProxy.status = updated.online;
+                    this.badgeProxy.unstable = updated.unstable;
                     this.badgeProxy.latencyMs = updated.latencyMs;
                     this.badgeProxy.latency = updated.latencyMs > 0 ? updated.latencyMs + 'ms' : 'n/a';
                   }

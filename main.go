@@ -96,6 +96,13 @@ func main() {
 		config.CLIConfig.NetworkStatusFile,
 		time.Duration(config.CLIConfig.NetworkStatusMaxAge)*time.Second,
 	)
+	proxyChecker.SetURLTestOptions(
+		config.CLIConfig.Proxy.URLTestUrl,
+		config.CLIConfig.Proxy.URLTestExpected,
+		config.CLIConfig.Proxy.URLTestAttempts,
+		config.CLIConfig.Proxy.RetryTimeout,
+		config.CLIConfig.Proxy.RetryConcurrency,
+	)
 	if err := proxyChecker.SetResultsFile(config.CLIConfig.ResultsFile); err != nil {
 		logger.Warn("Could not restore saved proxy results: %v", err)
 	}

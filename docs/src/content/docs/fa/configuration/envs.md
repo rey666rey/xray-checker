@@ -102,10 +102,11 @@ description: متغیرهای محیطی برای Xray Checker
 - CLI: `--proxy-check-method`
 - الزامی: خیر
 - پیش‌فرض: `ip`
-- مقادیر: `ip`، `status`، `download`
+- مقادیر: `urltest`، `ip`، `status`، `download`
 
 روش مورد استفاده برای تأیید عملکرد پروکسی:
 
+- `urltest`: چند درخواست GET کوچک را از طریق پروکسی اجرا می‌کند، بهترین تأخیر موفق را نگه می‌دارد و تنها در صورت شکست همه تلاش‌های اصلی از endpoint آی‌پی استفاده می‌کند
 - `ip`: مقایسه آدرس‌های IP با و بدون پروکسی
 - `status`: بررسی کد وضعیت HTTP از یک درخواست آزمایشی
 - `download`: دانلود یک فایل و بررسی حداقل اندازه دریافتی
@@ -117,6 +118,48 @@ description: متغیرهای محیطی برای Xray Checker
 - پیش‌فرض: `https://api.ipify.org?format=text`
 
 آدرس URL مورد استفاده برای تأیید IP وقتی `PROXY_CHECK_METHOD=ip`. باید آدرس IP فعلی را در فرمت متن ساده برگرداند.
+
+با `PROXY_CHECK_METHOD=urltest`، این URL تنها پس از شکست همه تلاش‌های اصلی به‌عنوان fallback مستقل استفاده می‌شود.
+
+### PROXY_URL_TEST_URL
+
+- CLI: `--proxy-url-test-url`
+- الزامی: خیر
+- پیش‌فرض: `http://captive.apple.com/hotspot-detect.html`
+
+صفحه کوچکی که روش `urltest` از طریق هر پروکسی درخواست می‌کند.
+
+### PROXY_URL_TEST_EXPECTED
+
+- CLI: `--proxy-url-test-expected`
+- الزامی: خیر
+- پیش‌فرض: `Success`
+
+رشته‌ای که باید در پاسخ موفق وجود داشته باشد. مقدار خالی هر پاسخ 2xx را می‌پذیرد.
+
+### PROXY_URL_TEST_ATTEMPTS
+
+- CLI: `--proxy-url-test-attempts`
+- الزامی: خیر
+- پیش‌فرض: `2`
+
+تعداد درخواست‌های مستقل اصلی. کمترین TTFB موفق نگه داشته می‌شود؛ موفقیت جزئی نود را unstable علامت می‌زند.
+
+### PROXY_RETRY_TIMEOUT
+
+- CLI: `--proxy-retry-timeout`
+- الزامی: خیر
+- پیش‌فرض: `10`
+
+مهلت هر درخواست بر حسب ثانیه برای مرحله کندترِ بازآزمایی خطاهای مرحله اول.
+
+### PROXY_RETRY_CONCURRENCY
+
+- CLI: `--proxy-retry-concurrency`
+- الزامی: خیر
+- پیش‌فرض: `0`
+
+هم‌زمانی مرحله بازآزمایی نودهای ناموفق. مقدار `0` از نصف `PROXY_CHECK_CONCURRENCY` استفاده می‌کند.
 
 ### PROXY_STATUS_CHECK_URL
 

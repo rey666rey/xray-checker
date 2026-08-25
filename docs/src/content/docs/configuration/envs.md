@@ -102,10 +102,11 @@ With a limit, a cycle's worst case is roughly `⌈N / concurrency⌉ × PROXY_TI
 - CLI: `--proxy-check-method`
 - Required: No
 - Default: `ip`
-- Values: `ip`, `status`, `download`
+- Values: `urltest`, `ip`, `status`, `download`
 
 Method used to verify proxy functionality:
 
+- `urltest`: Runs multiple small proxied GET requests, retains the best successful latency, and uses the IP endpoint only when every primary attempt fails
 - `ip`: Compares IP addresses with and without proxy
 - `status`: Checks HTTP status code from a test request
 - `download`: Downloads a file and verifies minimum size received
@@ -117,6 +118,48 @@ Method used to verify proxy functionality:
 - Default: `https://api.ipify.org?format=text`
 
 URL used for IP verification when `PROXY_CHECK_METHOD=ip`. Should return current IP address in plain text format.
+
+With `PROXY_CHECK_METHOD=urltest`, this URL is used only as an independent fallback after all primary URL-test attempts fail.
+
+### PROXY_URL_TEST_URL
+
+- CLI: `--proxy-url-test-url`
+- Required: No
+- Default: `http://captive.apple.com/hotspot-detect.html`
+
+Small page requested through each proxy by the `urltest` method.
+
+### PROXY_URL_TEST_EXPECTED
+
+- CLI: `--proxy-url-test-expected`
+- Required: No
+- Default: `Success`
+
+Substring required in a successful URL-test response. Set it to an empty string to accept any 2xx response.
+
+### PROXY_URL_TEST_ATTEMPTS
+
+- CLI: `--proxy-url-test-attempts`
+- Required: No
+- Default: `2`
+
+Number of independent primary requests. The lowest successful TTFB is retained; partial success marks the node unstable.
+
+### PROXY_RETRY_TIMEOUT
+
+- CLI: `--proxy-retry-timeout`
+- Required: No
+- Default: `10`
+
+Per-request timeout in seconds for the slower pass over first-pass failures.
+
+### PROXY_RETRY_CONCURRENCY
+
+- CLI: `--proxy-retry-concurrency`
+- Required: No
+- Default: `0`
+
+Concurrency for the slower failed-node pass. `0` uses half of `PROXY_CHECK_CONCURRENCY`.
 
 ### PROXY_STATUS_CHECK_URL
 

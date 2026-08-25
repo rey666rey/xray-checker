@@ -231,6 +231,10 @@ components:
         online:
           type: boolean
           example: true
+        unstable:
+          type: boolean
+          description: True when the node succeeded only through fallback or the retry pass
+          example: false
         latencyMs:
           type: integer
           format: int64
@@ -277,6 +281,10 @@ components:
         online:
           type: boolean
           example: true
+        unstable:
+          type: boolean
+          description: True when the node succeeded only through fallback or the retry pass
+          example: false
         latencyMs:
           type: integer
           format: int64
@@ -307,6 +315,10 @@ components:
         offline:
           type: integer
           example: 2
+        unstable:
+          type: integer
+          description: Online nodes that required fallback or the retry pass
+          example: 1
         avgLatencyMs:
           type: integer
           format: int64

@@ -28,6 +28,7 @@ type persistedProxyResult struct {
 	StableID  string `json:"stableId"`
 	GroupName string `json:"groupName"`
 	Online    bool   `json:"online"`
+	Unstable  bool   `json:"unstable,omitempty"`
 	LatencyNS int64  `json:"latencyNs"`
 	LastCheck int64  `json:"lastCheck"`
 }
@@ -103,6 +104,7 @@ func (pc *ProxyChecker) loadResults() error {
 		}
 		pc.results.Store(proxyMetricKey(proxy), proxyResult{
 			status:    item.Online,
+			unstable:  item.Unstable,
 			latency:   time.Duration(item.LatencyNS),
 			lastCheck: time.Unix(item.LastCheck, 0),
 		})
@@ -220,6 +222,7 @@ func (pc *ProxyChecker) persistResults() error {
 			StableID:  key.stableID,
 			GroupName: key.groupName,
 			Online:    result.status,
+			Unstable:  result.unstable,
 			LatencyNS: int64(result.latency),
 			LastCheck: result.lastCheck.Unix(),
 		})

@@ -27,6 +27,7 @@ type EndpointInfo struct {
 	ProxyPort  int
 	Index      int
 	Status     bool
+	Unstable   bool
 	Latency    time.Duration
 	StableID   string
 	GroupName  string
@@ -62,6 +63,7 @@ func IndexHandler(version string, proxyChecker *checker.ProxyChecker) http.Handl
 					SubName:   ep.SubName,
 					Index:     ep.Index,
 					Status:    ep.Status,
+					Unstable:  ep.Unstable,
 					Latency:   ep.Latency,
 					StableID:  ep.StableID,
 					GroupName: ep.GroupName,
@@ -84,6 +86,7 @@ func IndexHandler(version string, proxyChecker *checker.ProxyChecker) http.Handl
 			CheckInterval:              config.CLIConfig.Proxy.CheckInterval,
 			InitialCheckOnly:           config.CLIConfig.Proxy.InitialCheckOnly,
 			IPCheckUrl:                 config.CLIConfig.Proxy.IpCheckUrl,
+			URLTestUrl:                 config.CLIConfig.Proxy.URLTestUrl,
 			CheckMethod:                config.CLIConfig.Proxy.CheckMethod,
 			StatusCheckUrl:             config.CLIConfig.Proxy.StatusCheckUrl,
 			DownloadUrl:                config.CLIConfig.Proxy.DownloadUrl,
@@ -173,7 +176,7 @@ func RegisterConfigEndpoints(proxies []*models.ProxyConfig, proxyChecker *checke
 
 		endpoint := fmt.Sprintf("./config/%s", proxy.StableID)
 
-		status, latency, _, _ := proxyChecker.GetProxyResultByStableID(proxy.StableID)
+		status, unstable, latency, _, _ := proxyChecker.GetProxyResultDetailsByStableID(proxy.StableID)
 
 		endpoints = append(endpoints, EndpointInfo{
 			Name:       proxy.Name,
@@ -184,6 +187,7 @@ func RegisterConfigEndpoints(proxies []*models.ProxyConfig, proxyChecker *checke
 			ProxyPort:  startPort + proxy.Index,
 			Index:      proxy.Index,
 			Status:     status,
+			Unstable:   unstable,
 			Latency:    latency,
 			StableID:   proxy.StableID,
 			GroupName:  proxy.GroupName,

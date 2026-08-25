@@ -2,8 +2,11 @@ package checker
 
 import (
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -49,6 +52,51 @@ func TestNetworkStatusGuard(t *testing.T) {
 	}
 }
 
+func TestURLTestKeepsBestOfTwoSuccessfulRequests(t *testing.T) {
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if calls.Add(1) == 1 {
+			time.Sleep(25 * time.Millisecond)
+		} else {
+			time.Sleep(5 * time.Millisecond)
+		}
+		fmt.Fprint(w, "<HTML><TITLE>Success</TITLE></HTML>")
+	}))
+	defer server.Close()
+
+	pc := NewProxyChecker(nil, 10000, "", 1, "", "", 5, 1, "urltest", 30)
+	pc.SetURLTestOptions(server.URL, "Success", 2, 10, 10)
+	ok, _, latency, unstable, err := pc.checkByURLTest(server.Client())
+	if err != nil || !ok || unstable {
+		t.Fatalf("unexpected URL-test result: ok=%t unstable=%t err=%v", ok, unstable, err)
+	}
+	if calls.Load() != 2 {
+		t.Fatalf("expected two requests, got %d", calls.Load())
+	}
+	if latency <= 0 || latency >= 20*time.Millisecond {
+		t.Fatalf("expected the faster second request latency, got %s", latency)
+	}
+}
+
+func TestURLTestFallsBackToIPAndMarksUnstable(t *testing.T) {
+	primary := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "no", http.StatusServiceUnavailable)
+	}))
+	defer primary.Close()
+	fallback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, "203.0.113.9")
+	}))
+	defer fallback.Close()
+
+	pc := NewProxyChecker(nil, 10000, fallback.URL, 1, "", "", 5, 1, "urltest", 30)
+	pc.setCurrentIP("198.51.100.7")
+	pc.SetURLTestOptions(primary.URL, "Success", 2, 10, 10)
+	ok, message, _, unstable, err := pc.checkByURLTest(fallback.Client())
+	if err != nil || !ok || !unstable || !strings.Contains(message, "203.0.113.9") {
+		t.Fatalf("unexpected fallback result: ok=%t unstable=%t message=%q err=%v", ok, unstable, message, err)
+	}
+}
+
 func TestPersistentCompletedResultsSurviveRestart(t *testing.T) {
 	resultsFile := filepath.Join(t.TempDir(), "results.json")
 	a := mkProxy("1.1.1.1", "A", "ida")
@@ -57,7 +105,7 @@ func TestPersistentCompletedResultsSurviveRestart(t *testing.T) {
 	if err := first.SetResultsFile(resultsFile); err != nil {
 		t.Fatal(err)
 	}
-	first.storeResult(proxyMetricKey(a), proxyResult{status: true, latency: 125 * time.Millisecond, lastCheck: time.Now()})
+	first.storeResult(proxyMetricKey(a), proxyResult{status: true, unstable: true, latency: 125 * time.Millisecond, lastCheck: time.Now()})
 	first.storeResult(proxyMetricKey(b), proxyResult{status: false, lastCheck: time.Now()})
 	first.markResultsComplete(true)
 
@@ -74,6 +122,9 @@ func TestPersistentCompletedResultsSurviveRestart(t *testing.T) {
 	online, latency, _, found := second.GetProxyResultByStableID("ida")
 	if !found || !online || latency != 125*time.Millisecond {
 		t.Fatalf("unexpected restored result: online=%t latency=%s found=%t", online, latency, found)
+	}
+	if _, unstable, _, _, _ := second.GetProxyResultDetailsByStableID("ida"); !unstable {
+		t.Fatal("expected unstable flag to survive checker restart")
 	}
 
 	changed := NewProxyChecker([]*models.ProxyConfig{a, mkProxy("3.3.3.3", "C", "idc")}, 10000, "", 3, "", "", 5, 1, "ip", 20)

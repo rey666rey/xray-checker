@@ -35,13 +35,18 @@ type CLI struct {
 		CheckInterval    int    `name:"proxy-check-interval" help:"Interval for proxy checks in seconds" default:"300" env:"PROXY_CHECK_INTERVAL"`
 		InitialCheckOnly bool   `name:"proxy-initial-check-only" help:"Run one full check after startup and keep its results without scheduled full rechecks" default:"false" env:"PROXY_INITIAL_CHECK_ONLY"`
 		CheckConcurrency int    `name:"proxy-check-concurrency" help:"Max proxies checked in parallel per cycle (0 = unlimited)" default:"0" env:"PROXY_CHECK_CONCURRENCY"`
-		CheckMethod      string `name:"proxy-check-method" help:"Method for checking proxy, ip, status or download" default:"ip" env:"PROXY_CHECK_METHOD"`
+		CheckMethod      string `name:"proxy-check-method" help:"Method for checking proxy: urltest, ip, status or download" default:"ip" env:"PROXY_CHECK_METHOD"`
 		IpCheckUrl       string `name:"proxy-ip-check-url" help:"Service URL for IP checking" default:"https://api.ipify.org?format=text" env:"PROXY_IP_CHECK_URL"`
+		URLTestUrl       string `name:"proxy-url-test-url" help:"Small page used by check-method=urltest" default:"http://captive.apple.com/hotspot-detect.html" env:"PROXY_URL_TEST_URL"`
+		URLTestExpected  string `name:"proxy-url-test-expected" help:"Substring required in a successful URL-test response (empty accepts any 2xx response)" default:"Success" env:"PROXY_URL_TEST_EXPECTED"`
+		URLTestAttempts  int    `name:"proxy-url-test-attempts" help:"Number of independent URL-test requests; the best successful latency is retained" default:"2" env:"PROXY_URL_TEST_ATTEMPTS"`
+		RetryTimeout     int    `name:"proxy-retry-timeout" help:"Per-request timeout in seconds for the slower failed-node retry pass" default:"10" env:"PROXY_RETRY_TIMEOUT"`
+		RetryConcurrency int    `name:"proxy-retry-concurrency" help:"Concurrency for the failed-node retry pass (0 = half of normal concurrency)" default:"0" env:"PROXY_RETRY_CONCURRENCY"`
 		StatusCheckUrl   string `name:"proxy-status-check-url" help:"Response status generator, used by check-method=status" default:"http://cp.cloudflare.com/generate_204" env:"PROXY_STATUS_CHECK_URL"`
 		DownloadUrl      string `name:"proxy-download-url" help:"URL for file download checking, used by check-method=download" default:"https://proof.ovh.net/files/1Mb.dat" env:"PROXY_DOWNLOAD_URL"`
 		DownloadTimeout  int    `name:"proxy-download-timeout" help:"Timeout for download checking in seconds" default:"60" env:"PROXY_DOWNLOAD_TIMEOUT"`
 		DownloadMinSize  int64  `name:"proxy-download-min-size" help:"Minimum bytes to download for successful check" default:"51200" env:"PROXY_DOWNLOAD_MIN_SIZE"`
-		Timeout          int    `name:"proxy-timeout" help:"Timeout for IP checking in seconds" default:"30" env:"PROXY_TIMEOUT"`
+		Timeout          int    `name:"proxy-timeout" help:"Per-request timeout for proxy checks in seconds" default:"30" env:"PROXY_TIMEOUT"`
 		SimulateLatency  bool   `name:"simulate-latency" help:"Whether to add latency to the response" default:"true" env:"SIMULATE_LATENCY"`
 		ResolveDomains   bool   `name:"proxy-resolve-domains" help:"Resolve proxy server domains into IPs and expand configs" env:"PROXY_RESOLVE_DOMAINS"`
 	} `embed:"" prefix:""`

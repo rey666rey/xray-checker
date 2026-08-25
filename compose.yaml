@@ -14,13 +14,19 @@ services:
       SUBSCRIPTION_UPDATE: "false"
       SUBSCRIPTION_JSON_FORMAT: "true"
       SUBSCRIPTION_HEADERS: "X-Hwid: ${HWID:?add HWID to .env}"
-      # A moderate batch protects the iPhone/mobile NAT from connection bursts.
-      PROXY_CHECK_CONCURRENCY: "20"
+      # Fast app-style pass: two Apple URL tests, keeping the best latency.
+      PROXY_CHECK_CONCURRENCY: "30"
       PROXY_CHECK_INTERVAL: "600"
       PROXY_INITIAL_CHECK_ONLY: "true"
-      PROXY_CHECK_METHOD: "ip"
+      PROXY_CHECK_METHOD: "urltest"
+      PROXY_URL_TEST_URL: "http://captive.apple.com/hotspot-detect.html"
+      PROXY_URL_TEST_EXPECTED: "Success"
+      PROXY_URL_TEST_ATTEMPTS: "2"
+      # ipify is used only when both fast URL tests fail.
       PROXY_IP_CHECK_URL: "https://api.ipify.org?format=text"
-      PROXY_TIMEOUT: "10"
+      PROXY_TIMEOUT: "4"
+      PROXY_RETRY_TIMEOUT: "10"
+      PROXY_RETRY_CONCURRENCY: "10"
       NETWORK_STATUS_FILE: "/app/runtime/network-status.json"
       NETWORK_STATUS_MAX_AGE: "15"
       RESULTS_FILE: "/app/data/results.json"

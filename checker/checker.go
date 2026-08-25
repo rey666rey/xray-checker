@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptrace"
 	"net/url"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -32,6 +34,11 @@ type ProxyChecker struct {
 	downloadMinSize     int64
 	checkMethod         string
 	checkConcurrency    int // max proxies checked in parallel per cycle; 0 = unlimited
+	urlTestURL          string
+	urlTestExpected     string
+	urlTestAttempts     int
+	retryTimeout        int
+	retryConcurrency    int
 	networkStatusFile   string
 	networkStatusMaxAge time.Duration
 	networkLogMu        sync.Mutex
@@ -51,6 +58,7 @@ type ProxyChecker struct {
 // results exist for the current proxy set.
 type proxyResult struct {
 	status    bool
+	unstable  bool
 	latency   time.Duration
 	lastCheck time.Time
 }
@@ -71,6 +79,22 @@ func NewProxyChecker(proxies []*models.ProxyConfig, startPort int, ipCheckURL st
 		checkMethod:      checkMethod,
 		checkConcurrency: checkConcurrency,
 	}
+}
+
+// SetURLTestOptions configures the fast app-style URL test and the slower retry
+// pass used only for nodes that failed the first sweep.
+func (pc *ProxyChecker) SetURLTestOptions(testURL, expected string, attempts, retryTimeout, retryConcurrency int) {
+	pc.urlTestURL = strings.TrimSpace(testURL)
+	pc.urlTestExpected = expected
+	if attempts < 1 {
+		attempts = 1
+	}
+	pc.urlTestAttempts = attempts
+	if retryTimeout <= 0 {
+		retryTimeout = pc.ipCheckTimeout
+	}
+	pc.retryTimeout = retryTimeout
+	pc.retryConcurrency = retryConcurrency
 }
 
 func (pc *ProxyChecker) GetCurrentIP() (string, error) {
@@ -132,9 +156,13 @@ func proxyMetricKey(proxy *models.ProxyConfig) proxyMetricLabels {
 }
 
 func (pc *ProxyChecker) checkProxyInternal(proxy *models.ProxyConfig) {
+	pc.checkProxyInternalWithOptions(proxy, pc.ipCheckTimeout, false)
+}
+
+func (pc *ProxyChecker) checkProxyInternalWithOptions(proxy *models.ProxyConfig, timeout int, retryPhase bool) {
 	for {
 		pc.waitForNetwork()
-		if !pc.checkProxyAttempt(proxy) {
+		if !pc.checkProxyAttempt(proxy, timeout, retryPhase) {
 			return
 		}
 	}
@@ -143,23 +171,24 @@ func (pc *ProxyChecker) checkProxyInternal(proxy *models.ProxyConfig) {
 // checkProxyAttempt performs one proxy request. It returns true only when the
 // attempt failed during a confirmed mobile-network outage and must be repeated
 // after waitForNetwork observes recovery. Ordinary proxy failures are retained.
-func (pc *ProxyChecker) checkProxyAttempt(proxy *models.ProxyConfig) bool {
+func (pc *ProxyChecker) checkProxyAttempt(proxy *models.ProxyConfig, timeout int, retryPhase bool) bool {
 	if proxy.StableID == "" {
 		proxy.StableID = proxy.GenerateStableID()
 	}
 
 	metricKey := proxyMetricKey(proxy)
 
-	storeResult := func(status bool, latency time.Duration) {
+	storeResult := func(status bool, unstable bool, latency time.Duration) {
 		pc.storeResult(metricKey, proxyResult{
 			status:    status,
+			unstable:  unstable,
 			latency:   latency,
 			lastCheck: time.Now(),
 		})
 	}
 
 	setFailed := func() {
-		storeResult(false, 0)
+		storeResult(false, false, 0)
 	}
 
 	proxyURL := fmt.Sprintf("socks5://127.0.0.1:%d", pc.startPort+proxy.Index)
@@ -176,16 +205,19 @@ func (pc *ProxyChecker) checkProxyAttempt(proxy *models.ProxyConfig) bool {
 			Proxy:             http.ProxyURL(proxyURLParsed),
 			DisableKeepAlives: true,
 		},
-		Timeout: time.Second * time.Duration(pc.ipCheckTimeout),
+		Timeout: time.Second * time.Duration(timeout),
 	}
 
 	var checkSuccess bool
 	var checkErr error
 	var logMessage string
 	var latency time.Duration
+	var unstable bool
 
 	if pc.checkMethod == "ip" {
 		checkSuccess, logMessage, latency, checkErr = pc.checkByIP(client)
+	} else if pc.checkMethod == "urltest" {
+		checkSuccess, logMessage, latency, unstable, checkErr = pc.checkByURLTest(client)
 	} else if pc.checkMethod == "status" {
 		checkSuccess, logMessage, latency, checkErr = pc.checkByGen(client)
 	} else if pc.checkMethod == "download" {
@@ -210,11 +242,91 @@ func (pc *ProxyChecker) checkProxyAttempt(proxy *models.ProxyConfig) bool {
 		logger.Error("%s | Failed | %s | Latency: %s", proxy.Name, logMessage, latency)
 		setFailed()
 	} else {
+		unstable = unstable || retryPhase
 		logger.Result("%s | Success | %s | Latency: %s", proxy.Name, logMessage, latency)
-		storeResult(true, latency)
+		storeResult(true, unstable, latency)
 	}
 
 	return false
+}
+
+func (pc *ProxyChecker) checkByURLTest(client *http.Client) (bool, string, time.Duration, bool, error) {
+	if pc.urlTestURL == "" {
+		return false, "", 0, false, fmt.Errorf("URL test endpoint is not configured")
+	}
+
+	attempts := pc.urlTestAttempts
+	if attempts < 1 {
+		attempts = 1
+	}
+	var best time.Duration
+	successes := 0
+	var lastErr error
+	for attempt := 0; attempt < attempts; attempt++ {
+		status, body, latency, err := timedProxyGET(client, pc.urlTestURL, 64*1024)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		valid := status >= 200 && status < 300
+		if pc.urlTestExpected != "" {
+			valid = valid && strings.Contains(body, pc.urlTestExpected)
+		}
+		if !valid {
+			lastErr = fmt.Errorf("URL test returned status %d or unexpected content", status)
+			continue
+		}
+		successes++
+		if best == 0 || latency < best {
+			best = latency
+		}
+	}
+	if successes > 0 {
+		return true, fmt.Sprintf("URL test: %d/%d successful", successes, attempts), best, successes < attempts, nil
+	}
+
+	// ipify is deliberately a fallback: it is slower than the tiny Apple page,
+	// but independently confirms that traffic really exited through the proxy.
+	status, body, latency, err := timedProxyGET(client, pc.ipCheck, 256)
+	if err != nil {
+		if lastErr != nil {
+			return false, "", 0, false, fmt.Errorf("URL test failed (%v); IP fallback failed (%w)", lastErr, err)
+		}
+		return false, "", 0, false, fmt.Errorf("IP fallback failed: %w", err)
+	}
+	proxyIP := strings.TrimSpace(body)
+	if status < 200 || status >= 300 || net.ParseIP(proxyIP) == nil {
+		return false, fmt.Sprintf("IP fallback returned invalid response (status %d)", status), latency, false, nil
+	}
+	currentIP := pc.getCurrentIP()
+	if proxyIP == currentIP {
+		return false, fmt.Sprintf("IP fallback used source IP %s", currentIP), latency, false, nil
+	}
+	return true, fmt.Sprintf("IP fallback succeeded: %s", proxyIP), latency, true, nil
+}
+
+func timedProxyGET(client *http.Client, target string, maxBody int64) (int, string, time.Duration, error) {
+	req, err := http.NewRequest("GET", target, nil)
+	if err != nil {
+		return 0, "", 0, err
+	}
+	var ttfb time.Duration
+	start := time.Now()
+	trace := &httptrace.ClientTrace{GotFirstResponseByte: func() { ttfb = time.Since(start) }}
+	req = req.WithContext(httptrace.WithClientTrace(context.Background(), trace))
+	resp, err := client.Do(req)
+	if err != nil {
+		return 0, "", 0, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxBody))
+	if ttfb == 0 {
+		ttfb = time.Since(start)
+	}
+	if err != nil {
+		return resp.StatusCode, "", ttfb, err
+	}
+	return resp.StatusCode, string(body), ttfb, nil
 }
 
 func (pc *ProxyChecker) checkByIP(client *http.Client) (bool, string, time.Duration, error) {
@@ -433,7 +545,7 @@ func (pc *ProxyChecker) CheckAllProxies() {
 	// a large sweep. Match app-style URL tests by retrying only first-pass failures;
 	// successes are never needlessly checked twice. A smaller retry batch reduces
 	// NAT/radio pressure and any successful attempt becomes the retained result.
-	if pc.checkMethod == "ip" {
+	if pc.checkMethod == "ip" || pc.checkMethod == "urltest" {
 		retryCandidates := proxiesToCheck
 		if resumeWasComplete {
 			// A completed snapshot may have only a few unmatched nodes after a
@@ -443,12 +555,21 @@ func (pc *ProxyChecker) CheckAllProxies() {
 		}
 		failed := pc.failedProxies(retryCandidates)
 		if len(failed) > 0 {
-			retryConcurrency := pc.checkConcurrency
-			if retryConcurrency > 1 {
-				retryConcurrency /= 2
+			retryConcurrency := pc.retryConcurrency
+			if retryConcurrency <= 0 {
+				retryConcurrency = pc.checkConcurrency
+				if retryConcurrency > 1 {
+					retryConcurrency /= 2
+				}
 			}
-			logger.Info("Retrying %d first-pass failures with concurrency %d", len(failed), retryConcurrency)
-			runBoundedChecks(failed, retryConcurrency, pc.checkProxyInternal)
+			retryTimeout := pc.retryTimeout
+			if retryTimeout <= 0 {
+				retryTimeout = pc.ipCheckTimeout
+			}
+			logger.Info("Retrying %d first-pass failures with concurrency %d and timeout %ds", len(failed), retryConcurrency, retryTimeout)
+			runBoundedChecks(failed, retryConcurrency, func(proxy *models.ProxyConfig) {
+				pc.checkProxyInternalWithOptions(proxy, retryTimeout, true)
+			})
 		}
 	}
 	pc.markResultsComplete(true)
@@ -510,6 +631,13 @@ func runBoundedChecks(proxies []*models.ProxyConfig, concurrency int, check func
 // previous name-based lookup returned the first same-named proxy's result, making
 // /config/{id}, the dashboard and the JSON API disagree with /metrics (issue #172).
 func (pc *ProxyChecker) GetProxyResultByStableID(stableID string) (bool, time.Duration, int64, bool) {
+	online, _, latency, lastCheck, found := pc.GetProxyResultDetailsByStableID(stableID)
+	return online, latency, lastCheck, found
+}
+
+// GetProxyResultDetailsByStableID also reports whether a node succeeded only
+// through a fallback or the slower retry pass.
+func (pc *ProxyChecker) GetProxyResultDetailsByStableID(stableID string) (bool, bool, time.Duration, int64, bool) {
 	pc.mu.RLock()
 	var metricKey proxyMetricLabels
 	found := false
@@ -526,12 +654,12 @@ func (pc *ProxyChecker) GetProxyResultByStableID(stableID string) (bool, time.Du
 	pc.mu.RUnlock()
 
 	if !found {
-		return false, 0, 0, false
+		return false, false, 0, 0, false
 	}
 
 	v, ok := pc.results.Load(metricKey)
 	if !ok {
-		return false, 0, 0, false
+		return false, false, 0, 0, false
 	}
 
 	r := v.(proxyResult)
@@ -539,7 +667,7 @@ func (pc *ProxyChecker) GetProxyResultByStableID(stableID string) (bool, time.Du
 	if !r.lastCheck.IsZero() {
 		lastCheck = r.lastCheck.Unix()
 	}
-	return r.status, r.latency, lastCheck, true
+	return r.status, r.unstable, r.latency, lastCheck, true
 }
 
 func (pc *ProxyChecker) GetProxyByStableID(stableID string) (*models.ProxyConfig, bool) {

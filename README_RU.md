@@ -230,18 +230,23 @@ docker-compose --context colima-iphone stop xray-checker
 | --- | --- | --- |
 | `SUBSCRIPTION_UPDATE` | `false` | Не менять исходный набор серверов |
 | `SUBSCRIPTION_JSON_FORMAT` | `true` | Запрашивать полные JSON-конфигурации |
-| `PROXY_CHECK_CONCURRENCY` | `20` | Размер параллельной пачки первой проходки |
+| `PROXY_CHECK_CONCURRENCY` | `30` | Размер быстрой параллельной пачки |
 | `PROXY_CHECK_INTERVAL` | `600` | Интервал Auto; период проверок при отключённом одноразовом режиме |
 | `PROXY_INITIAL_CHECK_ONLY` | `true` | Выполнить один полный проход после запуска |
-| `PROXY_CHECK_METHOD` | `ip` | Проверять сервер HTTP-запросом через прокси |
-| `PROXY_IP_CHECK_URL` | `https://api.ipify.org?format=text` | Получать выходной IP прокси |
-| `PROXY_TIMEOUT` | `10` | Таймаут одного запроса в секундах |
+| `PROXY_CHECK_METHOD` | `urltest` | Два быстрых GET через прокси с лучшим результатом |
+| `PROXY_URL_TEST_URL` | `http://captive.apple.com/hotspot-detect.html` | Основной маленький URL Apple |
+| `PROXY_URL_TEST_ATTEMPTS` | `2` | Количество быстрых попыток |
+| `PROXY_IP_CHECK_URL` | `https://api.ipify.org?format=text` | Резервная проверка, только если Apple не ответил |
+| `PROXY_TIMEOUT` | `4` | Таймаут быстрой попытки в секундах |
+| `PROXY_RETRY_TIMEOUT` | `10` | Таймаут повторной проходки ошибок |
+| `PROXY_RETRY_CONCURRENCY` | `10` | Параллельность повторной проходки |
 | `NETWORK_STATUS_FILE` | `/app/runtime/network-status.json` | Ставить проверки на паузу при потере iPhone |
 | `NETWORK_STATUS_MAX_AGE` | `15` | Считать молчащий монитор offline через 15 секунд |
 | `RESULTS_FILE` | `/app/data/results.json` | Сохранять готовую проходку при перезапуске checker/Colima |
 
-При методе `ip` ошибки первой попытки автоматически перепроверяются с половиной
-значения `PROXY_CHECK_CONCURRENCY`.
+Если обе быстрые попытки Apple не прошли, checker пробует `ipify`. Успех только
+через fallback или повторную проходку отмечается жёлтым статусом `unstable`.
+Оставшиеся ошибки автоматически перепроверяются отдельной медленной пачкой.
 
 Если мобильный канал даёт много `EOF` или таймаутов, уменьшите параллелизм. Если
 проверка стабильна, но идёт слишком долго, увеличивайте его постепенно. Чем
