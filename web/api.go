@@ -399,6 +399,19 @@ func APISystemIPHandler(proxyChecker *checker.ProxyChecker) http.HandlerFunc {
 	}
 }
 
+// APINetworkStatusHandler returns the monitored iPhone route status.
+// @Summary Get mobile network status
+// @Description Returns whether the monitored iPhone route is ready for proxy checks
+// @Tags system
+// @Produce json
+// @Success 200 {object} checker.NetworkStatus
+// @Router /api/v1/network [get]
+func APINetworkStatusHandler(proxyChecker *checker.ProxyChecker) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, proxyChecker.GetNetworkStatus())
+	}
+}
+
 func formatDuration(d time.Duration) string {
 	days := int(d.Hours() / 24)
 	hours := int(d.Hours()) % 24

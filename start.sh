@@ -6,6 +6,7 @@ readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly COLIMA_PROFILE="${COLIMA_PROFILE:-iphone}"
 readonly IPHONE_INTERFACE="${IPHONE_INTERFACE:-en7}"
 readonly DOCKER_CONTEXT="colima-${COLIMA_PROFILE}"
+readonly RECOVERY_MODE="${XRAY_RECOVERY_MODE:-false}"
 
 die() {
   printf 'Ошибка: %s\n' "$*" >&2
@@ -24,6 +25,10 @@ elif command -v docker-compose >/dev/null 2>&1; then
   compose=(docker-compose --context "${DOCKER_CONTEXT}")
 else
   die "Docker Compose не установлен."
+fi
+
+if [[ "${RECOVERY_MODE}" != "true" ]] && [[ -x "${SCRIPT_DIR}/iphone-supervisor.sh" ]]; then
+  "${SCRIPT_DIR}/iphone-supervisor.sh" uninstall
 fi
 
 if colima status --profile "${COLIMA_PROFILE}" >/dev/null 2>&1; then
@@ -54,11 +59,24 @@ if ! grep -Eq '^default .* dev col0 ' <<<"${vm_routes}"; then
   die "Colima не получила основной bridge-маршрут col0 через iPhone; checker не запущен."
 fi
 
-printf 'Собираю и запускаю Xray Checker...\n'
+printf 'Запускаю Xray Checker с монитором сети...\n'
 (
   cd "${SCRIPT_DIR}"
-  "${compose[@]}" up -d --build
+  if [[ "${RECOVERY_MODE}" == "true" ]]; then
+    "${compose[@]}" up -d
+  else
+    printf 'Собираю образ...\n'
+    "${compose[@]}" build
+    printf 'Удаляю результаты прошлого запуска для новой полной проверки...\n'
+    "${compose[@]}" run --rm --no-deps --entrypoint /bin/rm \
+      xray-checker -f /app/data/results.json /app/data/results.json.tmp
+    "${compose[@]}" up -d --force-recreate
+  fi
 )
+
+if [[ "${RECOVERY_MODE}" != "true" ]]; then
+  "${SCRIPT_DIR}/iphone-supervisor.sh" install
+fi
 
 printf '\nXray Checker запущен: http://127.0.0.1:2112\n'
 printf 'Состояние контейнера:\n'

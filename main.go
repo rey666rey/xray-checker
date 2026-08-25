@@ -92,6 +92,13 @@ func main() {
 		config.CLIConfig.Proxy.CheckMethod,
 		config.CLIConfig.Proxy.CheckConcurrency,
 	)
+	proxyChecker.SetNetworkStatusFile(
+		config.CLIConfig.NetworkStatusFile,
+		time.Duration(config.CLIConfig.NetworkStatusMaxAge)*time.Second,
+	)
+	if err := proxyChecker.SetResultsFile(config.CLIConfig.ResultsFile); err != nil {
+		logger.Warn("Could not restore saved proxy results: %v", err)
+	}
 
 	// The collector renders metrics from the checker's current proxy snapshot on
 	// each scrape, so custom metricsLabels (#124) can change across subscription
@@ -143,7 +150,11 @@ func main() {
 	if config.CLIConfig.Proxy.InitialCheckOnly {
 		// Keep serving the in-memory result after the initial batched sweep. Running
 		// in a goroutine makes the dashboard available while that first sweep fills in.
-		go runCheckIteration()
+		if proxyChecker.HasCompleteResults() {
+			logger.Info("Keeping the completed proxy result snapshot; initial full check skipped")
+		} else {
+			go runCheckIteration()
+		}
 	} else {
 		checkScheduler := gocron.NewScheduler(time.UTC)
 		// SingletonMode: if a check cycle overruns the interval, the next tick is skipped
@@ -212,6 +223,7 @@ func main() {
 	protectedHandler.Handle("/api/v1/status", web.APIStatusHandler(proxyChecker))
 	protectedHandler.Handle("/api/v1/system/info", web.APISystemInfoHandler(version, startTime))
 	protectedHandler.Handle("/api/v1/system/ip", web.APISystemIPHandler(proxyChecker))
+	protectedHandler.Handle("/api/v1/network", web.APINetworkStatusHandler(proxyChecker))
 	protectedHandler.Handle("/api/v1/docs", web.APIDocsHandler())
 	protectedHandler.Handle("/api/v1/openapi.yaml", web.APIOpenAPIHandler())
 

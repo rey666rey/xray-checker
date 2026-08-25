@@ -17,6 +17,14 @@ fi
 
 result=0
 
+if [[ -x "${SCRIPT_DIR}/iphone-supervisor.sh" ]]; then
+  printf 'Останавливаю монитор автоматического восстановления iPhone...\n'
+  if ! "${SCRIPT_DIR}/iphone-supervisor.sh" uninstall; then
+    warn "не удалось остановить монитор автоматического восстановления."
+    result=1
+  fi
+fi
+
 if colima status --profile "${COLIMA_PROFILE}" >/dev/null 2>&1; then
   compose=()
   if ! command -v docker >/dev/null 2>&1; then

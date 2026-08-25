@@ -287,6 +287,38 @@
         color: var(--color-green);
       }
 
+      .connection-pill {
+        max-width: 15rem;
+      }
+      .connection-dot {
+        width: 0.5rem;
+        height: 0.5rem;
+        border-radius: 9999px;
+        flex-shrink: 0;
+        position: relative;
+      }
+      .connection-connected {
+        color: var(--color-green);
+        border-color: color-mix(in srgb, var(--color-green) 30%, transparent);
+      }
+      .connection-connected .connection-dot {
+        background: var(--color-green);
+      }
+      .connection-recovering {
+        color: var(--color-yellow);
+        border-color: color-mix(in srgb, var(--color-yellow) 30%, transparent);
+      }
+      .connection-recovering .connection-dot {
+        background: var(--color-yellow);
+      }
+      .connection-waiting {
+        color: var(--color-red);
+        border-color: color-mix(in srgb, var(--color-red) 30%, transparent);
+      }
+      .connection-waiting .connection-dot {
+        background: var(--color-red);
+      }
+
       /* Pulse animation for online status */
       .pulse::after {
         content: "";
@@ -609,6 +641,16 @@
         </div>
 
         <div class="flex items-center gap-2">
+          <div
+            x-show="networkStatus.managed"
+            class="connection-pill h-9 px-3 text-xs rounded-lg card-flat flex items-center gap-2"
+            :class="networkStatusClass"
+            :title="networkStatus.message || networkStatusLabel"
+          >
+            <span class="connection-dot" :class="networkStatus.ready && 'pulse'"></span>
+            <span class="truncate" x-text="networkStatusLabel"></span>
+          </div>
+
           {{ if not .IsPublic }}
           <span
             class="h-9 px-3 text-xs rounded-lg card-flat text-muted flex items-center"
@@ -1139,6 +1181,15 @@
           sort: localStorage.getItem('sort') || 'default',
           toasts: [],
           initialLoad: true,
+          networkStatus: {
+            managed: false,
+            ready: true,
+            state: 'unmanaged',
+            interface: '',
+            publicIp: '',
+            message: '',
+          },
+          networkStatusInterval: null,
 
           // URL-controlled visibility
           showHeader: !getUrlParam('hideHeader'),
@@ -1175,6 +1226,21 @@
             }
             if (this.badgeTransparent) classes.push('badge-transparent');
             return classes.join(' ');
+          },
+
+          get networkStatusClass() {
+            if (this.networkStatus.ready) return 'connection-connected';
+            if (this.networkStatus.state === 'recovering') return 'connection-recovering';
+            return 'connection-waiting';
+          },
+
+          get networkStatusLabel() {
+            if (this.networkStatus.ready) {
+              return 'iPhone · ' + (this.networkStatus.publicIp || 'Connected');
+            }
+            if (this.networkStatus.state === 'recovering') return 'iPhone · Recovering';
+            if (this.networkStatus.state === 'unknown') return 'iPhone · Monitor offline';
+            return 'iPhone · Waiting';
           },
 
           collapsedGroups: {},
@@ -1290,6 +1356,9 @@
           init() {
             const params = new URLSearchParams(window.location.search);
 
+            this.refreshNetworkStatus();
+            this.networkStatusInterval = setInterval(() => this.refreshNetworkStatus(), 3000);
+
             // Check for badge mode
             const stableId = params.get('stableId');
             if (stableId) {
@@ -1401,6 +1470,23 @@
             clearInterval(this.countdownInterval);
             this.countdownInterval = null;
             this.countdown = {{ .CheckInterval }};
+          },
+
+          async refreshNetworkStatus() {
+            try {
+              const res = await fetch('./api/v1/network');
+              const json = await res.json();
+              if (json.success && json.data) this.networkStatus = json.data;
+            } catch (e) {
+              if (this.networkStatus.managed) {
+                this.networkStatus = {
+                  ...this.networkStatus,
+                  ready: false,
+                  state: 'unknown',
+                  message: 'Cannot reach the connection status API',
+                };
+              }
+            }
           },
 
           async refreshData() {

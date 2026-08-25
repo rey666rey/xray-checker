@@ -21,11 +21,35 @@ services:
       PROXY_CHECK_METHOD: "ip"
       PROXY_IP_CHECK_URL: "https://api.ipify.org?format=text"
       PROXY_TIMEOUT: "10"
+      NETWORK_STATUS_FILE: "/app/runtime/network-status.json"
+      NETWORK_STATUS_MAX_AGE: "15"
+      RESULTS_FILE: "/app/data/results.json"
     ports:
       - "127.0.0.1:2112:2112"
     volumes:
       - xray-geo:/app/geo
+      - xray-network-status:/app/runtime:ro
+      - xray-results:/app/data
+    depends_on:
+      - network-monitor
+    restart: unless-stopped
+
+  network-monitor:
+    image: xray-checker:local
+    user: "0:0"
+    entrypoint: ["/bin/sh", "/app/network-watch.sh"]
+    environment:
+      NETWORK_INTERFACE: "col0"
+      NETWORK_CHECK_URL: "https://api.ipify.org?format=text"
+      NETWORK_CHECK_INTERVAL: "3"
+      NETWORK_STATUS_FILE: "/app/runtime/network-status.json"
+    network_mode: host
+    volumes:
+      - ./network-watch.sh:/app/network-watch.sh:ro
+      - xray-network-status:/app/runtime
     restart: unless-stopped
 
 volumes:
   xray-geo:
+  xray-network-status:
+  xray-results:

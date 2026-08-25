@@ -166,6 +166,25 @@ paths:
               schema:
                 $ref: '#/components/schemas/APIErrorResponse'
 
+  /api/v1/network:
+    get:
+      summary: Get mobile network status
+      description: Returns the monitored iPhone route state used to pause and resume proxy checks
+      tags:
+        - System
+      responses:
+        '200':
+          description: Current mobile network state
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/NetworkStatus'
+
 components:
   securitySchemes:
     basicAuth:
@@ -352,3 +371,34 @@ components:
         ip:
           type: string
           example: "203.0.113.1"
+
+    NetworkStatus:
+      type: object
+      properties:
+        managed:
+          type: boolean
+          example: true
+        ready:
+          type: boolean
+          example: true
+        state:
+          type: string
+          enum: [unmanaged, connected, waiting, recovering, stopped, unknown]
+          example: connected
+        interface:
+          type: string
+          example: col0
+        localIp:
+          type: string
+          example: "172.20.10.2"
+        publicIp:
+          type: string
+          example: "203.0.113.1"
+        message:
+          type: string
+          example: iPhone mobile route is active
+        updatedAt:
+          type: integer
+          format: int64
+          description: Unix timestamp of the last host monitor update
+          example: 1787461200

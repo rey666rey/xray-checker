@@ -1,6 +1,9 @@
 package checker
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -12,6 +15,99 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 )
+
+func TestNetworkStatusGuard(t *testing.T) {
+	pc := NewProxyChecker(nil, 10000, "", 3, "", "", 5, 1, "ip", 20)
+
+	unmanaged := pc.GetNetworkStatus()
+	if unmanaged.Managed || !unmanaged.Ready || unmanaged.State != "unmanaged" {
+		t.Fatalf("unexpected unmanaged status: %#v", unmanaged)
+	}
+
+	statusFile := filepath.Join(t.TempDir(), "network-status.json")
+	pc.SetNetworkStatusFile(statusFile, 15*time.Second)
+	connected := fmt.Sprintf(`{"state":"connected","interface":"en7","publicIp":"203.0.113.7","updatedAt":%d}`, time.Now().Unix())
+	if err := os.WriteFile(statusFile, []byte(connected), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	status := pc.GetNetworkStatus()
+	if !status.Managed || !status.Ready || status.State != "connected" || status.PublicIP != "203.0.113.7" {
+		t.Fatalf("unexpected connected status: %#v", status)
+	}
+	if ip, err := pc.GetCurrentIP(); err != nil || ip != "203.0.113.7" {
+		t.Fatalf("GetCurrentIP() = %q, %v", ip, err)
+	}
+
+	stale := fmt.Sprintf(`{"state":"connected","updatedAt":%d}`, time.Now().Add(-time.Minute).Unix())
+	if err := os.WriteFile(statusFile, []byte(stale), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	status = pc.GetNetworkStatus()
+	if status.Ready || status.State != "unknown" {
+		t.Fatalf("expected stale monitor to pause checks, got %#v", status)
+	}
+}
+
+func TestPersistentCompletedResultsSurviveRestart(t *testing.T) {
+	resultsFile := filepath.Join(t.TempDir(), "results.json")
+	a := mkProxy("1.1.1.1", "A", "ida")
+	b := mkProxy("2.2.2.2", "B", "idb")
+	first := NewProxyChecker([]*models.ProxyConfig{a, b}, 10000, "", 3, "", "", 5, 1, "ip", 20)
+	if err := first.SetResultsFile(resultsFile); err != nil {
+		t.Fatal(err)
+	}
+	first.storeResult(proxyMetricKey(a), proxyResult{status: true, latency: 125 * time.Millisecond, lastCheck: time.Now()})
+	first.storeResult(proxyMetricKey(b), proxyResult{status: false, lastCheck: time.Now()})
+	first.markResultsComplete(true)
+
+	second := NewProxyChecker([]*models.ProxyConfig{a, b}, 10000, "", 3, "", "", 5, 1, "ip", 20)
+	if err := second.SetResultsFile(resultsFile); err != nil {
+		t.Fatal(err)
+	}
+	if !second.HasCompleteResults() {
+		t.Fatal("expected completed snapshot to survive checker restart")
+	}
+	if got := len(second.MetricsSnapshot()); got != 2 {
+		t.Fatalf("expected 2 restored results, got %d", got)
+	}
+	online, latency, _, found := second.GetProxyResultByStableID("ida")
+	if !found || !online || latency != 125*time.Millisecond {
+		t.Fatalf("unexpected restored result: online=%t latency=%s found=%t", online, latency, found)
+	}
+
+	changed := NewProxyChecker([]*models.ProxyConfig{a, mkProxy("3.3.3.3", "C", "idc")}, 10000, "", 3, "", "", 5, 1, "ip", 20)
+	if err := changed.SetResultsFile(resultsFile); err != nil {
+		t.Fatal(err)
+	}
+	if changed.HasCompleteResults() {
+		t.Fatal("snapshot must not be considered complete for a changed proxy set")
+	}
+	if !changed.resumeFromSnapshot.Load() {
+		t.Fatal("changed proxy set should resume from the partial matching snapshot")
+	}
+	if !changed.resumeWasComplete.Load() {
+		t.Fatal("the partial match came from a completed snapshot")
+	}
+	pending := changed.uncheckedProxies(changed.GetProxies())
+	if len(pending) != 1 || pending[0].StableID != "idc" {
+		t.Fatalf("expected only the new proxy to need a first pass, got %#v", pending)
+	}
+
+	// Some panels rotate connection fields (and therefore stable_id) while keeping
+	// the node's unique display identity. That must not blank a completed snapshot.
+	rotatedA := mkProxy("9.9.9.9", "A", "rotated-id")
+	rotated := NewProxyChecker([]*models.ProxyConfig{rotatedA}, 10000, "", 3, "", "", 5, 1, "ip", 20)
+	if err := rotated.SetResultsFile(resultsFile); err != nil {
+		t.Fatal(err)
+	}
+	if !rotated.HasCompleteResults() {
+		t.Fatal("unique display identity should restore a completed result after endpoint rotation")
+	}
+	if online, latency, _, found := rotated.GetProxyResultByStableID("rotated-id"); !found || !online || latency != 125*time.Millisecond {
+		t.Fatalf("unexpected result restored after endpoint rotation: online=%t latency=%s found=%t", online, latency, found)
+	}
+}
 
 func TestFailedProxiesReturnsOnlyMissingAndOffline(t *testing.T) {
 	online := mkProxy("1.1.1.1", "online", "id-online")

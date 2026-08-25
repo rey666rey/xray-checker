@@ -8,6 +8,7 @@ import (
 	"net/http/httptrace"
 	"net/url"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"xray-checker/logger"
@@ -16,21 +17,32 @@ import (
 )
 
 type ProxyChecker struct {
-	proxies          []*models.ProxyConfig
-	startPort        int
-	ipCheck          string
-	currentIP        string
-	httpClient       *http.Client
-	results          sync.Map // proxyMetricLabels -> proxyResult
-	ipInitialized    bool
-	ipCheckTimeout   int
-	genMethodURL     string
-	downloadURL      string
-	downloadTimeout  int
-	downloadMinSize  int64
-	checkMethod      string
-	checkConcurrency int // max proxies checked in parallel per cycle; 0 = unlimited
-	mu               sync.RWMutex
+	proxies             []*models.ProxyConfig
+	startPort           int
+	ipCheck             string
+	currentIP           string
+	httpClient          *http.Client
+	results             sync.Map // proxyMetricLabels -> proxyResult
+	ipInitialized       bool
+	ipMu                sync.RWMutex
+	ipCheckTimeout      int
+	genMethodURL        string
+	downloadURL         string
+	downloadTimeout     int
+	downloadMinSize     int64
+	checkMethod         string
+	checkConcurrency    int // max proxies checked in parallel per cycle; 0 = unlimited
+	networkStatusFile   string
+	networkStatusMaxAge time.Duration
+	networkLogMu        sync.Mutex
+	networkWaiting      bool
+	resultsFile         string
+	persistSignal       chan struct{}
+	resultsComplete     atomic.Bool
+	resumeFromSnapshot  atomic.Bool
+	resumeWasComplete   atomic.Bool
+	persistMu           sync.Mutex
+	mu                  sync.RWMutex
 }
 
 // proxyResult is the latest check outcome for one proxy. Metrics are rendered from
@@ -62,9 +74,19 @@ func NewProxyChecker(proxies []*models.ProxyConfig, startPort int, ipCheckURL st
 }
 
 func (pc *ProxyChecker) GetCurrentIP() (string, error) {
-	if pc.ipInitialized && pc.currentIP != "" {
-		return pc.currentIP, nil
+	status := pc.GetNetworkStatus()
+	if status.Ready && status.PublicIP != "" {
+		pc.setCurrentIP(status.PublicIP)
+		return status.PublicIP, nil
 	}
+
+	pc.ipMu.RLock()
+	if pc.ipInitialized && pc.currentIP != "" {
+		currentIP := pc.currentIP
+		pc.ipMu.RUnlock()
+		return currentIP, nil
+	}
+	pc.ipMu.RUnlock()
 
 	resp, err := pc.httpClient.Get(pc.ipCheck)
 	if err != nil {
@@ -77,9 +99,9 @@ func (pc *ProxyChecker) GetCurrentIP() (string, error) {
 		return "", fmt.Errorf("error reading response: %v", err)
 	}
 
-	pc.currentIP = string(body)
-	pc.ipInitialized = true
-	return pc.currentIP, nil
+	currentIP := string(body)
+	pc.setCurrentIP(currentIP)
+	return currentIP, nil
 }
 
 func (pc *ProxyChecker) CheckProxy(proxy *models.ProxyConfig) {
@@ -110,6 +132,18 @@ func proxyMetricKey(proxy *models.ProxyConfig) proxyMetricLabels {
 }
 
 func (pc *ProxyChecker) checkProxyInternal(proxy *models.ProxyConfig) {
+	for {
+		pc.waitForNetwork()
+		if !pc.checkProxyAttempt(proxy) {
+			return
+		}
+	}
+}
+
+// checkProxyAttempt performs one proxy request. It returns true only when the
+// attempt failed during a confirmed mobile-network outage and must be repeated
+// after waitForNetwork observes recovery. Ordinary proxy failures are retained.
+func (pc *ProxyChecker) checkProxyAttempt(proxy *models.ProxyConfig) bool {
 	if proxy.StableID == "" {
 		proxy.StableID = proxy.GenerateStableID()
 	}
@@ -117,7 +151,7 @@ func (pc *ProxyChecker) checkProxyInternal(proxy *models.ProxyConfig) {
 	metricKey := proxyMetricKey(proxy)
 
 	storeResult := func(status bool, latency time.Duration) {
-		pc.results.Store(metricKey, proxyResult{
+		pc.storeResult(metricKey, proxyResult{
 			status:    status,
 			latency:   latency,
 			lastCheck: time.Now(),
@@ -134,7 +168,7 @@ func (pc *ProxyChecker) checkProxyInternal(proxy *models.ProxyConfig) {
 		logger.Error("Error parsing proxy URL %s: %v", proxyURL, err)
 		setFailed()
 
-		return
+		return false
 	}
 
 	client := &http.Client{
@@ -158,14 +192,18 @@ func (pc *ProxyChecker) checkProxyInternal(proxy *models.ProxyConfig) {
 		checkSuccess, logMessage, latency, checkErr = pc.checkByDownload(client)
 	} else {
 		logger.Error("Invalid check method: %s", pc.checkMethod)
-		return
+		return false
 	}
 
 	if checkErr != nil {
+		if pc.retryAfterNetworkOutage() {
+			logger.Warn("%s | Mobile connection was interrupted; retrying after recovery", proxy.Name)
+			return true
+		}
 		logger.Error("%s | %v", proxy.Name, checkErr)
 		setFailed()
 
-		return
+		return false
 	}
 
 	if !checkSuccess {
@@ -175,6 +213,8 @@ func (pc *ProxyChecker) checkProxyInternal(proxy *models.ProxyConfig) {
 		logger.Result("%s | Success | %s | Latency: %s", proxy.Name, logMessage, latency)
 		storeResult(true, latency)
 	}
+
+	return false
 }
 
 func (pc *ProxyChecker) checkByIP(client *http.Client) (bool, string, time.Duration, error) {
@@ -204,8 +244,9 @@ func (pc *ProxyChecker) checkByIP(client *http.Client) (bool, string, time.Durat
 	}
 
 	proxyIP := string(body)
-	logMessage := fmt.Sprintf("Source IP: %s | Proxy IP: %s", pc.currentIP, proxyIP)
-	return proxyIP != pc.currentIP, logMessage, ttfb, nil
+	currentIP := pc.getCurrentIP()
+	logMessage := fmt.Sprintf("Source IP: %s | Proxy IP: %s", currentIP, proxyIP)
+	return proxyIP != currentIP, logMessage, ttfb, nil
 }
 
 func (pc *ProxyChecker) checkByGen(client *http.Client) (bool, string, time.Duration, error) {
@@ -327,6 +368,7 @@ func (pc *ProxyChecker) PruneStaleResults() {
 		}
 		return true
 	})
+	pc.scheduleResultsPersist()
 }
 
 // MetricsSnapshot returns one ProxyMetric per current proxy that has a check
@@ -366,6 +408,8 @@ func (pc *ProxyChecker) MetricsSnapshot() []metrics.ProxyMetric {
 }
 
 func (pc *ProxyChecker) CheckAllProxies() {
+	pc.markResultsComplete(false)
+	pc.waitForNetwork()
 	if _, err := pc.GetCurrentIP(); err != nil {
 		logger.Warn("Error getting current IP: %v", err)
 		return
@@ -376,14 +420,28 @@ func (pc *ProxyChecker) CheckAllProxies() {
 	copy(proxiesToCheck, pc.proxies)
 	pc.mu.RUnlock()
 
-	runBoundedChecks(proxiesToCheck, pc.checkConcurrency, pc.checkProxyInternal)
+	firstPass := proxiesToCheck
+	resuming := pc.resumeFromSnapshot.Swap(false)
+	resumeWasComplete := pc.resumeWasComplete.Swap(false)
+	if resuming {
+		firstPass = pc.uncheckedProxies(proxiesToCheck)
+		logger.Info("Resuming interrupted check: %d unchecked proxies remain", len(firstPass))
+	}
+	runBoundedChecks(firstPass, pc.checkConcurrency, pc.checkProxyInternal)
 
 	// Mobile links occasionally reset otherwise healthy proxy connections during
 	// a large sweep. Match app-style URL tests by retrying only first-pass failures;
 	// successes are never needlessly checked twice. A smaller retry batch reduces
 	// NAT/radio pressure and any successful attempt becomes the retained result.
 	if pc.checkMethod == "ip" {
-		failed := pc.failedProxies(proxiesToCheck)
+		retryCandidates := proxiesToCheck
+		if resumeWasComplete {
+			// A completed snapshot may have only a few unmatched nodes after a
+			// subscription rename/rotation. Its old offline results were already
+			// retried, so retry only the newly checked nodes.
+			retryCandidates = firstPass
+		}
+		failed := pc.failedProxies(retryCandidates)
 		if len(failed) > 0 {
 			retryConcurrency := pc.checkConcurrency
 			if retryConcurrency > 1 {
@@ -393,6 +451,17 @@ func (pc *ProxyChecker) CheckAllProxies() {
 			runBoundedChecks(failed, retryConcurrency, pc.checkProxyInternal)
 		}
 	}
+	pc.markResultsComplete(true)
+}
+
+func (pc *ProxyChecker) uncheckedProxies(proxies []*models.ProxyConfig) []*models.ProxyConfig {
+	unchecked := make([]*models.ProxyConfig, 0)
+	for _, proxy := range proxies {
+		if _, ok := pc.results.Load(proxyMetricKey(proxy)); !ok {
+			unchecked = append(unchecked, proxy)
+		}
+	}
+	return unchecked
 }
 
 func (pc *ProxyChecker) failedProxies(proxies []*models.ProxyConfig) []*models.ProxyConfig {

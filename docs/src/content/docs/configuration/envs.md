@@ -342,3 +342,27 @@ Controls Xray Checker application logging verbosity. Note: This is separate from
 - Default: `false`
 
 Performs single check cycle and exits. Useful for scheduled execution environments.
+
+### NETWORK_STATUS_FILE
+
+- CLI: `--network-status-file`
+- Required: No
+- Default: None
+
+Path to a JSON status file maintained by an external network monitor. When configured, missing, stale, or non-connected status pauses new proxy checks. Requests interrupted by a confirmed outage are retried after recovery instead of being stored as offline.
+
+### NETWORK_STATUS_MAX_AGE
+
+- CLI: `--network-status-max-age`
+- Required: No
+- Default: `15`
+
+Maximum accepted age of the network status file in seconds. If the monitor stops updating the file for longer than this value, proxy checks pause until fresh connected status is available.
+
+### RESULTS_FILE
+
+- CLI: `--results-file`
+- Required: No
+- Default: None
+
+Path to a persistent JSON snapshot of proxy results. A completed proxy set is restored after a process or VM restart, and `PROXY_INITIAL_CHECK_ONLY=true` skips repeating the full sweep when every current proxy has a saved result.

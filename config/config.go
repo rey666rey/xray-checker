@@ -70,9 +70,12 @@ type CLI struct {
 		CustomAssetsPath    string `name:"web-custom-assets-path" help:"Path to custom assets directory (logo.svg, favicon.ico, custom.css, index.html)" default:"" env:"WEB_CUSTOM_ASSETS_PATH"`
 	} `embed:"" prefix:""`
 
-	Version  VersionFlag `name:"version" help:"Print version information and quit"`
-	RunOnce  bool        `name:"run-once" help:"Run one check cycle and exit" default:"false" env:"RUN_ONCE"`
-	LogLevel string      `name:"log-level" help:"Log level (debug|info|warn|error|none)" default:"info" env:"LOG_LEVEL"`
+	NetworkStatusFile   string      `name:"network-status-file" help:"Path to a route-monitor status JSON file; unavailable status pauses proxy checks" default:"" env:"NETWORK_STATUS_FILE"`
+	NetworkStatusMaxAge int         `name:"network-status-max-age" help:"Maximum network status age in seconds before checks are paused" default:"15" env:"NETWORK_STATUS_MAX_AGE"`
+	ResultsFile         string      `name:"results-file" help:"Path to a persistent proxy-results snapshot" default:"" env:"RESULTS_FILE"`
+	Version             VersionFlag `name:"version" help:"Print version information and quit"`
+	RunOnce             bool        `name:"run-once" help:"Run one check cycle and exit" default:"false" env:"RUN_ONCE"`
+	LogLevel            string      `name:"log-level" help:"Log level (debug|info|warn|error|none)" default:"info" env:"LOG_LEVEL"`
 }
 
 func (c *CLI) Validate() error {

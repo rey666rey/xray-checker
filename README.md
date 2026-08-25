@@ -126,7 +126,10 @@ The script:
 2. stops the existing `iphone` Colima profile if necessary;
 3. starts a bridged vmnet daemon bound to the iPhone USB interface;
 4. starts Colima and verifies that its preferred IPv4 route uses `col0`;
-5. builds and starts Xray Checker in the `colima-iphone` Docker context.
+5. builds and starts Xray Checker plus its route-status sidecar in the
+   `colima-iphone` Docker context;
+6. installs a macOS LaunchAgent that recreates the Colima bridge if an attached
+   iPhone does not recover normally.
 
 macOS may request administrator approval when the vmnet component is configured
 for the first time.
@@ -136,6 +139,11 @@ Open the dashboard after startup:
 <http://127.0.0.1:2112>
 
 The page becomes available while the initial run is still filling in results.
+
+Every regular `./start.sh` invocation removes the previous run's snapshot and
+checks every node from every subscription again. Completed results remain fixed
+while the container is active and are persisted only so an iPhone connection
+recovery can restore them safely.
 
 ## Watch the run
 
@@ -161,13 +169,29 @@ The `Auto` button in the top-right corner only refreshes values already exposed
 by the API. It does not start another proxy test. In the default one-pass mode,
 the displayed results remain unchanged after the run completes.
 
-## Start a new full check
+The pill beside `Auto` shows the live iPhone route state and mobile public IP:
 
-Restart only the checker, without rebuilding Colima's network:
+- green — the mobile route is ready;
+- yellow — the USB interface is present and the route is recovering;
+- red — the checker is waiting for the iPhone;
+- `Monitor offline` — the sidecar stopped updating its status file.
+
+The monitor sidecar can also be inspected directly:
 
 ```bash
-docker-compose --context colima-iphone restart xray-checker
+docker-compose --context colima-iphone logs -f network-monitor
 ```
+
+## Start a new full check
+
+A regular start always begins a new full check:
+
+```bash
+./start.sh
+```
+
+A direct `docker restart` and automatic iPhone recovery instead restore the
+saved snapshot and do not repeat all 844 checks.
 
 After changing source code, `.env`, or `compose.yaml`, rebuild it:
 
@@ -175,8 +199,12 @@ After changing source code, `.env`, or `compose.yaml`, rebuild it:
 docker-compose --context colima-iphone up -d --build --force-recreate
 ```
 
-If the iPhone was unplugged, reconnected, or changed networks, use `./start.sh`
-instead. It recreates and verifies the bridge before starting the checker.
+Unplugging the iPhone or toggling Wi-Fi on it no longer requires a manual
+restart. Proxy requests pause first. If vmnet reuses its lease normally, the
+dashboard stays available throughout. If the old `col0` bridge is stuck, the
+macOS supervisor detects the attached phone after about 15 seconds and recreates
+Colima automatically. In that fallback case the dashboard can be unavailable
+briefly, then returns with the saved results instead of starting a new sweep.
 
 ## Stop everything
 
@@ -184,9 +212,9 @@ instead. It recreates and verifies the bridge before starting the checker.
 ./stop.sh
 ```
 
-This removes the Compose containers, stops the `iphone` Colima VM, and stops its
-bridge daemon. The named `xray-geo` volume is retained so geo files do not need
-to be downloaded again.
+This unloads the macOS recovery supervisor, stops the connection monitor,
+removes the Compose containers, stops the `iphone` Colima VM, and stops its
+bridge daemon. The named `xray-geo` and `xray-results` volumes are retained.
 
 To stop only the checker while leaving Colima running:
 
@@ -208,6 +236,9 @@ The local defaults live in [`compose.yaml`](compose.yaml):
 | `PROXY_CHECK_METHOD` | `ip` | Verify each node with a proxied HTTP request |
 | `PROXY_IP_CHECK_URL` | `https://api.ipify.org?format=text` | Return the exit IP |
 | `PROXY_TIMEOUT` | `10` | Per-request timeout in seconds |
+| `NETWORK_STATUS_FILE` | `/app/runtime/network-status.json` | Pause checks when the host monitor reports an outage |
+| `NETWORK_STATUS_MAX_AGE` | `15` | Treat a silent monitor as offline after 15 seconds |
+| `RESULTS_FILE` | `/app/data/results.json` | Persist a completed sweep across checker/Colima restarts |
 
 When using the `ip` method, failed first attempts are automatically retried at
 half of `PROXY_CHECK_CONCURRENCY`.
@@ -229,6 +260,7 @@ All supported environment variables are documented in
 | `/api/v1/public/proxies` | Current proxy snapshot used by Auto refresh |
 | `/api/v1/status` | Aggregate checker status |
 | `/api/v1/config` | Active non-secret configuration |
+| `/api/v1/network` | iPhone route state and current mobile IP |
 | `/api/v1/docs` | Interactive OpenAPI documentation |
 
 The Compose port is bound to `127.0.0.1`, so the dashboard is not exposed to
@@ -241,6 +273,14 @@ other devices on the local network.
 Unlock the iPhone, confirm that the Mac is trusted, enable Personal Hotspot, and
 reconnect the USB cable. Check the interface name again and pass it with
 `IPHONE_INTERFACE` if it changed.
+
+### The dashboard says Waiting or Recovering
+
+No proxy checks are discarded while the mobile route is unavailable. Reconnect
+and unlock the iPhone. If normal vmnet recovery fails, the macOS supervisor
+restarts Colima automatically. Its log is `.runtime/iphone-supervisor.log`. If
+the state still does not turn green, inspect the `network-monitor` logs and
+confirm the interface name.
 
 ### Colima starts but the checker does not
 
