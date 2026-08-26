@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -26,6 +28,11 @@ func TestRenderIndexIncludesSubscriptionName(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), `subName: "LETO"`) {
 		t.Fatal("rendered dashboard does not include the subscription name")
+	}
+	if !strings.Contains(out.String(), `diagnoseNode(item.block.nodeId`) ||
+		!strings.Contains(out.String(), `diagnoseNode(item.proxy.nodeId`) ||
+		!strings.Contains(out.String(), `Node diagnosis`) {
+		t.Fatal("rendered private dashboard does not include node diagnosis controls")
 	}
 }
 
@@ -53,6 +60,54 @@ func TestAPINodesGroupsSeveralHostsOnOneEndpoint(t *testing.T) {
 	}
 	if len(response.Data) != 1 || response.Data[0].TotalBindings != 3 || response.Data[0].HostCount != 3 {
 		t.Fatalf("node groups=%#v, want one node with three bindings", response.Data)
+	}
+}
+
+func TestAPINodesReturnsLatestDiagnosis(t *testing.T) {
+	proxies := []*models.ProxyConfig{{
+		Protocol: "vless", Security: "reality", Name: "Spain", Server: "192.0.2.20",
+		Port: 443, UUID: "00000000-0000-4000-8000-000000000001",
+	}}
+	xray.PrepareProxyConfigs(proxies)
+	proxyChecker := checker.NewProxyChecker(proxies, 10000, "", 1, "", "", 1, 1, "urltest", 1)
+	path := filepath.Join(t.TempDir(), "diagnoses.json")
+	payload := `{"version":1,"nodes":{"` + proxies[0].NodeID + `":[{"runId":"run-1","nodeId":"` + proxies[0].NodeID + `","server":"192.0.2.20","revision":"old","probeId":"local:en0","state":"completed","verdict":"healthy","startedAt":1,"completedAt":2,"control":{"online":true}}]}}`
+	if err := os.WriteFile(path, []byte(payload), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := proxyChecker.SetDiagnosisFile(path); err != nil {
+		t.Fatal(err)
+	}
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest("GET", "/api/v1/nodes", nil)
+	APINodesHandler(proxyChecker, 10000).ServeHTTP(recorder, request)
+	var response struct {
+		Data []NodeGroupInfo `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Data) != 1 || response.Data[0].Diagnosis == nil {
+		t.Fatalf("response=%#v, want diagnosis", response.Data)
+	}
+	if response.Data[0].Diagnosis.Verdict != checker.DiagnosisHealthy || !response.Data[0].Diagnosis.Stale {
+		t.Fatalf("diagnosis=%#v", response.Data[0].Diagnosis)
+	}
+}
+
+func TestAPINodeDiagnosisHistoryEndpoint(t *testing.T) {
+	proxies := []*models.ProxyConfig{{
+		Protocol: "vless", Name: "Node", Server: "192.0.2.30", Port: 443,
+		UUID: "00000000-0000-4000-8000-000000000001",
+	}}
+	xray.PrepareProxyConfigs(proxies)
+	proxyChecker := checker.NewProxyChecker(proxies, 10000, "", 1, "", "", 1, 1, "urltest", 1)
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest("GET", "/api/v1/nodes/"+proxies[0].NodeID+"/diagnosis", nil)
+	APINodesHandler(proxyChecker, 10000).ServeHTTP(recorder, request)
+	if recorder.Code != 200 || !strings.Contains(recorder.Body.String(), `"data":[]`) {
+		t.Fatalf("status=%d body=%s", recorder.Code, recorder.Body.String())
 	}
 }
 

@@ -111,6 +111,9 @@ func main() {
 	if err := proxyChecker.SetMonitorFile(config.CLIConfig.NodeHistoryFile); err != nil {
 		logger.Warn("Could not restore node repair history: %v", err)
 	}
+	if err := proxyChecker.SetDiagnosisFile(config.CLIConfig.NodeDiagnosisFile); err != nil {
+		logger.Warn("Could not restore node diagnosis history: %v", err)
+	}
 
 	// The collector renders metrics from the checker's current proxy snapshot on
 	// each scrape, so custom metricsLabels (#124) can change across subscription

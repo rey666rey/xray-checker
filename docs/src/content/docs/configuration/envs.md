@@ -425,3 +425,11 @@ Path to a persistent JSON snapshot of proxy results. A completed proxy set is re
 - Default: None
 
 Path to persistent binding repair history. Unlike the disposable full-sweep snapshot, this file retains endpoint changes, repair states, exit IPs, and recent node events across fresh runs. During a running container, subscription samples build a many-to-many host/node endpoint pool; an endpoint detaches only after 30 successful polls without a sighting.
+
+### NODE_DIAGNOSIS_FILE
+
+- CLI: `--node-diagnosis-file`
+- Required: No
+- Default: None
+
+Path to persistent manual node-diagnosis history. The checker keeps up to ten reports per physical node, including the probe interface/source IP, direct port and TLS results, and real Xray binding attempts. Reports are stored separately from normal online/offline state and become stale when the connection revision changes.

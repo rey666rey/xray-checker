@@ -52,6 +52,16 @@ The dashboard defaults to the node-centric view, showing working bindings per
 physical endpoint. The `Hosts` toggle restores the subscription-entry view. A
 single binding or every binding on one node can be rechecked manually.
 
+The private node view also provides a manual `Diagnose` action. It first proves
+that the checker is using the monitored network, then runs three direct TCP
+attempts per endpoint port, TLS/Reality camouflage handshakes for configured
+SNI values, and three real Xray tunnel requests per binding. Manual diagnosis
+takes priority over new background batches; if every TCP endpoint is filtered,
+it stops before redundant tunnel timeouts. Its verdict is
+stored separately from normal health (`Healthy`, `Degraded`, `Port filtered`,
+`Handshake failed`, `Tunnel failed`, or `Inconclusive`) and keeps the last ten
+runs. A changed connection revision marks an older report as `Stale`.
+
 An offline result can mean that the proxy is unavailable from the current
 mobile network, the request timed out, the proxy could not reach the test URL,
 or the mobile connection was interrupted during the check.
@@ -265,6 +275,7 @@ The local defaults live in [`compose.yaml`](compose.yaml):
 | `NETWORK_STATUS_MAX_AGE` | `15` | Treat a silent monitor as offline after 15 seconds |
 | `RESULTS_FILE` | `/app/data/results.json` | Persist a completed sweep across checker/Colima restarts |
 | `NODE_HISTORY_FILE` | `/app/data/node-history.json` | Persist repair states, endpoint changes, and short history across runs |
+| `NODE_DIAGNOSIS_FILE` | `/app/data/node-diagnostics.json` | Persist the latest ten manual deep-diagnosis runs per physical node |
 
 If both fast Apple requests fail, the checker tries `ipify`. A node that succeeds
 only through this fallback or the retry pass is shown in yellow as `unstable`.
@@ -288,6 +299,8 @@ All supported environment variables are documented in
 | `POST /api/v1/proxies/{stableID}/recheck` | Queue one node for immediate verification |
 | `/api/v1/nodes` | Physical endpoints with all attached host/inbound bindings |
 | `POST /api/v1/nodes/{nodeID}/recheck` | Recheck every binding attached to one endpoint |
+| `POST /api/v1/nodes/{nodeID}/diagnose` | Queue a three-attempt deep diagnosis from the monitored network |
+| `GET /api/v1/nodes/{nodeID}/diagnosis` | Read recent manual diagnosis history |
 | `/api/v1/status` | Aggregate checker status |
 | `/api/v1/config` | Active non-secret configuration |
 | `/api/v1/network` | iPhone route state and current mobile IP |

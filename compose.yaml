@@ -35,6 +35,7 @@ services:
       RESULTS_FILE: "/app/data/results.json"
       # Deliberately not cleared by start.sh: IP replacement history survives runs.
       NODE_HISTORY_FILE: "/app/data/node-history.json"
+      NODE_DIAGNOSIS_FILE: "/app/data/node-diagnostics.json"
       WEB_SHOW_DETAILS: "true"
     ports:
       - "127.0.0.1:2112:2112"

@@ -3,6 +3,7 @@ package web
 import (
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"sort"
@@ -55,16 +56,17 @@ type ProxyInfo struct {
 }
 
 type NodeGroupInfo struct {
-	NodeID           string      `json:"nodeId"`
-	Server           string      `json:"server,omitempty"`
-	State            string      `json:"state"`
-	TotalBindings    int         `json:"totalBindings"`
-	OnlineBindings   int         `json:"onlineBindings"`
-	UnstableBindings int         `json:"unstableBindings"`
-	RepairBindings   int         `json:"repairBindings"`
-	HostCount        int         `json:"hostCount"`
-	Missing          bool        `json:"missing"`
-	Bindings         []ProxyInfo `json:"bindings"`
+	NodeID           string                 `json:"nodeId"`
+	Server           string                 `json:"server,omitempty"`
+	State            string                 `json:"state"`
+	TotalBindings    int                    `json:"totalBindings"`
+	OnlineBindings   int                    `json:"onlineBindings"`
+	UnstableBindings int                    `json:"unstableBindings"`
+	RepairBindings   int                    `json:"repairBindings"`
+	HostCount        int                    `json:"hostCount"`
+	Missing          bool                   `json:"missing"`
+	Bindings         []ProxyInfo            `json:"bindings"`
+	Diagnosis        *checker.NodeDiagnosis `json:"diagnosis,omitempty"`
 }
 
 type PublicProxyInfo struct {
@@ -382,7 +384,7 @@ func APINodesHandler(proxyChecker *checker.ProxyChecker, startPort int) http.Han
 		if r.URL.Path != "/api/v1/nodes" {
 			remainder := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/v1/nodes/"), "/")
 			parts := strings.Split(remainder, "/")
-			if len(parts) != 2 || parts[0] == "" || parts[1] != "recheck" || r.Method != http.MethodPost {
+			if len(parts) != 2 || parts[0] == "" {
 				writeError(w, "Invalid node action", http.StatusBadRequest)
 				return
 			}
@@ -398,12 +400,42 @@ func APINodesHandler(proxyChecker *checker.ProxyChecker, startPort int) http.Han
 				writeError(w, "Node not found", http.StatusNotFound)
 				return
 			}
-			go func() {
-				if err := proxyChecker.RecheckNode(nodeID); err != nil {
-					logger.Warn("Manual node recheck failed: %v", err)
+			switch parts[1] {
+			case "recheck":
+				if r.Method != http.MethodPost {
+					writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
+					return
 				}
-			}()
-			writeJSON(w, map[string]bool{"queued": true})
+				go func() {
+					if err := proxyChecker.RecheckNode(nodeID); err != nil {
+						logger.Warn("Manual node recheck failed: %v", err)
+					}
+				}()
+				writeJSON(w, map[string]bool{"queued": true})
+			case "diagnose":
+				if r.Method != http.MethodPost {
+					writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
+					return
+				}
+				run, err := proxyChecker.StartNodeDiagnosis(nodeID)
+				if err != nil {
+					status := http.StatusBadRequest
+					if errors.Is(err, checker.ErrDiagnosisBusy) {
+						status = http.StatusConflict
+					}
+					writeError(w, err.Error(), status)
+					return
+				}
+				writeJSON(w, run)
+			case "diagnosis":
+				if r.Method != http.MethodGet {
+					writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
+					return
+				}
+				writeJSON(w, proxyChecker.GetNodeDiagnosisHistory(nodeID))
+			default:
+				writeError(w, "Invalid node action", http.StatusBadRequest)
+			}
 			return
 		}
 		if r.Method != http.MethodGet {
@@ -453,6 +485,9 @@ func APINodesHandler(proxyChecker *checker.ProxyChecker, startPort int) http.Han
 		result := make([]NodeGroupInfo, 0, len(groups))
 		for nodeID, group := range groups {
 			group.HostCount = len(hosts[nodeID])
+			if diagnosis, ok := proxyChecker.GetNodeDiagnosis(nodeID); ok {
+				group.Diagnosis = &diagnosis
+			}
 			switch {
 			case checked[nodeID] == 0:
 				group.State = "unknown"

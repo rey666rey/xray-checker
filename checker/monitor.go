@@ -520,6 +520,9 @@ func (pc *ProxyChecker) CheckDueProxies() {
 		due = due[:maxTargetedBatch]
 	}
 	if err := pc.checkProxySet(due, CheckReasonScheduled); err != nil {
+		if errors.Is(err, ErrDiagnosisPriority) {
+			return
+		}
 		logger.Warn("Scheduled node checks skipped: %v", err)
 	}
 }
@@ -564,8 +567,14 @@ func (pc *ProxyChecker) CheckUpdatedProxies(proxies []*models.ProxyConfig) error
 // WithChecksPaused prevents Xray from being restarted while requests are using
 // its local SOCKS listeners.
 func (pc *ProxyChecker) WithChecksPaused(update func() error) error {
+	if pc.manualDiagnosisPending() {
+		return ErrDiagnosisPriority
+	}
 	pc.checkCycleMu.Lock()
 	defer pc.checkCycleMu.Unlock()
+	if pc.manualDiagnosisPending() {
+		return ErrDiagnosisPriority
+	}
 	return update()
 }
 
@@ -573,8 +582,14 @@ func (pc *ProxyChecker) checkProxySet(proxies []*models.ProxyConfig, reason Chec
 	if status := pc.GetNetworkStatus(); !status.Ready {
 		return fmt.Errorf("mobile network unavailable: %s", status.Message)
 	}
+	if pc.manualDiagnosisPending() {
+		return ErrDiagnosisPriority
+	}
 	pc.checkCycleMu.Lock()
 	defer pc.checkCycleMu.Unlock()
+	if pc.manualDiagnosisPending() {
+		return ErrDiagnosisPriority
+	}
 	if _, err := pc.GetCurrentIP(); err != nil {
 		return err
 	}

@@ -144,6 +144,63 @@ paths:
               schema:
                 $ref: '#/components/schemas/APIResponse'
 
+  /api/v1/nodes/{nodeID}/diagnose:
+    post:
+      summary: Start a deep diagnosis of one physical node
+      description: Verifies the monitored route, endpoint ports, configured TLS/Reality SNI values, and real Xray tunnels. Only one diagnosis runs at a time.
+      tags:
+        - Nodes
+      parameters:
+        - name: nodeID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Diagnosis queued
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/NodeDiagnosis'
+        '409':
+          description: Another diagnosis is already running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIErrorResponse'
+
+  /api/v1/nodes/{nodeID}/diagnosis:
+    get:
+      summary: Get recent manual diagnosis history
+      tags:
+        - Nodes
+      parameters:
+        - name: nodeID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Newest-first diagnosis history
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/NodeDiagnosis'
+
   /api/v1/status:
     get:
       summary: Get system status
@@ -447,6 +504,136 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ProxyInfo'
+        diagnosis:
+          $ref: '#/components/schemas/NodeDiagnosis'
+
+    NodeDiagnosis:
+      type: object
+      properties:
+        runId:
+          type: string
+        nodeId:
+          type: string
+        server:
+          type: string
+        revision:
+          type: string
+        probeId:
+          type: string
+          example: local:col0
+        interface:
+          type: string
+          example: col0
+        sourceIp:
+          type: string
+        state:
+          type: string
+          enum: [queued, running, completed]
+        stage:
+          type: string
+          enum: [queued, network_control, direct_endpoint, xray_tunnels, completed]
+        verdict:
+          type: string
+          enum: [healthy, degraded, net_unreachable, handshake_failed, tunnel_failed, inconclusive]
+        summary:
+          type: string
+        startedAt:
+          type: integer
+          format: int64
+        completedAt:
+          type: integer
+          format: int64
+        stale:
+          type: boolean
+        control:
+          $ref: '#/components/schemas/ControlDiagnosis'
+        ports:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortDiagnosis'
+        tls:
+          type: array
+          items:
+            $ref: '#/components/schemas/TLSProbeDiagnosis'
+        bindings:
+          type: array
+          items:
+            $ref: '#/components/schemas/BindingDiagnosis'
+
+    ControlDiagnosis:
+      type: object
+      properties:
+        url:
+          type: string
+        online:
+          type: boolean
+        statusCode:
+          type: integer
+        latencyMs:
+          type: integer
+          format: int64
+        observedIp:
+          type: string
+        error:
+          type: string
+
+    PortDiagnosis:
+      type: object
+      properties:
+        port:
+          type: integer
+        network:
+          type: string
+          enum: [tcp, udp]
+        attempts:
+          type: integer
+        successes:
+          type: integer
+        bestLatencyMs:
+          type: integer
+          format: int64
+        lastError:
+          type: string
+
+    TLSProbeDiagnosis:
+      allOf:
+        - $ref: '#/components/schemas/PortDiagnosis'
+        - type: object
+          properties:
+            serverName:
+              type: string
+            peerName:
+              type: string
+
+    BindingDiagnosis:
+      type: object
+      properties:
+        stableId:
+          type: string
+        hostId:
+          type: string
+        name:
+          type: string
+        protocol:
+          type: string
+        security:
+          type: string
+        port:
+          type: integer
+        serverName:
+          type: string
+        attempts:
+          type: integer
+        successes:
+          type: integer
+        bestLatencyMs:
+          type: integer
+          format: int64
+        failureStage:
+          type: string
+          enum: [tunnel, response]
+        lastError:
+          type: string
 
     StatusResponse:
       type: object

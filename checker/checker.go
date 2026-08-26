@@ -55,6 +55,11 @@ type ProxyChecker struct {
 	monitorSignal       chan struct{}
 	monitor             map[string]*NodeMonitorState
 	endpointPool        *EndpointPool
+	diagnosisMu         sync.RWMutex
+	diagnosisHistory    map[string][]NodeDiagnosis
+	diagnosisRunning    bool
+	diagnosisFile       string
+	diagnosisPersistMu  sync.Mutex
 	mu                  sync.RWMutex
 }
 
@@ -86,6 +91,7 @@ func NewProxyChecker(proxies []*models.ProxyConfig, startPort int, ipCheckURL st
 		downloadMinSize:  downloadMinSize,
 		checkMethod:      checkMethod,
 		checkConcurrency: checkConcurrency,
+		diagnosisHistory: make(map[string][]NodeDiagnosis),
 	}
 }
 
@@ -558,6 +564,10 @@ func (pc *ProxyChecker) MetricsSnapshot() []metrics.ProxyMetric {
 func (pc *ProxyChecker) CheckAllProxies() {
 	pc.checkCycleMu.Lock()
 	defer pc.checkCycleMu.Unlock()
+	if pc.manualDiagnosisPending() {
+		logger.Info("Full proxy check deferred for manual node diagnosis")
+		return
+	}
 	pc.markResultsComplete(false)
 	pc.waitForNetwork()
 	if _, err := pc.GetCurrentIP(); err != nil {
