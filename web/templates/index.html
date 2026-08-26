@@ -281,6 +281,41 @@
         color: var(--text-muted);
         background: var(--bg-tertiary);
       }
+      .proxy-card-main {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        min-width: 0;
+        width: 100%;
+      }
+      .address-change-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        align-items: start;
+        gap: 0.45rem;
+        margin-top: 0.45rem;
+        padding-top: 0.4rem;
+        border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+        font-size: 10px;
+        line-height: 1.4;
+      }
+      .address-change-label {
+        color: var(--text-muted);
+        white-space: nowrap;
+      }
+      .address-change-value {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        column-gap: 0.35rem;
+        row-gap: 0.15rem;
+        min-width: 0;
+        color: var(--text-secondary);
+      }
+      .address-change-address {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+      }
       .state-attention { color: var(--color-red); border-color: color-mix(in srgb, var(--color-red) 35%, transparent); }
       .state-verifying { color: var(--color-yellow); border-color: color-mix(in srgb, var(--color-yellow) 35%, transparent); }
       .state-fixed { color: var(--color-green); border-color: color-mix(in srgb, var(--color-green) 35%, transparent); }
@@ -1202,10 +1237,12 @@
 				<button
 				  x-show="item.block.nodeId"
 				  @click="recheckNode(item.block.nodeId)"
+				  :disabled="recheckingNodeIds[item.block.nodeId]"
 				  class="p-1.5 rounded text-muted btn-icon transition-all flex-shrink-0"
-				  title="Recheck all host bindings on this node"
+				  :class="recheckingNodeIds[item.block.nodeId] && 'opacity-50 cursor-wait'"
+				  :title="recheckingNodeIds[item.block.nodeId] ? 'Rechecking node…' : 'Recheck all host bindings on this node'"
 				>
-				  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				  <svg class="w-3.5 h-3.5" :class="recheckingNodeIds[item.block.nodeId] && 'animate-spin'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M5.5 15a7 7 0 0011.5 2M18.5 9A7 7 0 007 7" />
 				  </svg>
 				</button>
@@ -1214,12 +1251,13 @@
             </template>
 
             <!-- Proxy card -->
-            <template x-if="item.type === 'proxy'">
-              <div
-                class="proxy-card group card rounded-lg px-3 py-2.5 flex items-center gap-3 transition-all duration-150"
-                :class="initialLoad && 'animate'"
-              >
-                <!-- Status dot -->
+			<template x-if="item.type === 'proxy'">
+			  <div
+				class="proxy-card group card rounded-lg px-3 py-2.5 transition-all duration-150"
+				:class="initialLoad && 'animate'"
+			  >
+				<div class="proxy-card-main">
+				<!-- Status dot -->
                 <div class="relative flex-shrink-0">
                   <div
                     class="w-2 h-2 rounded-full"
@@ -1257,19 +1295,20 @@
                     ></span
                   ></span>
                   {{ end }}
-                  <span
-                    class="state-badge"
-					:class="stateClass(item.proxy.missingPolls > 0 ? 'missing' : item.proxy.monitorState)"
-					x-text="stateLabel(item.proxy.missingPolls > 0 ? 'missing' : item.proxy.monitorState)"
-                  ></span>
-                  {{ if .ShowServerDetails }}
-                  <span
-                    x-show="item.proxy.previousAddress && item.proxy.addressChangedAt"
-                    class="text-[10px] text-muted truncate block mt-0.5"
-                    :title="'Changed ' + formatTimestamp(item.proxy.addressChangedAt)"
-                  ><span x-text="item.proxy.previousAddress"></span> → <span x-text="item.proxy.currentResolved || item.proxy.serverInfo"></span></span>
-                  {{ end }}
-                </div>
+                  <div class="flex items-center gap-1.5 mt-0.5 min-w-0">
+                    <span
+                      class="state-badge"
+					  :class="stateClass(item.proxy.missingPolls > 0 ? 'missing' : item.proxy.monitorState)"
+					  x-text="item.proxy.rechecking ? 'Rechecking…' : stateLabel(item.proxy.missingPolls > 0 ? 'missing' : item.proxy.monitorState)"
+                    ></span>
+                    <span
+                      x-show="item.proxy.lastCheck"
+                      class="text-[10px] text-muted truncate"
+                      :title="'Last checked ' + formatTimestamp(item.proxy.lastCheck)"
+                      x-text="'Checked ' + formatCheckTime(item.proxy.lastCheck)"
+                    ></span>
+                  </div>
+				</div>
 
                 <!-- Latency -->
                 <div class="flex flex-col items-center gap-1 flex-shrink-0">
@@ -1305,10 +1344,12 @@
 				</button>
                 <button
                   @click="recheckProxy(item.proxy)"
+                  :disabled="item.proxy.rechecking"
                   class="p-1.5 rounded text-muted btn-icon transition-all"
-                  title="Recheck now"
+                  :class="item.proxy.rechecking && 'opacity-50 cursor-wait'"
+                  :title="item.proxy.rechecking ? 'Rechecking now…' : 'Recheck now'"
                 >
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg class="w-3.5 h-3.5" :class="item.proxy.rechecking && 'animate-spin'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M5.5 15a7 7 0 0011.5 2M18.5 9A7 7 0 007 7" />
                   </svg>
                 </button>
@@ -1332,9 +1373,24 @@
                       d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
                     />
                   </svg>
-                </button>
-                {{ end }}
-              </div>
+				</button>
+				{{ end }}
+				</div>
+				{{ if .ShowServerDetails }}
+				<div
+				  x-show="item.proxy.previousAddress && item.proxy.addressChangedAt"
+				  class="address-change-row"
+				  :title="'Changed ' + formatTimestamp(item.proxy.addressChangedAt)"
+				>
+				  <span class="address-change-label">IP changed</span>
+				  <span class="address-change-value">
+					<span class="address-change-address" x-text="item.proxy.previousAddress"></span>
+					<span aria-hidden="true">→</span>
+					<span class="address-change-address" x-text="item.proxy.currentResolved || item.proxy.serverInfo"></span>
+				  </span>
+				</div>
+				{{ end }}
+			  </div>
             </template>
           </div>
         </template>
@@ -1570,6 +1626,7 @@
 		  diagnosisPopoverStyle: 'right: 1rem; top: 5rem;',
 		  diagnosisPopoverPlacement: 'below',
 		  diagnosisAnchor: null,
+		  recheckingNodeIds: {},
 
           // URL-controlled visibility
           showHeader: !getUrlParam('hideHeader'),
@@ -1627,7 +1684,7 @@
 
           proxies: [
             {{ range $.Endpoints }}
-            { name: "{{.Name}}", subName: "{{.SubName}}", protocol: "{{.Protocol}}", stableId: "{{.StableID}}", hostId: "{{.HostID}}", nodeId: "{{.NodeID}}", groupName: "{{.GroupName}}", monitorState: "{{.MonitorState}}", missingPolls: {{.EndpointMissingPolls}}, previousAddress: "{{if .PreviousResolvedIPs}}{{joinStrings .PreviousResolvedIPs}}{{else}}{{.PreviousAddress}}{{end}}", currentResolved: "{{joinStrings .ResolvedIPs}}", addressChangedAt: {{.AddressChangedAt}}, failures: {{.Failures}}, nextCheck: {{.NextCheck}}, exitIp: "{{.ExitIP}}", {{ if $.ShowServerDetails }}serverInfo: "{{.ServerInfo}}", proxyPort: {{.ProxyPort}}, {{ end }}{{ if not $.IsPublic }}url: "{{.URL}}", {{ end }}index: {{.Index}}, status: {{.Status}}, unstable: {{.Unstable}}, latency: "{{ formatLatency .Latency }}", latencyMs: {{ .Latency.Milliseconds }} },
+            { name: "{{.Name}}", subName: "{{.SubName}}", protocol: "{{.Protocol}}", stableId: "{{.StableID}}", hostId: "{{.HostID}}", nodeId: "{{.NodeID}}", groupName: "{{.GroupName}}", monitorState: "{{.MonitorState}}", missingPolls: {{.EndpointMissingPolls}}, previousAddress: "{{if .PreviousResolvedIPs}}{{joinStrings .PreviousResolvedIPs}}{{else}}{{.PreviousAddress}}{{end}}", currentResolved: "{{joinStrings .ResolvedIPs}}", addressChangedAt: {{.AddressChangedAt}}, failures: {{.Failures}}, nextCheck: {{.NextCheck}}, lastCheck: {{.LastCheck}}, rechecking: false, exitIp: "{{.ExitIP}}", {{ if $.ShowServerDetails }}serverInfo: "{{.ServerInfo}}", proxyPort: {{.ProxyPort}}, {{ end }}{{ if not $.IsPublic }}url: "{{.URL}}", {{ end }}index: {{.Index}}, status: {{.Status}}, unstable: {{.Unstable}}, latency: "{{ formatLatency .Latency }}", latencyMs: {{ .Latency.Milliseconds }} },
             {{ end }}
           ],
 
@@ -1691,6 +1748,10 @@
           formatTimestamp(timestamp) {
             return timestamp ? new Date(timestamp * 1000).toLocaleString() : '';
           },
+
+		  formatCheckTime(timestamp) {
+			return timestamp ? new Date(timestamp * 1000).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', hour12: false }) : '—';
+		  },
 
           get activeProxies() {
             return this.proxies.filter(p => p.missingPolls === 0);
@@ -1978,6 +2039,7 @@
               const json = await res.json();
               if (json.success && json.data) {
                 if (privateDashboard) {
+				  const activeRechecks = new Set(this.proxies.filter(p => p.rechecking).map(p => p.stableId));
                   this.proxies = json.data.map(updated => ({
                     name: updated.name, subName: updated.subName || '', protocol: updated.protocol || '',
                     stableId: updated.stableId, hostId: updated.hostId || '', nodeId: updated.nodeId || '', groupName: updated.groupName || '',
@@ -1990,6 +2052,7 @@
                     previousAddress: (updated.previousResolvedIps || []).join(', ') || updated.previousAddress || '',
                     currentResolved: (updated.resolvedIps || []).join(', '),
                     addressChangedAt: updated.addressChangedAt || 0, failures: updated.consecutiveFailures || 0,
+					lastCheck: updated.lastCheck || 0, rechecking: activeRechecks.has(updated.stableId),
                     nextCheck: updated.nextCheck || 0, exitIp: updated.exitIp || '',
                   }));
                 } else {
@@ -2003,6 +2066,7 @@
                     proxy.monitorState = updated.monitorState || 'unknown';
                     proxy.failures = updated.consecutiveFailures || 0;
                     proxy.addressChangedAt = updated.addressChangedAt || 0;
+					proxy.lastCheck = updated.lastCheck || 0;
                   }
                 });
                 }
@@ -2160,25 +2224,57 @@
 		  },
 
           async recheckProxy(proxy) {
+			if (!proxy || proxy.rechecking) return;
+			const stableId = proxy.stableId;
+			proxy.rechecking = true;
             try {
-              const res = await fetch('./api/v1/proxies/' + encodeURIComponent(proxy.stableId) + '/recheck', { method: 'POST' });
-              if (!res.ok) throw new Error('request failed');
-              this.showToast('Recheck queued');
-              setTimeout(() => this.refreshData(), 1500);
+			  const res = await fetch('./api/v1/proxies/' + encodeURIComponent(stableId) + '/recheck', { method: 'POST' });
+			  const json = await res.json();
+			  if (!res.ok || !json.success || !json.data) throw new Error(json.error || 'request failed');
+			  const updated = json.data;
+			  const current = this.proxies.find(p => p.stableId === stableId) || proxy;
+			  this.applyProxyResult(current, updated);
+			  this.showToast(updated.online ? 'Recheck complete · Online' : 'Recheck complete · Offline');
             } catch (e) {
-              this.showToast('Could not start recheck');
+			  this.showToast(e.message || 'Could not recheck');
+			} finally {
+			  const current = this.proxies.find(p => p.stableId === stableId);
+			  if (current) current.rechecking = false;
+			  proxy.rechecking = false;
             }
           },
 
+		  applyProxyResult(proxy, updated) {
+			proxy.status = updated.online;
+			proxy.unstable = updated.unstable;
+			proxy.latencyMs = updated.latencyMs || 0;
+			proxy.latency = proxy.latencyMs > 0 ? proxy.latencyMs + 'ms' : 'n/a';
+			proxy.monitorState = updated.monitorState || 'unknown';
+			proxy.failures = updated.consecutiveFailures || 0;
+			proxy.lastCheck = updated.lastCheck || 0;
+			proxy.nextCheck = updated.nextCheck || 0;
+			proxy.addressChangedAt = updated.addressChangedAt || 0;
+		  },
+
 		  async recheckNode(nodeId) {
-			if (!nodeId) return;
+			if (!nodeId || this.recheckingNodeIds[nodeId]) return;
+			this.proxies.filter(p => p.nodeId === nodeId).forEach(p => { p.rechecking = true; });
+			this.recheckingNodeIds = { ...this.recheckingNodeIds, [nodeId]: true };
 			try {
 			  const res = await fetch('./api/v1/nodes/' + encodeURIComponent(nodeId) + '/recheck', { method: 'POST' });
-			  if (!res.ok) throw new Error('request failed');
-			  this.showToast('Node recheck queued');
-			  setTimeout(() => this.refreshData(), 1500);
+			  const json = await res.json();
+			  if (!res.ok || !json.success) throw new Error(json.error || 'request failed');
+			  await this.refreshData();
+			  const current = this.proxies.filter(p => p.nodeId === nodeId);
+			  const online = current.filter(p => p.status).length;
+			  this.showToast('Node recheck complete · ' + online + '/' + current.length + ' online');
 			} catch (e) {
-			  this.showToast('Could not recheck node');
+			  this.showToast(e.message || 'Could not recheck node');
+			} finally {
+			  this.proxies.filter(p => p.nodeId === nodeId).forEach(p => { p.rechecking = false; });
+			  const next = { ...this.recheckingNodeIds };
+			  delete next[nodeId];
+			  this.recheckingNodeIds = next;
 			}
 		  },
 

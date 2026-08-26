@@ -87,7 +87,7 @@ paths:
   /api/v1/proxies/{stableID}/recheck:
     post:
       summary: Recheck one proxy now
-      description: Queues an immediate targeted check. Endpoint changes also verify the proxy exit IP.
+      description: Runs an immediate priority Apple URL test and returns the completed proxy result.
       tags:
         - Proxies
       parameters:
@@ -98,7 +98,7 @@ paths:
             type: string
       responses:
         '200':
-          description: Recheck queued
+          description: Completed recheck result
           content:
             application/json:
               schema:
@@ -128,6 +128,7 @@ paths:
   /api/v1/nodes/{nodeID}/recheck:
     post:
       summary: Recheck every binding on one node
+      description: Runs an immediate priority Apple URL test for every current binding on the node and returns after completion.
       tags:
         - Nodes
       parameters:
@@ -138,7 +139,7 @@ paths:
             type: string
       responses:
         '200':
-          description: Node recheck queued
+          description: Node recheck completed
           content:
             application/json:
               schema:

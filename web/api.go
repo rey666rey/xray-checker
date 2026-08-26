@@ -358,12 +358,20 @@ func APIProxyHandler(proxyChecker *checker.ProxyChecker, startPort int) http.Han
 				writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
-			go func() {
-				if err := proxyChecker.RecheckProxy(stableID); err != nil {
-					logger.Warn("Manual proxy recheck failed: %v", err)
-				}
-			}()
-			writeJSON(w, map[string]bool{"queued": true})
+			if err := proxyChecker.RecheckProxy(stableID); err != nil {
+				logger.Warn("Manual proxy recheck failed: %v", err)
+				writeError(w, err.Error(), http.StatusServiceUnavailable)
+				return
+			}
+			proxy, exists = proxyChecker.GetProxyByStableID(stableID)
+			if !exists {
+				writeError(w, "Proxy disappeared during recheck", http.StatusNotFound)
+				return
+			}
+			status, unstable, latency, lastCheck, _ := proxyChecker.GetProxyResultDetailsByStableID(proxy.StableID)
+			monitor, _ := proxyChecker.GetNodeMonitorByStableID(proxy.StableID)
+			observation, _ := proxyChecker.GetEndpointObservation(proxy)
+			writeJSON(w, toProxyInfo(proxy, status, unstable, latency, lastCheck, monitor, observation, startPort, shouldShowServerDetails()))
 			return
 		}
 		if len(parts) != 1 || r.Method != http.MethodGet {
@@ -406,12 +414,12 @@ func APINodesHandler(proxyChecker *checker.ProxyChecker, startPort int) http.Han
 					writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
 					return
 				}
-				go func() {
-					if err := proxyChecker.RecheckNode(nodeID); err != nil {
-						logger.Warn("Manual node recheck failed: %v", err)
-					}
-				}()
-				writeJSON(w, map[string]bool{"queued": true})
+				if err := proxyChecker.RecheckNode(nodeID); err != nil {
+					logger.Warn("Manual node recheck failed: %v", err)
+					writeError(w, err.Error(), http.StatusServiceUnavailable)
+					return
+				}
+				writeJSON(w, map[string]bool{"completed": true})
 			case "diagnose":
 				if r.Method != http.MethodPost {
 					writeError(w, "Method not allowed", http.StatusMethodNotAllowed)

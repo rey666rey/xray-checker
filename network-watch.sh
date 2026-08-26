@@ -3,7 +3,8 @@
 set -u
 
 NETWORK_INTERFACE="${NETWORK_INTERFACE:-col0}"
-NETWORK_CHECK_URL="${NETWORK_CHECK_URL:-https://api.ipify.org?format=text}"
+NETWORK_CHECK_URL="${NETWORK_CHECK_URL:-http://captive.apple.com/hotspot-detect.html}"
+NETWORK_CHECK_EXPECTED="${NETWORK_CHECK_EXPECTED:-Success}"
 NETWORK_CHECK_INTERVAL="${NETWORK_CHECK_INTERVAL:-5}"
 NETWORK_STATUS_FILE="${NETWORK_STATUS_FILE:-/app/runtime/network-status.json}"
 
@@ -48,14 +49,12 @@ while true; do
     continue
   fi
 
-  public_ip="$(curl --interface "${NETWORK_INTERFACE}" --fail --silent \
+  response="$(curl --interface "${NETWORK_INTERFACE}" --fail --silent \
     --show-error --max-time 8 "${NETWORK_CHECK_URL}" 2>/dev/null || true)"
-  public_ip="$(printf '%s' "${public_ip}" | tr -d '\r\n')"
 
-  if [ -n "${public_ip}" ] && [ "${#public_ip}" -le 64 ] && \
-    printf '%s' "${public_ip}" | grep -Eq '^[0-9A-Fa-f:.]+$'; then
+  if [ -n "${response}" ] && printf '%s' "${response}" | grep -Fq "${NETWORK_CHECK_EXPECTED}"; then
     failures=0
-    write_status "connected" "${public_ip}" "iPhone mobile route is active"
+    write_status "connected" "" "iPhone mobile route is active"
   else
     failures=$((failures + 1))
     if [ "${failures}" -ge 3 ]; then

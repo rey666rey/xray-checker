@@ -25,8 +25,6 @@ services:
       PROXY_URL_TEST_URL: "http://captive.apple.com/hotspot-detect.html"
       PROXY_URL_TEST_EXPECTED: "Success"
       PROXY_URL_TEST_ATTEMPTS: "2"
-      # ipify is used only when both fast URL tests fail.
-      PROXY_IP_CHECK_URL: "https://api.ipify.org?format=text"
       PROXY_TIMEOUT: "4"
       PROXY_RETRY_TIMEOUT: "10"
       PROXY_RETRY_CONCURRENCY: "10"
@@ -53,7 +51,8 @@ services:
     entrypoint: ["/bin/sh", "/app/network-watch.sh"]
     environment:
       NETWORK_INTERFACE: "col0"
-      NETWORK_CHECK_URL: "https://api.ipify.org?format=text"
+      NETWORK_CHECK_URL: "http://captive.apple.com/hotspot-detect.html"
+      NETWORK_CHECK_EXPECTED: "Success"
       NETWORK_CHECK_INTERVAL: "3"
       NETWORK_STATUS_FILE: "/app/runtime/network-status.json"
     network_mode: host

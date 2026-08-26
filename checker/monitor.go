@@ -80,6 +80,8 @@ const (
 	monitorRevisionVersion = 2
 	monitorHistoryLimit    = 40
 	maxTargetedBatch       = 50
+	healthyRecheckMin      = 12 * time.Minute
+	healthyRecheckSpread   = 6 * time.Minute
 )
 
 func (pc *ProxyChecker) SetMonitorFile(path string) error {
@@ -181,8 +183,13 @@ func (pc *ProxyChecker) reconcileMonitorWithCurrentProxies() {
 				node.ResolvedIPs = literalServerIPs(proxy.Server)
 			}
 			node.UpdatedAt = now.Unix()
-			if node.NextCheck <= now.Unix() && (node.State == NodeHealthy || node.State == NodeFixed) {
-				node.NextCheck = nextHealthyCheck(node.LogicalID, now).Unix()
+			if node.State == NodeHealthy || node.State == NodeFixed {
+				nextCheck := nextHealthyCheck(node.LogicalID, now).Unix()
+				// Apply a shortened healthy-check window immediately after a restart
+				// instead of retaining a previously persisted, much later deadline.
+				if node.NextCheck <= now.Unix() || node.NextCheck > nextCheck {
+					node.NextCheck = nextCheck
+				}
 			}
 		}
 	}
@@ -207,7 +214,7 @@ func (pc *ProxyChecker) initializeNodeFromResult(node *NodeMonitorState, result 
 	} else {
 		node.State = NodeSuspected
 		node.ConsecutiveFailures = 1
-		node.NextCheck = now.Add(30 * time.Second).Unix()
+		node.NextCheck = now.Add(failedRecheckDelay(node.ConsecutiveFailures)).Unix()
 	}
 }
 
@@ -243,23 +250,24 @@ func (pc *ProxyChecker) ApplyProxyUpdate(newProxies []*models.ProxyConfig, plan 
 		case ProxyAdded:
 			proxy := change.New
 			if previous := pc.monitor[proxy.LogicalID]; previous != nil {
-				// A host may legitimately disappear from the subscription and later
-				// return. Preserve its repair history, but never trust its old health:
-				// schedule a fresh check immediately.
 				oldAddress := previous.CurrentAddress
-				previous.PreviousAddress = oldAddress
-				previous.CurrentAddress = proxyAddress(proxy)
-				previous.Revision = proxy.GenerateRevisionID()
-				previous.ResolvedIPs = literalServerIPs(proxy.Server)
-				previous.State = NodeUnknown
-				previous.ConsecutiveFailures = 0
-				previous.ConsecutiveSuccesses = 0
-				previous.LastError = ""
-				previous.ExitIP = ""
-				previous.NextCheck = now.Unix()
-				previous.UpdatedAt = now.Unix()
-				appendNodeEvent(previous, NodeEvent{At: now.Unix(), Type: "returned", State: NodeUnknown,
-					FromAddress: oldAddress, ToAddress: proxyAddress(proxy)})
+				newAddress := proxyAddress(proxy)
+				newRevision := proxy.GenerateRevisionID()
+				if oldAddress == newAddress && previous.Revision == newRevision {
+					// Rotating subscriptions may omit a binding long enough for it to be
+					// detached and later return unchanged. Keep the last known state and
+					// counters; only request a fresh normal check.
+					previous.CurrentAddress = newAddress
+					previous.ResolvedIPs = literalServerIPs(proxy.Server)
+					previous.NextCheck = now.Unix()
+					previous.UpdatedAt = now.Unix()
+					appendNodeEvent(previous, NodeEvent{At: now.Unix(), Type: "returned", State: previous.State,
+						FromAddress: oldAddress, ToAddress: newAddress})
+				} else {
+					markNodeRevisionChanged(previous, proxy, now)
+					appendNodeEvent(previous, NodeEvent{At: now.Unix(), Type: "returned_changed", State: previous.State,
+						FromAddress: oldAddress, ToAddress: newAddress})
+				}
 				continue
 			}
 			pc.monitor[proxy.LogicalID] = &NodeMonitorState{
@@ -423,7 +431,7 @@ func (pc *ProxyChecker) recordMonitorResults(proxies []*models.ProxyConfig, reas
 
 func (pc *ProxyChecker) applyMonitorResult(node *NodeMonitorState, result proxyResult, reason CheckReason, now time.Time) {
 	wasReplacement := node.State == NodeIPChanged || node.State == NodeVerifyingNewIP ||
-		node.State == NodeNewIPFailed || reason == CheckReasonChanged
+		node.State == NodeNewIPFailed
 	node.LastCheck = result.lastCheck.Unix()
 	node.LastError = result.lastError
 	node.ExitIP = result.exitIP
@@ -465,25 +473,33 @@ func (pc *ProxyChecker) applyMonitorResult(node *NodeMonitorState, result proxyR
 		if wasReplacement {
 			if node.ConsecutiveFailures >= 2 {
 				node.State = NodeNewIPFailed
-				node.NextCheck = now.Add(6 * time.Hour).Unix()
 			} else {
 				node.State = NodeVerifyingNewIP
-				node.NextCheck = now.Add(30 * time.Second).Unix()
 			}
+			node.NextCheck = now.Add(failedRecheckDelay(node.ConsecutiveFailures)).Unix()
 		} else if node.ConsecutiveFailures >= 3 {
 			node.State = NodeNeedsReplacement
-			node.NextCheck = now.Add(6 * time.Hour).Unix()
+			node.NextCheck = now.Add(failedRecheckDelay(node.ConsecutiveFailures)).Unix()
 		} else {
 			node.State = NodeSuspected
-			if node.ConsecutiveFailures == 1 {
-				node.NextCheck = now.Add(30 * time.Second).Unix()
-			} else {
-				node.NextCheck = now.Add(2 * time.Minute).Unix()
-			}
+			node.NextCheck = now.Add(failedRecheckDelay(node.ConsecutiveFailures)).Unix()
 		}
 	}
 	appendNodeEvent(node, NodeEvent{At: now.Unix(), Type: "check", State: node.State,
 		Online: result.status, Unstable: result.unstable, Message: result.lastError})
+}
+
+func failedRecheckDelay(failures int) time.Duration {
+	switch failures {
+	case 0, 1:
+		return time.Minute
+	case 2:
+		return 2 * time.Minute
+	case 3:
+		return 5 * time.Minute
+	default:
+		return 10 * time.Minute
+	}
 }
 
 func (pc *ProxyChecker) StartMonitorScheduler(tick time.Duration) {
@@ -572,6 +588,8 @@ func (pc *ProxyChecker) WithChecksPaused(update func() error) error {
 	}
 	pc.checkCycleMu.Lock()
 	defer pc.checkCycleMu.Unlock()
+	pc.runtimeMu.Lock()
+	defer pc.runtimeMu.Unlock()
 	if pc.manualDiagnosisPending() {
 		return ErrDiagnosisPriority
 	}
@@ -585,13 +603,19 @@ func (pc *ProxyChecker) checkProxySet(proxies []*models.ProxyConfig, reason Chec
 	if pc.manualDiagnosisPending() {
 		return ErrDiagnosisPriority
 	}
-	pc.checkCycleMu.Lock()
-	defer pc.checkCycleMu.Unlock()
+	if reason != CheckReasonManual {
+		pc.checkCycleMu.Lock()
+		defer pc.checkCycleMu.Unlock()
+	}
+	pc.runtimeMu.RLock()
+	defer pc.runtimeMu.RUnlock()
 	if pc.manualDiagnosisPending() {
 		return ErrDiagnosisPriority
 	}
-	if _, err := pc.GetCurrentIP(); err != nil {
-		return err
+	if pc.checkMethod == "ip" {
+		if _, err := pc.GetCurrentIP(); err != nil {
+			return err
+		}
 	}
 	logger.Info("Checking %d node(s), reason=%s", len(proxies), reason)
 	timeout := pc.retryTimeout
@@ -599,13 +623,7 @@ func (pc *ProxyChecker) checkProxySet(proxies []*models.ProxyConfig, reason Chec
 		timeout = pc.ipCheckTimeout
 	}
 	runBoundedChecks(proxies, pc.retryConcurrency, func(proxy *models.ProxyConfig) {
-		verifyExitIP := reason == CheckReasonChanged
-		pc.monitorMu.RLock()
-		if node := pc.monitor[proxy.LogicalID]; node != nil {
-			verifyExitIP = verifyExitIP || node.State == NodeIPChanged || node.State == NodeVerifyingNewIP || node.State == NodeNewIPFailed
-		}
-		pc.monitorMu.RUnlock()
-		pc.checkProxyInternalWithMode(proxy, timeout, false, verifyExitIP)
+		pc.checkProxyInternalWithOptions(proxy, timeout, false)
 	})
 	pc.recordMonitorResults(proxies, reason)
 	return nil
@@ -662,7 +680,8 @@ func equalStrings(left, right []string) bool {
 func nextHealthyCheck(logicalID string, now time.Time) time.Time {
 	h := fnv.New32a()
 	_, _ = h.Write([]byte(logicalID))
-	return now.Add(45*time.Minute + time.Duration(h.Sum32()%901)*time.Second)
+	spreadSeconds := uint32(healthyRecheckSpread / time.Second)
+	return now.Add(healthyRecheckMin + time.Duration(h.Sum32()%(spreadSeconds+1))*time.Second)
 }
 
 func nextUnstableCheck(logicalID string, now time.Time) time.Time {

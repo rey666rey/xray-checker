@@ -81,8 +81,32 @@ func TestApplyProxyUpdateRestoresArchivedHostHistory(t *testing.T) {
 
 	pc.ApplyProxyUpdate([]*models.ProxyConfig{returned}, ProxyUpdatePlan{Changes: []ProxyChange{{Kind: ProxyAdded, New: returned}}})
 	node, ok := pc.GetNodeMonitorByStableID(returned.StableID)
-	if !ok || node.State != NodeUnknown || node.NextCheck == 0 || len(node.History) != 2 || node.History[1].Type != "returned" {
+	if !ok || node.State != NodeIPChanged || node.NextCheck == 0 || len(node.History) != 3 || node.History[2].Type != "returned_changed" {
 		t.Fatalf("returned host state = %#v, found=%t", node, ok)
+	}
+}
+
+func TestApplyProxyUpdatePreservesUnchangedReturnedNode(t *testing.T) {
+	returned := monitorTestProxy("returning", "192.0.2.10")
+	models.AssignLogicalIDs([]*models.ProxyConfig{returned})
+	returned.StableID = returned.GenerateStableID()
+	revision := returned.GenerateRevisionID()
+	pc := NewProxyChecker(nil, 10000, "", 1, "", "", 1, 1, "urltest", 1)
+	pc.monitor = map[string]*NodeMonitorState{
+		returned.LogicalID: {
+			LogicalID: returned.LogicalID, State: NodeHealthy,
+			CurrentAddress: proxyAddress(returned), Revision: revision,
+			ConsecutiveSuccesses: 7, LastSuccess: time.Now().Add(-time.Minute).Unix(),
+		},
+	}
+
+	pc.ApplyProxyUpdate([]*models.ProxyConfig{returned}, ProxyUpdatePlan{Changes: []ProxyChange{{Kind: ProxyAdded, New: returned}}})
+	node, ok := pc.GetNodeMonitorByStableID(returned.StableID)
+	if !ok || node.State != NodeHealthy || node.ConsecutiveSuccesses != 7 || node.NextCheck == 0 {
+		t.Fatalf("unchanged returned node lost its state: %#v, found=%t", node, ok)
+	}
+	if len(node.History) != 1 || node.History[0].Type != "returned" || node.History[0].State != NodeHealthy {
+		t.Fatalf("unexpected return history: %#v", node.History)
 	}
 }
 
@@ -153,5 +177,38 @@ func TestMonitorConfirmsFailureAndNewAddressRepair(t *testing.T) {
 	node, _ = pc.GetNodeMonitorByStableID(newProxy.StableID)
 	if node.State != NodeFixed || node.ExitIP != "198.51.100.8" {
 		t.Fatalf("second success state = %#v", node)
+	}
+}
+
+func TestFailedRecheckDelayBackoff(t *testing.T) {
+	tests := []struct {
+		failures int
+		want     time.Duration
+	}{
+		{1, time.Minute},
+		{2, 2 * time.Minute},
+		{3, 5 * time.Minute},
+		{4, 10 * time.Minute},
+		{20, 10 * time.Minute},
+	}
+	for _, tt := range tests {
+		if got := failedRecheckDelay(tt.failures); got != tt.want {
+			t.Fatalf("failedRecheckDelay(%d)=%s, want %s", tt.failures, got, tt.want)
+		}
+	}
+}
+
+func TestNextHealthyCheckUsesShortStaggeredWindow(t *testing.T) {
+	now := time.Unix(1_700_000_000, 0)
+	first := nextHealthyCheck("node-a", now)
+	second := nextHealthyCheck("node-b", now)
+	for name, next := range map[string]time.Time{"node-a": first, "node-b": second} {
+		delay := next.Sub(now)
+		if delay < healthyRecheckMin || delay > healthyRecheckMin+healthyRecheckSpread {
+			t.Fatalf("%s delay=%s, want %s..%s", name, delay, healthyRecheckMin, healthyRecheckMin+healthyRecheckSpread)
+		}
+	}
+	if first == second {
+		t.Fatalf("different logical IDs received the same schedule: %s", first)
 	}
 }

@@ -50,6 +50,8 @@ type ProxyChecker struct {
 	resumeWasComplete   atomic.Bool
 	persistMu           sync.Mutex
 	checkCycleMu        sync.Mutex
+	runtimeMu           sync.RWMutex
+	proxyCheckLocks     sync.Map // stable ID -> *sync.Mutex
 	monitorMu           sync.RWMutex
 	monitorFile         string
 	monitorSignal       chan struct{}
@@ -174,13 +176,18 @@ func (pc *ProxyChecker) checkProxyInternal(proxy *models.ProxyConfig) {
 }
 
 func (pc *ProxyChecker) checkProxyInternalWithOptions(proxy *models.ProxyConfig, timeout int, retryPhase bool) {
-	pc.checkProxyInternalWithMode(proxy, timeout, retryPhase, false)
-}
+	lockKey := proxy.StableID
+	if lockKey == "" {
+		lockKey = proxy.GenerateStableID()
+	}
+	value, _ := pc.proxyCheckLocks.LoadOrStore(lockKey, &sync.Mutex{})
+	proxyLock := value.(*sync.Mutex)
+	proxyLock.Lock()
+	defer proxyLock.Unlock()
 
-func (pc *ProxyChecker) checkProxyInternalWithMode(proxy *models.ProxyConfig, timeout int, retryPhase, verifyExitIP bool) {
 	for {
 		pc.waitForNetwork()
-		if !pc.checkProxyAttempt(proxy, timeout, retryPhase, verifyExitIP) {
+		if !pc.checkProxyAttempt(proxy, timeout, retryPhase) {
 			return
 		}
 	}
@@ -189,7 +196,7 @@ func (pc *ProxyChecker) checkProxyInternalWithMode(proxy *models.ProxyConfig, ti
 // checkProxyAttempt performs one proxy request. It returns true only when the
 // attempt failed during a confirmed mobile-network outage and must be repeated
 // after waitForNetwork observes recovery. Ordinary proxy failures are retained.
-func (pc *ProxyChecker) checkProxyAttempt(proxy *models.ProxyConfig, timeout int, retryPhase, verifyExitIP bool) bool {
+func (pc *ProxyChecker) checkProxyAttempt(proxy *models.ProxyConfig, timeout int, retryPhase bool) bool {
 	if proxy.StableID == "" {
 		proxy.StableID = proxy.GenerateStableID()
 	}
@@ -239,19 +246,6 @@ func (pc *ProxyChecker) checkProxyAttempt(proxy *models.ProxyConfig, timeout int
 		checkSuccess, logMessage, latency, exitIP, checkErr = pc.checkByIPDetailed(client)
 	} else if pc.checkMethod == "urltest" {
 		checkSuccess, logMessage, latency, unstable, checkErr = pc.checkByURLTest(client)
-		if checkErr == nil && checkSuccess && verifyExitIP {
-			var ipSuccess bool
-			var ipMessage string
-			var ipLatency time.Duration
-			ipSuccess, ipMessage, ipLatency, exitIP, checkErr = pc.checkByIPDetailed(client)
-			if checkErr == nil {
-				checkSuccess = ipSuccess
-				logMessage += " | " + ipMessage
-				if latency == 0 || (ipLatency > 0 && ipLatency < latency) {
-					latency = ipLatency
-				}
-			}
-		}
 	} else if pc.checkMethod == "status" {
 		checkSuccess, logMessage, latency, checkErr = pc.checkByGen(client)
 	} else if pc.checkMethod == "download" {
@@ -319,24 +313,10 @@ func (pc *ProxyChecker) checkByURLTest(client *http.Client) (bool, string, time.
 		return true, fmt.Sprintf("URL test: %d/%d successful", successes, attempts), best, successes < attempts, nil
 	}
 
-	// ipify is deliberately a fallback: it is slower than the tiny Apple page,
-	// but independently confirms that traffic really exited through the proxy.
-	status, body, latency, err := timedProxyGET(client, pc.ipCheck, 256)
-	if err != nil {
-		if lastErr != nil {
-			return false, "", 0, false, fmt.Errorf("URL test failed (%v); IP fallback failed (%w)", lastErr, err)
-		}
-		return false, "", 0, false, fmt.Errorf("IP fallback failed: %w", err)
+	if lastErr == nil {
+		lastErr = fmt.Errorf("URL test failed")
 	}
-	proxyIP := strings.TrimSpace(body)
-	if status < 200 || status >= 300 || net.ParseIP(proxyIP) == nil {
-		return false, fmt.Sprintf("IP fallback returned invalid response (status %d)", status), latency, false, nil
-	}
-	currentIP := pc.getCurrentIP()
-	if proxyIP == currentIP {
-		return false, fmt.Sprintf("IP fallback used source IP %s", currentIP), latency, false, nil
-	}
-	return true, fmt.Sprintf("IP fallback succeeded: %s", proxyIP), latency, true, nil
+	return false, fmt.Sprintf("URL test: 0/%d successful", attempts), 0, false, lastErr
 }
 
 func timedProxyGET(client *http.Client, target string, maxBody int64) (int, string, time.Duration, error) {
@@ -564,15 +544,19 @@ func (pc *ProxyChecker) MetricsSnapshot() []metrics.ProxyMetric {
 func (pc *ProxyChecker) CheckAllProxies() {
 	pc.checkCycleMu.Lock()
 	defer pc.checkCycleMu.Unlock()
+	pc.runtimeMu.RLock()
+	defer pc.runtimeMu.RUnlock()
 	if pc.manualDiagnosisPending() {
 		logger.Info("Full proxy check deferred for manual node diagnosis")
 		return
 	}
 	pc.markResultsComplete(false)
 	pc.waitForNetwork()
-	if _, err := pc.GetCurrentIP(); err != nil {
-		logger.Warn("Error getting current IP: %v", err)
-		return
+	if pc.checkMethod == "ip" {
+		if _, err := pc.GetCurrentIP(); err != nil {
+			logger.Warn("Error getting current IP: %v", err)
+			return
+		}
 	}
 
 	pc.mu.RLock()

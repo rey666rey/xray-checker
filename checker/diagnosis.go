@@ -243,6 +243,8 @@ func (pc *ProxyChecker) executeNodeDiagnosis(run NodeDiagnosis, bindings []*mode
 
 	pc.checkCycleMu.Lock()
 	defer pc.checkCycleMu.Unlock()
+	pc.runtimeMu.RLock()
+	defer pc.runtimeMu.RUnlock()
 
 	// Subscription refreshes and Xray reloads use the same lock. Refresh the
 	// binding snapshot after acquiring it so a queued diagnosis never probes a
@@ -276,10 +278,7 @@ func (pc *ProxyChecker) executeNodeDiagnosis(run NodeDiagnosis, bindings []*mode
 	if controlTimeout <= 0 {
 		controlTimeout = 5 * time.Second
 	}
-	run.Control = pc.runDiagnosisControl(controlTimeout, status.PublicIP)
-	if run.Control.ObservedIP != "" {
-		run.SourceIP = run.Control.ObservedIP
-	}
+	run.Control = pc.runDiagnosisControl(controlTimeout)
 	if !run.Control.Online {
 		run.Verdict = DiagnosisInconclusive
 		run.Summary = "Control request failed on the probe network"
@@ -330,11 +329,8 @@ func allTCPPortsUnreachable(ports []PortDiagnosis) bool {
 	return tcpPorts > 0
 }
 
-func (pc *ProxyChecker) runDiagnosisControl(timeout time.Duration, expectedSourceIP string) ControlDiagnosis {
+func (pc *ProxyChecker) runDiagnosisControl(timeout time.Duration) ControlDiagnosis {
 	target := pc.urlTestURL
-	if target == "" {
-		target = pc.ipCheck
-	}
 	result := ControlDiagnosis{URL: target}
 	if target == "" {
 		result.Error = "no control URL configured"
@@ -349,35 +345,12 @@ func (pc *ProxyChecker) runDiagnosisControl(timeout time.Duration, expectedSourc
 		return result
 	}
 	result.Online = status >= 200 && status < 300
-	if pc.urlTestExpected != "" && target == pc.urlTestURL {
+	if pc.urlTestExpected != "" {
 		result.Online = result.Online && strings.Contains(body, pc.urlTestExpected)
 	}
 	if !result.Online {
 		result.Error = fmt.Sprintf("unexpected control response (status %d)", status)
 		return result
-	}
-
-	// A host-network monitor can watch a specific interface while the checker
-	// container accidentally follows another default route. Verify the egress
-	// address before attributing endpoint failures to the named probe network.
-	if pc.ipCheck != "" {
-		ipStatus, ipBody, _, ipErr := timedProxyGET(client, pc.ipCheck, 256)
-		if ipErr != nil {
-			result.Online = false
-			result.Error = "could not verify probe egress: " + ipErr.Error()
-			return result
-		}
-		observed := strings.TrimSpace(ipBody)
-		if ipStatus < 200 || ipStatus >= 300 || net.ParseIP(observed) == nil {
-			result.Online = false
-			result.Error = "probe egress service returned an invalid address"
-			return result
-		}
-		result.ObservedIP = observed
-		if expected := strings.TrimSpace(expectedSourceIP); expected != "" && observed != expected {
-			result.Online = false
-			result.Error = fmt.Sprintf("probe route mismatch: monitor=%s checker=%s", expected, observed)
-		}
 	}
 	return result
 }
@@ -551,10 +524,6 @@ func (pc *ProxyChecker) probeBinding(binding *models.ProxyConfig, timeout time.D
 	}
 	target := pc.urlTestURL
 	expected := pc.urlTestExpected
-	if target == "" {
-		target = pc.ipCheck
-		expected = ""
-	}
 	if target == "" {
 		result.FailureStage = "configuration"
 		result.LastError = "no URL test endpoint configured"

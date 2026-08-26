@@ -29,6 +29,7 @@ type EndpointInfo struct {
 	Status               bool
 	Unstable             bool
 	Latency              time.Duration
+	LastCheck            int64
 	StableID             string
 	HostID               string
 	NodeID               string
@@ -79,6 +80,7 @@ func IndexHandler(version string, proxyChecker *checker.ProxyChecker) http.Handl
 					Status:           ep.Status,
 					Unstable:         ep.Unstable,
 					Latency:          ep.Latency,
+					LastCheck:        ep.LastCheck,
 					StableID:         ep.StableID,
 					HostID:           ep.HostID,
 					NodeID:           ep.NodeID,
@@ -196,7 +198,7 @@ func RegisterConfigEndpoints(proxies []*models.ProxyConfig, proxyChecker *checke
 
 		endpoint := fmt.Sprintf("./config/%s", proxy.StableID)
 
-		status, unstable, latency, _, _ := proxyChecker.GetProxyResultDetailsByStableID(proxy.StableID)
+		status, unstable, latency, lastCheck, _ := proxyChecker.GetProxyResultDetailsByStableID(proxy.StableID)
 		monitor, _ := proxyChecker.GetNodeMonitorByStableID(proxy.StableID)
 		observation, _ := proxyChecker.GetEndpointObservation(proxy)
 
@@ -211,6 +213,7 @@ func RegisterConfigEndpoints(proxies []*models.ProxyConfig, proxyChecker *checke
 			Status:               status,
 			Unstable:             unstable,
 			Latency:              latency,
+			LastCheck:            lastCheck,
 			StableID:             proxy.StableID,
 			HostID:               proxy.HostID,
 			NodeID:               proxy.NodeID,

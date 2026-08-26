@@ -17,9 +17,9 @@ This is not an ICMP ping.
 
 For each node, Xray exposes a local SOCKS5 port. The checker sends two proxied
 HTTP `GET` requests to the tiny `captive.apple.com/hotspot-detect.html` page,
-measures time to first byte, and retains the best result. If both requests fail,
-the slower `api.ipify.org` check is used as a fallback. After an endpoint change,
-the IP check is mandatory even when the Apple URL test succeeds.
+measures time to first byte, and retains the best result. Exit-IP services are
+not part of health checking: one valid Apple response proves that the specific
+Xray binding works.
 
 Every proxy connection originates from the iPhone's mobile network. The test
 destination does not determine the source network: the result answers whether
@@ -33,11 +33,13 @@ The default run is designed for large subscriptions:
 - no further bulk sweep runs after completion; only due nodes are checked;
 - restarting the checker starts a new full run.
 
-After the full sweep, the checker becomes a repair queue. A failed node is
-confirmed after 30 seconds and 2 minutes; three failed rounds produce
-`Needs replacement`. Unstable nodes run again after 5 minutes, while healthy
-nodes are staggered across a 45–60 minute window. Subscriptions are sampled twice
-per minute, but only new or changed bindings are tested.
+After the full sweep, the checker becomes a repair queue. Consecutive failures
+are retried after 1, 2, 5, and then 10 minutes. Three failed rounds produce
+`Needs replacement`, but the checker keeps verifying it every 10 minutes so a
+recovered node cannot remain falsely failed for hours. Unstable nodes run again
+after 5 minutes, while healthy nodes are staggered across a 12–18 minute window.
+Subscriptions are sampled twice per minute, but only new or changed bindings
+are tested.
 
 The checker stores a many-to-many topology: a `Host` is one subscription
 entry/inbound, a `Node` is one physical endpoint/IP, and the checkable binding is
@@ -45,12 +47,16 @@ their pair. Reality, TLS, and Hysteria bindings on one IP retain independent
 results while appearing under the same node. One host may also rotate across a
 pool of nodes. Alternating `A → B → A → B` samples therefore add both endpoints
 instead of being discarded as noise. New endpoints are checked immediately;
-missing endpoints remain visible as `Missing` and detach after 30 successful
-polls without a sighting.
+missing endpoints are hidden from the active dashboard immediately and detach
+after 30 successful polls without a sighting. If the exact same binding returns,
+its previous health history is retained and a fresh check is scheduled.
 
 The dashboard defaults to the node-centric view, showing working bindings per
 physical endpoint. The `Hosts` toggle restores the subscription-entry view. A
-single binding or every binding on one node can be rechecked manually.
+single binding or every binding on one node can be rechecked manually. Manual
+rechecks start alongside a bulk sweep instead of waiting behind it; the button
+shows `Rechecking…` until the completed result is returned, and each card shows
+its last check time.
 
 The private node view also provides a manual `Diagnose` action. It first proves
 that the checker is using the monitored network, then runs three direct TCP
@@ -75,7 +81,7 @@ Mac dashboard: 127.0.0.1:2112
                 │ preferred route: col0
                 └── iPhone USB tethering
                         │
-                        └── Russian mobile network → proxy server → api.ipify.org
+                        └── Russian mobile network → proxy server → captive.apple.com
 ```
 
 Only the Colima VM and its containers use the iPhone route. The Mac's default
@@ -198,7 +204,8 @@ The `Auto` button in the top-right corner only enables or disables dashboard API
 refresh; it does not start a proxy test. It is enabled by default and refreshes
 every 5 seconds, so targeted background checks appear without reloading the page.
 
-The pill beside `Auto` shows the live iPhone route state and mobile public IP:
+The pill beside `Auto` shows the live iPhone route state. The sidecar validates
+that `captive.apple.com` is reachable specifically through the USB interface:
 
 - green — the mobile route is ready;
 - yellow — the USB interface is present and the route is recovering;
@@ -267,7 +274,6 @@ The local defaults live in [`compose.yaml`](compose.yaml):
 | `PROXY_CHECK_METHOD` | `urltest` | Run two fast proxied GETs and retain the best result |
 | `PROXY_URL_TEST_URL` | `http://captive.apple.com/hotspot-detect.html` | Primary tiny Apple page |
 | `PROXY_URL_TEST_ATTEMPTS` | `2` | Number of fast attempts |
-| `PROXY_IP_CHECK_URL` | `https://api.ipify.org?format=text` | Fallback only when Apple fails |
 | `PROXY_TIMEOUT` | `4` | Fast-attempt timeout in seconds |
 | `PROXY_RETRY_TIMEOUT` | `10` | Failed-node retry timeout |
 | `PROXY_RETRY_CONCURRENCY` | `10` | Failed-node retry concurrency |
@@ -277,9 +283,10 @@ The local defaults live in [`compose.yaml`](compose.yaml):
 | `NODE_HISTORY_FILE` | `/app/data/node-history.json` | Persist repair states, endpoint changes, and short history across runs |
 | `NODE_DIAGNOSIS_FILE` | `/app/data/node-diagnostics.json` | Persist the latest ten manual deep-diagnosis runs per physical node |
 
-If both fast Apple requests fail, the checker tries `ipify`. A node that succeeds
-only through this fallback or the retry pass is shown in yellow as `unstable`.
-Remaining failures are checked once more in a separate slower batch.
+One successful Apple request means the node is available. A node for which only
+one of two attempts succeeds, or which needs the retry pass, is shown in yellow
+as `unstable`. Remaining failures are checked once more in a separate slower
+batch.
 
 If the mobile link produces many `EOF` or timeout errors, lower concurrency. If
 the run is stable but too slow, increase it gradually. A larger value creates
@@ -296,14 +303,14 @@ All supported environment variables are documented in
 | `/health` | Process health; returns `OK` |
 | `/metrics` | Prometheus metrics |
 | `/api/v1/public/proxies` | Current proxy snapshot used by Auto refresh |
-| `POST /api/v1/proxies/{stableID}/recheck` | Queue one node for immediate verification |
+| `POST /api/v1/proxies/{stableID}/recheck` | Immediately recheck one binding and return its result |
 | `/api/v1/nodes` | Physical endpoints with all attached host/inbound bindings |
 | `POST /api/v1/nodes/{nodeID}/recheck` | Recheck every binding attached to one endpoint |
 | `POST /api/v1/nodes/{nodeID}/diagnose` | Queue a three-attempt deep diagnosis from the monitored network |
 | `GET /api/v1/nodes/{nodeID}/diagnosis` | Read recent manual diagnosis history |
 | `/api/v1/status` | Aggregate checker status |
 | `/api/v1/config` | Active non-secret configuration |
-| `/api/v1/network` | iPhone route state and current mobile IP |
+| `/api/v1/network` | Current iPhone route state |
 | `/api/v1/docs` | Interactive OpenAPI documentation |
 
 The Compose port is bound to `127.0.0.1`, so the dashboard is not exposed to
@@ -336,17 +343,6 @@ colima ssh --profile iphone -- ip -4 route show default
 The preferred route must contain `dev col0`. `start.sh` intentionally refuses
 to launch the checker when that route is missing, because the test would
 otherwise use the wrong network.
-
-### Confirm that Mac and checker use different exits
-
-```bash
-curl -fsS https://api.ipify.org
-docker-compose --context colima-iphone exec xray-checker \
-  curl -fsS https://api.ipify.org
-```
-
-The first address should be the Mac's Wi-Fi exit; the second should be the
-iPhone mobile exit.
 
 ### Results disappear
 

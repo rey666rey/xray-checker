@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -78,12 +77,14 @@ func TestURLTestKeepsBestOfTwoSuccessfulRequests(t *testing.T) {
 	}
 }
 
-func TestURLTestFallsBackToIPAndMarksUnstable(t *testing.T) {
+func TestURLTestDoesNotFallBackToIP(t *testing.T) {
+	var fallbackCalls atomic.Int32
 	primary := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		http.Error(w, "no", http.StatusServiceUnavailable)
 	}))
 	defer primary.Close()
 	fallback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		fallbackCalls.Add(1)
 		fmt.Fprint(w, "203.0.113.9")
 	}))
 	defer fallback.Close()
@@ -92,8 +93,11 @@ func TestURLTestFallsBackToIPAndMarksUnstable(t *testing.T) {
 	pc.setCurrentIP("198.51.100.7")
 	pc.SetURLTestOptions(primary.URL, "Success", 2, 10, 10)
 	ok, message, _, unstable, err := pc.checkByURLTest(fallback.Client())
-	if err != nil || !ok || !unstable || !strings.Contains(message, "203.0.113.9") {
-		t.Fatalf("unexpected fallback result: ok=%t unstable=%t message=%q err=%v", ok, unstable, message, err)
+	if err == nil || ok || unstable || message != "URL test: 0/2 successful" {
+		t.Fatalf("unexpected Apple-only result: ok=%t unstable=%t message=%q err=%v", ok, unstable, message, err)
+	}
+	if fallbackCalls.Load() != 0 {
+		t.Fatalf("IP fallback was called %d time(s)", fallbackCalls.Load())
 	}
 }
 
@@ -223,6 +227,23 @@ func TestRunBoundedChecks_Concurrency(t *testing.T) {
 	})
 	if tr2.peak < 10 {
 		t.Errorf("unlimited: expected substantial parallelism (peak >= 10), got %d", tr2.peak)
+	}
+}
+
+func TestManualRecheckDoesNotWaitForBulkCycleLock(t *testing.T) {
+	pc := NewProxyChecker(nil, 10000, "", 1, "", "", 1, 1, "urltest", 1)
+	pc.checkCycleMu.Lock()
+	defer pc.checkCycleMu.Unlock()
+
+	done := make(chan error, 1)
+	go func() { done <- pc.checkProxySet(nil, CheckReasonManual) }()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("manual recheck failed: %v", err)
+		}
+	case <-time.After(250 * time.Millisecond):
+		t.Fatal("manual recheck waited behind the bulk cycle lock")
 	}
 }
 
