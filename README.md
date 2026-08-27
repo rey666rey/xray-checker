@@ -123,13 +123,10 @@ This makes both of these normal:
 Health results belong to bindings because separate inbounds on the same machine
 can behave differently. `StableID` prevents same-named cards from being mixed up.
 
-The current dashboard has two views:
-
-- `Nodes` groups every binding on one physical endpoint;
-- `Hosts` displays bindings under their subscription entries and groups.
-
-The internal Node model remains useful even if only the Hosts view is used: node
-diagnosis, grouped rechecks, and shared-IP tracking depend on it.
+The dashboard has a single `Hosts` view. It displays bindings under their
+subscription entries and groups. The internal Node model remains available to
+the backend: node diagnosis, grouped rechecks, alert grouping, and shared-IP
+tracking depend on it even though there is no separate Nodes tab.
 
 ## Subscription discovery
 
@@ -307,13 +304,49 @@ Open <http://127.0.0.1:2112>.
 - Reload the page once after HTML/CSS/JavaScript changes.
 - The iPhone pill reports `Connected`, `Recovering`, `Waiting`, or
   `Monitor offline`.
+- Clicking a host name copies the complete name instead of opening `/config`.
 - `Copy IP` copies the address without its port.
 - Cards show local last-check time as `HH:MM`.
 - `IP changed` uses a full-width wrapping row for the old and new addresses.
-- `Nodes` groups by endpoint; `Hosts` displays subscription entries.
+- `Hosts` is the only dashboard view and displays subscription entries.
 
 Compose binds the port to `127.0.0.1`, so the dashboard is not exposed to other
 devices on the LAN by default.
+
+### Telegram alerts
+
+The paper-plane button in the top-right corner opens the Telegram setup wizard:
+
+1. create a bot with BotFather and paste its API token;
+2. validate the token;
+3. send `/start` to the bot and let the checker discover the private chat or
+   group;
+4. save the recipient and send a test message.
+
+The stored token is never returned to the browser, placed in `localStorage`, or
+included in logs. It is written separately with mode `0600` in the persistent
+data volume. The UI can enable alerts for confirmed failures, IP changes,
+recoveries, failed replacement IPs, unstable nodes, and iPhone route recovery.
+
+Notifications are transition-based and grouped by physical endpoint. A single
+message lists all affected subscription hosts/inbounds on that IP. First and
+second ordinary failures remain silent; the critical notification follows the
+existing three-failure `needs_replacement` threshold. Pending messages and
+deduplication state survive checker restarts.
+
+Telegram delivery defaults to `Auto via healthy Xray nodes`. The alert worker
+reads the latest completed checker snapshot, picks up to three different
+physical nodes, and sends the Bot API request through their already-running
+local SOCKS inbounds. The last successful route is preferred; a failed route is
+temporarily cooled down and the next node is tried. When an alert concerns a
+node, that node is excluded from its own delivery candidates.
+
+This delivery path is isolated from health checking: it does not start checks,
+change results, acquire a checker worker slot, or wait in the check queue. If no
+healthy route is available, the message remains in the persistent queue until a
+later retry. The UI also offers `Direct` and a separate custom HTTP(S)/SOCKS5
+proxy. Custom proxy credentials are stored in a separate `0600` file and are
+never returned to the browser.
 
 ## Go and Prometheus
 
@@ -353,6 +386,10 @@ The named `xray-results` volume is mounted at `/app/data`.
 | `results.json` | last online/latency/error per binding and completed-sweep flag | removed to force a new full sweep |
 | `node-history.json` | repair states, revisions, and the latest 40 events | preserved |
 | `node-diagnostics.json` | latest ten manual diagnoses per Node | preserved |
+| `telegram-settings.json` | non-secret Telegram recipient and preferences | preserved |
+| `telegram-settings.token` | Telegram bot token, mode `0600` | preserved |
+| `telegram-settings.proxy` | optional custom Telegram proxy, mode `0600` | preserved |
+| `telegram-settings.state.json` | deduplication and pending alert queue | preserved |
 
 Snapshots use a temporary file and atomic rename. Stopping Compose without
 deleting named volumes does not erase the history.
@@ -494,6 +531,8 @@ Values are defined in [`compose.yaml`](compose.yaml).
 | `RESULTS_FILE` | `/app/data/results.json` | result snapshot |
 | `NODE_HISTORY_FILE` | `/app/data/node-history.json` | repair history |
 | `NODE_DIAGNOSIS_FILE` | `/app/data/node-diagnostics.json` | Diagnose history |
+| `ALERTS_SETTINGS_FILE` | `/app/data/telegram-settings.json` | Telegram settings, token, and delivery state base path |
+| `TELEGRAM_PROXY_URL` | empty | optional dashboard-hidden custom HTTP(S)/SOCKS5 Telegram route |
 | `WEB_SHOW_DETAILS` | `true` | expose private endpoint details in the local UI |
 
 `PROXY_CHECK_INTERVAL=600` belongs to the legacy repeating-full-cycle mode. With

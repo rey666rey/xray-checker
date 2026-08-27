@@ -414,12 +414,362 @@
 		border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
 		background: color-mix(in srgb, var(--bg-tertiary) 76%, transparent);
 	}
+	.alerts-button {
+		position: relative;
+	}
+	.alerts-status-dot {
+		position: absolute;
+		right: 0.28rem;
+		top: 0.28rem;
+		width: 0.42rem;
+		height: 0.42rem;
+		border-radius: 999px;
+		border: 1.5px solid var(--bg-primary);
+		background: var(--text-muted);
+		box-shadow: 0 0 0 1px color-mix(in srgb, var(--border) 65%, transparent);
+	}
+	.alerts-status-dot.connected { background: var(--color-green); box-shadow: 0 0 8px color-mix(in srgb, var(--color-green) 65%, transparent); }
+	.alerts-status-dot.error { background: var(--color-red); box-shadow: 0 0 8px color-mix(in srgb, var(--color-red) 60%, transparent); }
+	.alerts-status-dot.disabled { background: var(--color-yellow); }
+	.alerts-card {
+		width: min(31.5rem, calc(100vw - 1.5rem));
+		border-color: color-mix(in srgb, #2aabee 42%, var(--border));
+		box-shadow: 0 32px 90px rgba(0, 0, 0, 0.52), 0 10px 28px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(42, 171, 238, 0.06);
+	}
+	.alerts-card::before {
+		border-color: color-mix(in srgb, #2aabee 42%, var(--border));
+		background: color-mix(in srgb, #2aabee 9%, var(--bg-secondary));
+	}
+	.alerts-card .diagnosis-scroll {
+		padding: 0;
+		background:
+			radial-gradient(circle at 95% 0%, color-mix(in srgb, #2aabee 12%, transparent), transparent 30%),
+			var(--bg-secondary);
+	}
+	.alerts-card .diagnosis-header {
+		top: 0;
+		margin: 0;
+		padding: 1.05rem 1.15rem;
+		background: color-mix(in srgb, var(--bg-secondary) 91%, transparent);
+	}
+	.alerts-content {
+		padding: 1rem;
+	}
+	.alerts-kicker {
+		font-size: 0.61rem;
+		font-weight: 700;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: #2aabee;
+	}
+	.alerts-icon {
+		display: grid;
+		place-items: center;
+		width: 2.15rem;
+		height: 2.15rem;
+		border-radius: 0.76rem;
+		color: #fff;
+		background: linear-gradient(145deg, #40b9ef, #168dcc);
+		box-shadow: 0 7px 18px rgba(42, 171, 238, 0.3), inset 0 1px 0 rgba(255,255,255,0.3);
+	}
+	.alerts-panel {
+		border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+		border-radius: 1rem;
+		background: color-mix(in srgb, var(--bg-tertiary) 82%, transparent);
+		box-shadow: inset 0 1px 0 rgba(255,255,255,0.025);
+	}
+	.alerts-setup-hero {
+		position: relative;
+		overflow: hidden;
+		border: 1px solid color-mix(in srgb, #2aabee 25%, var(--border));
+		border-radius: 1rem;
+		padding: 1rem;
+		background: linear-gradient(135deg, color-mix(in srgb, #2aabee 14%, var(--bg-tertiary)), var(--bg-tertiary) 72%);
+	}
+	.alerts-setup-hero::after {
+		content: "";
+		position: absolute;
+		width: 9rem;
+		height: 9rem;
+		right: -4rem;
+		top: -5rem;
+		border-radius: 999px;
+		background: color-mix(in srgb, #2aabee 14%, transparent);
+		filter: blur(2px);
+	}
+	.alerts-step {
+		position: relative;
+		padding: 1rem;
+		border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+		border-radius: 1rem;
+		background: color-mix(in srgb, var(--bg-tertiary) 77%, transparent);
+		transition: border-color .18s ease, background .18s ease;
+	}
+	.alerts-step.active {
+		border-color: color-mix(in srgb, #2aabee 35%, var(--border));
+		background: linear-gradient(145deg, color-mix(in srgb, #2aabee 7%, var(--bg-tertiary)), var(--bg-tertiary));
+	}
+	.alerts-step-index {
+		display: grid;
+		place-items: center;
+		width: 1.65rem;
+		height: 1.65rem;
+		border-radius: 0.58rem;
+		border: 1px solid color-mix(in srgb, #2aabee 40%, var(--border));
+		background: color-mix(in srgb, #2aabee 10%, var(--bg-primary));
+		color: #2aabee;
+		font-size: 0.68rem;
+		font-weight: 800;
+		box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+	}
+	.alerts-step-index.complete {
+		color: #fff;
+		border-color: transparent;
+		background: linear-gradient(145deg, #39b8ef, #168dcc);
+	}
+	.alerts-section-title {
+		font-size: 0.78rem;
+		font-weight: 650;
+		color: var(--text-primary);
+	}
+	.alerts-section-copy {
+		font-size: 0.66rem;
+		line-height: 1.5;
+		color: var(--text-muted);
+	}
+	.alerts-label {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: .75rem;
+		margin-bottom: .4rem;
+		font-size: .64rem;
+		font-weight: 650;
+		color: var(--text-secondary);
+	}
+	.alerts-field {
+		position: relative;
+	}
+	.alerts-field-icon {
+		position: absolute;
+		left: .8rem;
+		top: 50%;
+		transform: translateY(-50%);
+		color: var(--text-muted);
+		pointer-events: none;
+	}
+	.alerts-input {
+		width: 100%;
+		min-height: 2.75rem;
+		border: 1px solid var(--border);
+		border-radius: 0.78rem;
+		padding: 0.68rem 0.8rem;
+		font-size: 0.78rem;
+		background: color-mix(in srgb, var(--bg-primary) 62%, var(--bg-tertiary));
+		color: var(--text-primary);
+		outline: none;
+		transition: border-color .16s ease, box-shadow .16s ease, background .16s ease;
+	}
+	.alerts-input:focus {
+		border-color: color-mix(in srgb, #2aabee 68%, var(--border));
+		box-shadow: 0 0 0 3px color-mix(in srgb, #2aabee 12%, transparent);
+		background: var(--bg-primary);
+	}
+	.alerts-input.with-icon { padding-left: 2.45rem; }
+	.alerts-input:disabled { opacity: .58; cursor: not-allowed; }
+	.alerts-error-banner {
+		display: flex;
+		align-items: flex-start;
+		gap: .7rem;
+		padding: .75rem .85rem;
+		border: 1px solid color-mix(in srgb, var(--color-red) 36%, var(--border));
+		border-radius: .82rem;
+		background: color-mix(in srgb, var(--color-red) 8%, var(--bg-tertiary));
+		color: var(--color-red);
+		font-size: .68rem;
+		line-height: 1.45;
+	}
+	.alerts-primary {
+		border: 1px solid color-mix(in srgb, #2aabee 68%, var(--border));
+		background: linear-gradient(145deg, #2aabee, #168dcc);
+		color: #fff;
+		box-shadow: 0 8px 20px rgba(42, 171, 238, 0.2), inset 0 1px 0 rgba(255,255,255,.22);
+		transition: transform .15s ease, filter .15s ease, box-shadow .15s ease;
+	}
+	.alerts-primary:hover { filter: brightness(1.06); transform: translateY(-1px); box-shadow: 0 10px 24px rgba(42, 171, 238, 0.26), inset 0 1px 0 rgba(255,255,255,.22); }
+	.alerts-primary:active { transform: translateY(0); }
+	.alerts-primary:disabled { cursor: wait; opacity: 0.55; filter: none; }
+	.alerts-choice {
+		border: 1px solid var(--border);
+		border-radius: 0.78rem;
+		background: color-mix(in srgb, var(--bg-primary) 32%, var(--bg-tertiary));
+		transition: border-color .15s ease, background .15s ease, transform .15s ease;
+	}
+	.alerts-choice:hover {
+		border-color: color-mix(in srgb, #2aabee 32%, var(--border));
+		background: color-mix(in srgb, #2aabee 5%, var(--bg-tertiary));
+	}
+	.alerts-choice.selected {
+		border-color: color-mix(in srgb, #2aabee 62%, var(--border));
+		background: linear-gradient(145deg, color-mix(in srgb, #2aabee 13%, var(--bg-tertiary)), color-mix(in srgb, #2aabee 6%, var(--bg-tertiary)));
+		box-shadow: inset 0 0 0 1px color-mix(in srgb, #2aabee 9%, transparent);
+	}
+	.alerts-route-grid {
+		display: grid;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: .5rem;
+	}
+	.alerts-route-option {
+		min-height: 4.65rem;
+		padding: .65rem .55rem;
+		text-align: left;
+	}
+	.alerts-route-icon {
+		display: grid;
+		place-items: center;
+		width: 1.55rem;
+		height: 1.55rem;
+		margin-bottom: .5rem;
+		border-radius: .52rem;
+		background: var(--bg-primary);
+		color: var(--text-muted);
+	}
+	.alerts-route-option.selected .alerts-route-icon {
+		background: color-mix(in srgb, #2aabee 18%, var(--bg-primary));
+		color: #2aabee;
+	}
+	.alerts-route-summary {
+		display: flex;
+		align-items: center;
+		gap: .65rem;
+		padding: .65rem .72rem;
+		border: 1px solid color-mix(in srgb, #2aabee 22%, var(--border));
+		border-radius: .78rem;
+		background: color-mix(in srgb, #2aabee 6%, var(--bg-primary));
+	}
+	.alerts-route-count {
+		display: inline-flex;
+		align-items: center;
+		gap: .35rem;
+		padding: .25rem .48rem;
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--color-green) 10%, var(--bg-primary));
+		color: var(--color-green);
+		font-size: .58rem;
+		font-weight: 700;
+		white-space: nowrap;
+	}
+	.alerts-route-count::before {
+		content: "";
+		width: .36rem;
+		height: .36rem;
+		border-radius: 999px;
+		background: currentColor;
+		box-shadow: 0 0 7px currentColor;
+	}
+	.alerts-account {
+		position: relative;
+		overflow: hidden;
+		padding: 1rem;
+		border: 1px solid color-mix(in srgb, #2aabee 25%, var(--border));
+		border-radius: 1rem;
+		background: linear-gradient(135deg, color-mix(in srgb, #2aabee 13%, var(--bg-tertiary)), var(--bg-tertiary) 67%);
+	}
+	.alerts-account-avatar {
+		display: grid;
+		place-items: center;
+		width: 2.7rem;
+		height: 2.7rem;
+		border-radius: .9rem;
+		background: linear-gradient(145deg, #39b8ef, #168dcc);
+		color: #fff;
+		box-shadow: 0 8px 20px rgba(42,171,238,.22);
+	}
+	.alerts-status-pill {
+		display: inline-flex;
+		align-items: center;
+		gap: .38rem;
+		padding: .26rem .5rem;
+		border: 1px solid var(--border);
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--bg-primary) 58%, transparent);
+		font-size: .6rem;
+		font-weight: 700;
+	}
+	.alerts-notification-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		padding: .72rem 0;
+		border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+	}
+	.alerts-notification-row:first-child { padding-top: 0; }
+	.alerts-notification-row:last-child { padding-bottom: 0; border-bottom: 0; }
+	.alerts-actions {
+		position: sticky;
+		bottom: -1rem;
+		z-index: 3;
+		display: grid;
+		grid-template-columns: .9fr 1.1fr;
+		gap: .55rem;
+		margin: 0 -1rem -1rem;
+		padding: .75rem 1rem 1rem;
+		border-top: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+		background: color-mix(in srgb, var(--bg-secondary) 91%, transparent);
+		backdrop-filter: blur(16px);
+	}
+	.alerts-advanced {
+		border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
+		border-radius: .9rem;
+		background: color-mix(in srgb, var(--bg-tertiary) 58%, transparent);
+	}
+	.alerts-advanced summary { list-style: none; }
+	.alerts-advanced summary::-webkit-details-marker { display: none; }
+	.alerts-chevron { transition: transform .18s ease; }
+	.alerts-advanced[open] .alerts-chevron { transform: rotate(180deg); }
+	.alerts-spinner {
+		width: 1rem;
+		height: 1rem;
+		border: 2px solid color-mix(in srgb, #2aabee 25%, transparent);
+		border-top-color: #2aabee;
+		border-radius: 999px;
+		animation: spin 0.8s linear infinite;
+	}
+	.alerts-toggle {
+		position: relative;
+		width: 2.25rem;
+		height: 1.25rem;
+		border-radius: 999px;
+		background: var(--bg-primary);
+		border: 1px solid var(--border);
+		transition: background .15s ease, border-color .15s ease;
+	}
+	.alerts-toggle::after {
+		content: "";
+		position: absolute;
+		width: 0.86rem;
+		height: 0.86rem;
+		left: 0.16rem;
+		top: 0.13rem;
+		border-radius: 999px;
+		background: var(--text-muted);
+		transition: transform .16s ease, background .16s ease;
+	}
+	.alerts-toggle.on {
+		background: color-mix(in srgb, #2aabee 28%, var(--bg-primary));
+		border-color: color-mix(in srgb, #2aabee 65%, var(--border));
+	}
+	.alerts-toggle.on::after {
+		transform: translateX(0.95rem);
+		background: #2aabee;
+	}
 	@keyframes diagnosis-popover-in {
 		from { opacity: 0; transform: translateY(-5px) scale(0.985); }
 		to { opacity: 1; transform: translateY(0) scale(1); }
 	}
 	@media (max-width: 640px) {
-		.diagnosis-card {
+		.diagnosis-card, .alerts-card {
 			left: 0.75rem !important;
 			right: 0.75rem !important;
 			top: auto !important;
@@ -430,7 +780,25 @@
 		}
 		.diagnosis-card::before { display: none; }
 		.diagnosis-scroll { max-height: 82vh; border-radius: 1.25rem; }
-      }
+		.alerts-card .diagnosis-header { padding: .9rem 1rem; }
+		.alerts-content { padding: .8rem; }
+		.alerts-step, .alerts-panel, .alerts-account, .alerts-setup-hero { border-radius: .9rem; }
+		.alerts-actions {
+			bottom: -.8rem;
+			margin: 0 -.8rem -.8rem;
+			padding: .7rem .8rem calc(.8rem + env(safe-area-inset-bottom));
+		}
+		.alerts-route-option { min-height: 4.35rem; padding: .58rem .48rem; }
+		.alerts-notification-row { padding: .67rem 0; }
+	}
+	@media (max-width: 390px) {
+		.alerts-card { left: .45rem !important; right: .45rem !important; bottom: .45rem; }
+		.alerts-route-grid { gap: .38rem; }
+		.alerts-route-option { padding: .52rem .42rem; }
+		.alerts-step { padding: .85rem; }
+		.alerts-setup-hero { padding: .9rem; }
+		.alerts-actions { grid-template-columns: .82fr 1.18fr; }
+	  }
       .latency-good {
         color: var(--color-green);
       }
@@ -872,6 +1240,21 @@
             ></span>
           </button>
 
+          {{ if not .IsPublic }}
+          <button
+            x-ref="alertsButton"
+            @click="openAlerts($event)"
+            class="btn alerts-button h-9 w-9 rounded-lg flex items-center justify-center"
+            title="Telegram alerts"
+            aria-label="Telegram alerts"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 3L3.8 10.1c-.9.37-.86 1.67.06 1.98l4.37 1.48 1.48 4.37c.31.92 1.61.96 1.98.06L21 3Zm0 0L8.23 13.56" />
+            </svg>
+            <span class="alerts-status-dot" :class="alertsStatusClass"></span>
+          </button>
+          {{ end }}
+
           <button
             @click="toggleDarkMode()"
             class="btn h-9 w-9 rounded-lg flex items-center justify-center"
@@ -917,7 +1300,7 @@
           >
             0
           </div>
-          <div class="text-xs text-muted mt-0.5" x-text="viewMode === 'nodes' ? 'Nodes' : 'Bindings'"></div>
+          <div class="text-xs text-muted mt-0.5">Hosts</div>
         </div>
         <div class="card rounded-lg p-2 sm:p-4 text-center">
           <div
@@ -926,7 +1309,7 @@
           >
             0
           </div>
-          <div class="text-xs text-muted mt-0.5" x-text="viewMode === 'nodes' ? 'Nodes online' : 'Online'"></div>
+          <div class="text-xs text-muted mt-0.5">Online</div>
         </div>
         <div class="card rounded-lg p-2 sm:p-4 text-center">
           <div
@@ -935,7 +1318,7 @@
           >
             0
           </div>
-          <div class="text-xs text-muted mt-0.5" x-text="viewMode === 'nodes' ? 'Nodes offline' : 'Offline'"></div>
+          <div class="text-xs text-muted mt-0.5">Offline</div>
         </div>
         <div class="card rounded-lg p-2 sm:p-4 text-center">
           <div class="text-base sm:text-xl font-semibold text-primary">
@@ -951,7 +1334,7 @@
         x-show="showServersHeader"
         class="flex flex-wrap items-center justify-between gap-3 mb-4"
       >
-        <h2 class="text-base font-semibold text-primary">Servers</h2>
+        <h2 class="text-base font-semibold text-primary">Hosts</h2>
         {{ if not .IsPublic }}
         <div class="flex flex-wrap items-center gap-2">
           <a
@@ -1118,20 +1501,6 @@
           </div>
 
           <div class="flex gap-2 sm:gap-3 flex-1 sm:flex-none justify-end">
-			{{ if not .IsPublic }}
-			<div class="flex gap-1 p-1 rounded-lg card-flat">
-			  <button
-				@click="setViewMode('nodes')"
-				:class="viewMode === 'nodes' ? 'filter-all' : 'text-muted hover:text-secondary'"
-				class="px-3 py-1 rounded text-xs font-medium"
-			  >Nodes</button>
-			  <button
-				@click="setViewMode('hosts')"
-				:class="viewMode === 'hosts' ? 'filter-all' : 'text-muted hover:text-secondary'"
-				class="px-3 py-1 rounded text-xs font-medium"
-			  >Hosts</button>
-			</div>
-			{{ end }}
             <div class="flex gap-1 p-1 rounded-lg card-flat">
               <button
                 @click="setFilter('all')"
@@ -1274,12 +1643,13 @@
                       x-text="item.proxy.name"
                     ></span>
                     {{ else }}
-                    <a
-                      :href="item.proxy.url"
-                      target="_blank"
-                      class="text-sm text-primary link-hover truncate transition-colors"
+                    <button
+                      type="button"
+                      @click.stop="copyHostName(item.proxy)"
+                      class="text-sm text-primary link-hover truncate transition-colors min-w-0 text-left"
+                      :title="'Copy host name: ' + item.proxy.name"
                       x-text="item.proxy.name"
-                    ></a>
+                    ></button>
                     {{ end }}
                     <span
                       x-show="item.proxy.protocol"
@@ -1582,6 +1952,329 @@
 		</div>
       </div>
     </div>
+
+    <div
+      x-show="alertsModalOpen"
+      x-transition.opacity
+      @keydown.escape.window="closeAlerts()"
+      @resize.window="scheduleAlertsReposition()"
+      @click.self="closeAlerts()"
+      class="diagnosis-backdrop fixed inset-0 z-50"
+      style="display: none"
+    >
+      <div
+        x-ref="alertsPopover"
+        class="diagnosis-card alerts-card popover-below"
+        :style="alertsPopoverStyle"
+        @click.stop
+      >
+        <div class="diagnosis-scroll">
+          <div class="diagnosis-header flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="alerts-icon flex-shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 3L3.8 10.1c-.9.37-.86 1.67.06 1.98l4.37 1.48 1.48 4.37c.31.92 1.61.96 1.98.06L21 3Zm0 0L8.23 13.56" />
+                </svg>
+              </div>
+              <div class="min-w-0">
+                <div class="alerts-kicker">Alert center</div>
+                <div class="flex items-center gap-2">
+                  <h2 class="text-base font-semibold text-primary">Telegram alerts</h2>
+                </div>
+                <p class="text-[10px] text-muted mt-0.5 truncate" x-text="telegramStatus.configured ? alertsStatusLabel + ' · ' + (telegramStatus.recipient || 'Configured chat') : 'Private alerts for nodes that need attention'"></p>
+              </div>
+            </div>
+            <button type="button" @click="closeAlerts()" class="diagnosis-close flex-shrink-0" title="Close" aria-label="Close Telegram settings">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+
+          <div class="alerts-content">
+          <div x-show="alertsLoading" class="flex flex-col items-center justify-center gap-3 text-xs text-muted py-14">
+            <span class="alerts-spinner"></span>
+            <span>Loading alert settings…</span>
+          </div>
+          <div x-show="telegramError && !alertsLoading" class="alerts-error-banner mb-3">
+            <svg class="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v4m0 4h.01M10.3 3.7 2.7 17a2 2 0 0 0 1.73 3h15.14A2 2 0 0 0 21.3 17L13.7 3.7a2 2 0 0 0-3.4 0Z"/></svg>
+            <span x-text="telegramError"></span>
+          </div>
+
+          <template x-if="!alertsLoading && (!telegramStatus.configured || telegramReplacing)">
+            <div class="space-y-3">
+              <div class="alerts-setup-hero">
+                <div class="relative z-10 flex items-start justify-between gap-4">
+                  <div>
+                    <div class="alerts-kicker">Quick setup</div>
+                    <h3 class="text-sm font-semibold text-primary mt-1">Know when a node needs attention</h3>
+                    <p class="alerts-section-copy mt-1 max-w-[20rem]">Only meaningful state changes are sent. Repeated noise stays grouped and quiet.</p>
+                  </div>
+                  <span class="alerts-route-count">~2 min</span>
+                </div>
+                <div class="relative z-10 flex items-center gap-2 mt-3 text-[10px] text-muted">
+                  <svg class="w-3.5 h-3.5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m9 12 2 2 4-4"/></svg>
+                  <span>Token and proxy credentials stay on this Mac</span>
+                </div>
+              </div>
+
+              <section class="alerts-step">
+                <div class="flex items-start gap-3">
+                  <span class="alerts-step-index">1</span>
+                  <div class="min-w-0 flex-1 flex items-center justify-between gap-3">
+                    <div>
+                      <h3 class="alerts-section-title">Create your bot</h3>
+                      <p class="alerts-section-copy mt-0.5">In BotFather, run <span class="text-primary">/newbot</span> and copy the token.</p>
+                    </div>
+                    <a href="https://t.me/BotFather" target="_blank" rel="noreferrer" class="btn flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-semibold">
+                      BotFather
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17 17 7M7 7h10v10"/></svg>
+                    </a>
+                  </div>
+                </div>
+              </section>
+
+              <section class="alerts-step active">
+                <div class="flex items-start gap-3">
+                  <span class="alerts-step-index" :class="telegramBot && 'complete'" x-text="telegramBot ? '✓' : '2'"></span>
+                  <div class="min-w-0 flex-1">
+                    <h3 class="alerts-section-title">Connect securely</h3>
+                    <p class="alerts-section-copy mt-0.5">We verify the bot before anything is saved.</p>
+
+                    <label class="block mt-3">
+                      <span class="alerts-label"><span>Bot API token</span><span class="font-normal text-muted">Encrypted field</span></span>
+                      <span class="alerts-field block">
+                        <svg class="alerts-field-icon w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 7a4 4 0 1 1-7.9 1H2v3h3v3h3v3h3l1.4-1.4"/></svg>
+                        <input class="alerts-input with-icon pr-10" :type="telegramTokenVisible ? 'text' : 'password'" x-model="telegramToken" autocomplete="new-password" spellcheck="false" placeholder="123456789:AA…" :disabled="telegramStatus.managedByEnvironment" />
+                        <button type="button" @click="telegramTokenVisible = !telegramTokenVisible" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-secondary p-1" title="Show or hide token" aria-label="Show or hide token">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+                        </button>
+                      </span>
+                    </label>
+
+                    <div class="alerts-route-summary mt-3">
+                      <span class="alerts-route-icon flex-shrink-0 !mb-0">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 12h14M12 5l7 7-7 7"/></svg>
+                      </span>
+                      <div class="min-w-0 flex-1">
+                        <div class="text-[10px] font-semibold text-primary truncate" x-text="telegramDeliveryLabel"></div>
+                        <div class="text-[9px] text-muted mt-0.5" x-text="telegramDeliveryMode === 'auto' ? telegramStatus.availableRoutes + ' healthy physical routes ready' : telegramDeliveryDescription"></div>
+                      </div>
+                      <button type="button" @click="telegramRouteExpanded = !telegramRouteExpanded" class="text-[10px] font-semibold text-secondary hover:text-primary" x-text="telegramRouteExpanded ? 'Done' : 'Change'"></button>
+                    </div>
+
+					<div x-show="telegramRouteExpanded" x-transition.opacity class="mt-3">
+                      <div class="alerts-route-grid">
+                        <template x-for="route in telegramDeliveryOptions" :key="route.key">
+                          <button type="button" @click="telegramDeliveryMode = route.key" class="alerts-choice alerts-route-option" :class="telegramDeliveryMode === route.key && 'selected'">
+                            <span class="alerts-route-icon">
+                              <svg x-show="route.key === 'auto'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3v5m0 8v5M5.6 6.2l3.5 3.5m5.8 5.8 3.5 3.5M3 12h5m8 0h5M5.6 17.8l3.5-3.5m5.8-5.8 3.5-3.5"/></svg>
+                              <svg x-show="route.key === 'direct'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2" stroke-width="1.8"/><path stroke-linecap="round" stroke-width="1.8" d="M10.5 5h3M11 18.5h2"/></svg>
+                              <svg x-show="route.key === 'custom'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 7h16M4 17h16M8 4v6m8 4v6"/></svg>
+                            </span>
+                            <span class="text-[10px] font-semibold text-primary block" x-text="route.shortLabel"></span>
+                            <span class="text-[8px] text-muted block mt-0.5" x-text="route.key === 'auto' ? 'Recommended' : (route.key === 'direct' ? 'No proxy' : 'Your proxy')"></span>
+                          </button>
+                        </template>
+                      </div>
+                      <p class="alerts-section-copy mt-2" x-text="telegramDeliveryDescription"></p>
+                      <div x-show="telegramDeliveryMode === 'custom'" class="mt-2">
+                        <input class="alerts-input" type="password" x-model="telegramCustomProxy" autocomplete="new-password" spellcheck="false" placeholder="socks5h://user:password@host:1080" :disabled="telegramStatus.proxyManagedByEnvironment" />
+                        <p class="text-[9px] text-muted mt-1.5" x-show="telegramStatus.customProxyConfigured && !telegramCustomProxy">Saved proxy will be kept.</p>
+                        <p class="text-[9px] text-muted mt-1.5" x-show="telegramStatus.proxyManagedByEnvironment">Managed through TELEGRAM_PROXY_URL.</p>
+                      </div>
+                    </div>
+
+                    <button type="button" @click="verifyTelegramToken()" :disabled="telegramBusy || (!telegramToken && !telegramStatus.managedByEnvironment)" class="alerts-primary w-full mt-3 px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2">
+                      <span x-show="telegramBusy" class="alerts-spinner !w-3.5 !h-3.5 !border-white/30 !border-t-white"></span>
+                      <span x-text="telegramBusy ? 'Verifying securely…' : 'Verify and continue'"></span>
+                      <svg x-show="!telegramBusy" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m9 18 6-6-6-6"/></svg>
+                    </button>
+
+                    <div x-show="telegramBot" class="mt-3 alerts-choice selected p-3 flex items-center gap-3">
+                      <span class="w-8 h-8 rounded-xl grid place-items-center flex-shrink-0 text-white" style="background:linear-gradient(145deg,#39b8ef,#168dcc)">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m5 12 4 4L19 6"/></svg>
+                      </span>
+                      <div class="min-w-0 flex-1">
+                        <div class="text-[9px] uppercase tracking-wide latency-good">Verified bot</div>
+                        <div class="text-xs font-semibold text-primary truncate" x-text="telegramBot ? '@' + telegramBot.username : ''"></div>
+                      </div>
+                      <a :href="telegramBot ? 'https://t.me/' + telegramBot.username : '#'" target="_blank" rel="noreferrer" class="text-[10px] font-semibold text-secondary">Open ↗</a>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section x-show="telegramBot" x-transition class="alerts-step active">
+                <div class="flex items-start gap-3">
+                  <span class="alerts-step-index" :class="telegramSelectedChatId && 'complete'" x-text="telegramSelectedChatId ? '✓' : '3'"></span>
+                  <div class="min-w-0 flex-1">
+                    <h3 class="alerts-section-title">Choose the recipient</h3>
+                    <p class="alerts-section-copy mt-0.5">Open the bot, press Start, then come back here.</p>
+                    <button type="button" @click="discoverTelegramChats()" :disabled="telegramBusy" class="btn w-full mt-3 px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 11a8 8 0 1 1-2.35-5.65M20 4v7h-7"/></svg>
+                      <span x-text="telegramBusy ? 'Looking for your chat…' : 'I sent /start · Find my chat'"></span>
+                    </button>
+
+                    <div x-show="telegramChats.length" class="space-y-2 mt-3">
+                      <template x-for="chat in telegramChats" :key="chat.id">
+                        <button type="button" @click="selectTelegramChat(chat)" class="alerts-choice w-full p-3 text-left flex items-center gap-3" :class="String(telegramSelectedChatId) === String(chat.id) && 'selected'">
+                          <span class="w-8 h-8 rounded-xl grid place-items-center flex-shrink-0 bg-tertiary text-muted">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z"/></svg>
+                          </span>
+                          <span class="min-w-0 flex-1">
+                            <span class="text-xs font-semibold text-primary block truncate" x-text="chat.label"></span>
+                            <span class="text-[9px] text-muted uppercase tracking-wide" x-text="chat.type"></span>
+                          </span>
+                          <span class="w-4 h-4 rounded-full border flex-shrink-0 flex items-center justify-center" :style="String(telegramSelectedChatId) === String(chat.id) ? 'border-color:#2aabee' : ''">
+                            <span x-show="String(telegramSelectedChatId) === String(chat.id)" class="w-2 h-2 rounded-full" style="background:#2aabee"></span>
+                          </span>
+                        </button>
+                      </template>
+                    </div>
+                    <p x-show="telegramChatsSearched && !telegramChats.length" class="alerts-error-banner mt-3">No /start message yet. Send /start to the bot and try once more.</p>
+                  </div>
+                </div>
+              </section>
+
+              <button
+                x-show="telegramSelectedChatId"
+                type="button"
+                @click="saveTelegramSettings()"
+                :disabled="telegramBusy"
+                class="alerts-primary w-full px-4 py-3 rounded-xl text-sm font-semibold"
+              >
+                <span x-text="telegramBusy ? 'Finishing setup…' : 'Enable Telegram alerts'"></span>
+              </button>
+              <button x-show="telegramReplacing && telegramStatus.configured" type="button" @click="cancelTelegramReplacement()" class="btn w-full px-4 py-2.5 rounded-xl text-xs">Keep current bot</button>
+            </div>
+          </template>
+
+          <template x-if="!alertsLoading && telegramStatus.configured && !telegramReplacing">
+            <div class="space-y-3">
+              <section class="alerts-account">
+                <div class="flex items-start gap-3">
+                  <span class="alerts-account-avatar flex-shrink-0">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M21 3 3.8 10.1c-.9.37-.86 1.67.06 1.98l4.37 1.48 1.48 4.37c.31.92 1.61.96 1.98.06L21 3Zm0 0L8.23 13.56"/></svg>
+                  </span>
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-2">
+                      <h3 class="text-sm font-semibold text-primary truncate" x-text="telegramStatus.botUsername ? '@' + telegramStatus.botUsername : 'Telegram bot'"></h3>
+                      <span class="alerts-status-pill" :class="telegramStatus.connected ? 'latency-good' : (telegramStatus.state === 'error' ? 'latency-bad' : 'text-muted')">
+                        <span class="w-1.5 h-1.5 rounded-full" :class="alertsStatusDotClass"></span>
+                        <span x-text="alertsStatusLabel"></span>
+                      </span>
+                    </div>
+                    <p class="text-[10px] text-muted mt-1 truncate" x-text="'Recipient · ' + (telegramStatus.recipient || 'Configured chat')"></p>
+                  </div>
+                  <div class="flex flex-col items-end gap-1.5">
+                    <button type="button" @click="toggleTelegramEnabled()" class="alerts-toggle flex-shrink-0" :class="telegramStatus.enabled && 'on'" :aria-label="telegramStatus.enabled ? 'Disable alerts' : 'Enable alerts'"></button>
+                    <span class="text-[8px] uppercase tracking-wide text-muted" x-text="telegramStatus.enabled ? 'On' : 'Paused'"></span>
+                  </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-default">
+                  <div class="min-w-0">
+                    <div class="text-[9px] uppercase tracking-wide text-muted">Last delivery</div>
+                    <div class="text-[10px] text-primary mt-1 truncate" x-text="telegramStatus.lastDeliveryAt ? formatTimestamp(telegramStatus.lastDeliveryAt) : 'Not sent yet'"></div>
+                  </div>
+                  <div class="min-w-0">
+                    <div class="text-[9px] uppercase tracking-wide text-muted">Last route</div>
+                    <div class="text-[10px] text-primary mt-1 truncate" :title="telegramStatus.lastRoute || telegramDeliveryLabel" x-text="telegramStatus.lastRoute || telegramDeliveryLabel"></div>
+                  </div>
+                </div>
+              </section>
+
+              <div x-show="telegramStatus.lastError && !telegramError" class="alerts-error-banner">
+                <svg class="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v4m0 4h.01M10.3 3.7 2.7 17a2 2 0 0 0 1.73 3h15.14A2 2 0 0 0 21.3 17L13.7 3.7a2 2 0 0 0-3.4 0Z"/></svg>
+                <span class="break-words" x-text="telegramStatus.lastError"></span>
+              </div>
+
+              <section class="alerts-panel p-4">
+                <div class="flex items-start justify-between gap-3 mb-3">
+                  <div>
+                    <div class="alerts-kicker">Delivery</div>
+                    <h3 class="alerts-section-title mt-1">How alerts reach Telegram</h3>
+                  </div>
+                  <span class="alerts-route-count" x-show="telegramDeliveryMode === 'auto'" x-text="telegramStatus.availableRoutes + ' ready'"></span>
+                </div>
+                <div class="alerts-route-grid">
+                  <template x-for="route in telegramDeliveryOptions" :key="route.key">
+                    <button type="button" @click="telegramDeliveryMode = route.key" class="alerts-choice alerts-route-option" :class="telegramDeliveryMode === route.key && 'selected'">
+                      <span class="alerts-route-icon">
+                        <svg x-show="route.key === 'auto'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3v5m0 8v5M5.6 6.2l3.5 3.5m5.8 5.8 3.5 3.5M3 12h5m8 0h5M5.6 17.8l3.5-3.5m5.8-5.8 3.5-3.5"/></svg>
+                        <svg x-show="route.key === 'direct'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2" stroke-width="1.8"/><path stroke-linecap="round" stroke-width="1.8" d="M10.5 5h3M11 18.5h2"/></svg>
+                        <svg x-show="route.key === 'custom'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 7h16M4 17h16M8 4v6m8 4v6"/></svg>
+                      </span>
+                      <span class="text-[10px] font-semibold text-primary block" x-text="route.shortLabel"></span>
+                      <span class="text-[8px] text-muted block mt-0.5" x-text="route.key === 'auto' ? 'Recommended' : (route.key === 'direct' ? 'No proxy' : 'Your proxy')"></span>
+                    </button>
+                  </template>
+                </div>
+                <div class="flex items-start gap-2 mt-3 text-[10px] text-muted leading-relaxed">
+                  <svg class="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
+                  <span x-text="telegramDeliveryDescription"></span>
+                </div>
+                <div x-show="telegramDeliveryMode === 'custom'" class="mt-3">
+                  <label class="alerts-label"><span>Proxy URL</span><span class="font-normal text-muted">Secret</span></label>
+                  <input class="alerts-input" type="password" x-model="telegramCustomProxy" autocomplete="new-password" spellcheck="false" placeholder="socks5h://user:password@host:1080" :disabled="telegramStatus.proxyManagedByEnvironment" />
+                  <p class="text-[9px] text-muted mt-1.5" x-show="telegramStatus.customProxyConfigured && !telegramCustomProxy">Leave blank to keep the saved proxy.</p>
+                  <p class="text-[9px] text-muted mt-1.5" x-show="telegramStatus.proxyManagedByEnvironment">Managed through TELEGRAM_PROXY_URL.</p>
+                </div>
+              </section>
+
+              <section class="alerts-panel p-4">
+                <div class="alerts-kicker">Notifications</div>
+                <h3 class="alerts-section-title mt-1 mb-3">What deserves a message</h3>
+                <div>
+                  <template x-for="option in telegramPreferenceOptions" :key="option.key">
+                    <button type="button" @click="telegramPreferences[option.key] = !telegramPreferences[option.key]" class="alerts-notification-row w-full text-left">
+                      <span class="min-w-0">
+                        <span class="text-[11px] font-medium text-primary block" x-text="option.label"></span>
+                        <span class="text-[9px] text-muted block mt-0.5" x-text="option.description"></span>
+                      </span>
+                      <span class="alerts-toggle flex-shrink-0" :class="telegramPreferences[option.key] && 'on'"></span>
+                    </button>
+                  </template>
+                </div>
+              </section>
+
+              <details class="alerts-advanced p-4">
+                <summary class="flex items-center justify-between gap-3 text-[11px] font-semibold text-primary cursor-pointer select-none">
+                  <span class="flex items-center gap-2">
+                    <svg class="w-3.5 h-3.5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 8.96 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3v-4h.08A1.7 1.7 0 0 0 4.6 8.94a1.7 1.7 0 0 0-.34-1.88L4.2 7l2.83-2.83.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 10 3.02V3h4v.08a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06L19.8 7l-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.56 1.03H21v4h-.08A1.7 1.7 0 0 0 19.4 15Z"/></svg>
+                    Advanced settings
+                  </span>
+                  <svg class="alerts-chevron w-3.5 h-3.5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6"/></svg>
+                </summary>
+                <div class="grid grid-cols-2 gap-3 mt-4">
+                  <label class="alerts-label !block">Batch window, sec
+                    <input type="number" min="5" max="300" x-model.number="telegramPreferences.batchWindowSec" class="alerts-input mt-1.5" />
+                  </label>
+                  <label class="alerts-label !block">Repeat unresolved, hours
+                    <input type="number" min="0" max="168" x-model.number="telegramPreferences.repeatHours" class="alerts-input mt-1.5" />
+                  </label>
+                </div>
+                <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-default">
+                  <button type="button" @click="beginTelegramReplacement()" :disabled="telegramStatus.managedByEnvironment" class="btn px-3 py-2.5 rounded-lg text-[10px] font-semibold">Replace bot token</button>
+                  <button type="button" @click="disconnectTelegram()" :disabled="telegramBusy || telegramStatus.managedByEnvironment" class="btn px-3 py-2.5 rounded-lg text-[10px] font-semibold latency-bad">Disconnect</button>
+                </div>
+                <p x-show="telegramStatus.managedByEnvironment" class="text-[9px] text-muted mt-3">The token is managed through environment variables.</p>
+              </details>
+
+              <div class="alerts-actions">
+                <button type="button" @click="sendTelegramTest()" :disabled="telegramBusy || !telegramStatus.enabled" class="btn px-3 py-2.5 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-2">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m3 11 18-8-8 18-2-8-8-2Z"/></svg>
+                  <span x-text="telegramBusy ? 'Sending…' : 'Send test'"></span>
+                </button>
+                <button type="button" @click="saveTelegramPreferences()" :disabled="telegramBusy" class="alerts-primary px-3 py-2.5 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-2">
+                  <svg x-show="!telegramBusy" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m5 12 4 4L19 6"/></svg>
+                  <span x-text="telegramBusy ? 'Saving…' : 'Save changes'"></span>
+                </button>
+              </div>
+            </div>
+          </template>
+          </div>
+        </div>
+      </div>
+    </div>
     {{ end }}
 
     <script>
@@ -1603,7 +2296,6 @@
           searchOpen: false,
           filter: localStorage.getItem('filter') || 'all',
           sort: localStorage.getItem('sort') || 'default',
-          viewMode: localStorage.getItem('viewMode') || {{ if .IsPublic }}'hosts'{{ else }}'nodes'{{ end }},
           toasts: [],
           initialLoad: true,
           networkStatus: {
@@ -1627,6 +2319,64 @@
 		  diagnosisPopoverPlacement: 'below',
 		  diagnosisAnchor: null,
 		  recheckingNodeIds: {},
+		  alertsModalOpen: false,
+		  alertsLoading: false,
+		  alertsStatusInterval: null,
+		  alertsPopoverStyle: 'right: 1rem; top: 5rem;',
+		  alertsAnchor: null,
+		  telegramBusy: false,
+		  telegramError: '',
+		  telegramToken: '',
+		  telegramTokenVisible: false,
+		  telegramBot: null,
+		  telegramChats: [],
+		  telegramChatsSearched: false,
+		  telegramSelectedChatId: '',
+		  telegramSelectedChatLabel: '',
+		  telegramReplacing: false,
+		  telegramDeliveryMode: 'auto',
+		  telegramCustomProxy: '',
+		  telegramRouteExpanded: false,
+		  telegramStatus: {
+			available: false,
+			configured: false,
+			enabled: false,
+			connected: false,
+			managedByEnvironment: false,
+			proxyManagedByEnvironment: false,
+			state: 'not_configured',
+			botUsername: '',
+			recipient: '',
+			lastDeliveryAt: 0,
+			lastError: '',
+			deliveryMode: 'auto',
+			customProxyConfigured: false,
+			lastRoute: '',
+			availableRoutes: 0,
+		  },
+		  telegramDeliveryOptions: [
+			{ key: 'auto', shortLabel: 'Auto', label: 'Auto · healthy Xray nodes', description: 'Recommended. Tries up to three different physical nodes without touching the checker queue.' },
+			{ key: 'direct', shortLabel: 'Direct', label: 'Direct mobile connection', description: 'Use the iPhone route directly. Telegram may be blocked by the mobile provider.' },
+			{ key: 'custom', shortLabel: 'Custom', label: 'Custom proxy', description: 'Use a separate HTTP, HTTPS, SOCKS5, or SOCKS5H proxy.' },
+		  ],
+		  telegramPreferences: {
+			criticalFailures: true,
+			ipChanges: true,
+			recoveries: true,
+			newIpFailures: true,
+			unstable: false,
+			networkStatus: true,
+			batchWindowSec: 30,
+			repeatHours: 12,
+		  },
+		  telegramPreferenceOptions: [
+			{ key: 'criticalFailures', label: 'Nodes requiring attention', description: 'After repeated failed checks' },
+			{ key: 'ipChanges', label: 'IP address changes', description: 'Verification starts for a replacement IP' },
+			{ key: 'recoveries', label: 'Successful recoveries', description: 'A failed or replaced node works again' },
+			{ key: 'newIpFailures', label: 'New IP verification failed', description: 'The replacement did not pass confirmation' },
+			{ key: 'unstable', label: 'Unstable nodes', description: 'Potentially noisy; disabled by default' },
+			{ key: 'networkStatus', label: 'iPhone connection status', description: 'Delivery resumes after the probe reconnects' },
+		  ],
 
           // URL-controlled visibility
           showHeader: !getUrlParam('hideHeader'),
@@ -1679,6 +2429,41 @@
             if (this.networkStatus.state === 'unknown') return 'iPhone · Monitor offline';
             return 'iPhone · Waiting';
           },
+
+		  get alertsStatusClass() {
+			if (this.telegramStatus.state === 'error') return 'error';
+			if (this.telegramStatus.state === 'disabled') return 'disabled';
+			if (this.telegramStatus.connected) return 'connected';
+			return '';
+		  },
+
+		  get alertsStatusDotClass() {
+			if (this.telegramStatus.state === 'error') return 'status-offline';
+			if (this.telegramStatus.state === 'disabled') return 'status-unstable';
+			if (this.telegramStatus.connected) return 'status-online';
+			return 'bg-tertiary';
+		  },
+
+		  get alertsStatusLabel() {
+			if (this.telegramStatus.state === 'error') return 'Delivery error';
+			if (this.telegramStatus.state === 'disabled') return 'Alerts paused';
+			if (this.telegramStatus.connected) return 'Connected';
+			if (this.telegramStatus.configured) return 'Configured';
+			return 'Not configured';
+		  },
+
+		  get telegramDeliveryLabel() {
+			return {
+			  auto: 'Auto via healthy Xray nodes',
+			  direct: 'Direct mobile connection',
+			  custom: 'Custom proxy',
+			}[this.telegramDeliveryMode] || 'Auto via healthy Xray nodes';
+		  },
+
+		  get telegramDeliveryDescription() {
+			const route = this.telegramDeliveryOptions.find(option => option.key === this.telegramDeliveryMode);
+			return route ? route.description : this.telegramDeliveryOptions[0].description;
+		  },
 
           collapsedGroups: {},
 
@@ -1758,21 +2543,6 @@
           },
 
           get stats() {
-			if (this.viewMode === 'nodes') {
-			  const nodes = new Map();
-			  for (const p of this.activeProxies) {
-				const key = p.nodeId || p.serverInfo || p.stableId;
-				if (!nodes.has(key)) nodes.set(key, []);
-				nodes.get(key).push(p);
-			  }
-			  const groups = [...nodes.values()];
-			  const onlineNodes = groups.filter(bindings => bindings.some(p => p.status)).length;
-			  const withLatency = this.activeProxies.filter(p => p.status && p.latencyMs > 0);
-			  return {
-				total: groups.length, online: onlineNodes, offline: groups.length - onlineNodes,
-				avgLatency: withLatency.length ? Math.round(withLatency.reduce((s, p) => s + p.latencyMs, 0) / withLatency.length) : 0
-			  };
-			}
 			const online = this.activeProxies.filter(p => p.status).length;
 			const withLatency = this.activeProxies.filter(p => p.status && p.latencyMs > 0);
             return {
@@ -1817,27 +2587,6 @@
           // Partition proxies by subscription. If a source does not expose a
           // subscription name, retain the previous balancer grouping fallback.
           get proxyBlocks() {
-			if (this.viewMode === 'nodes') {
-			  const nodes = new Map();
-			  for (const p of this.filteredProxies) {
-				const key = p.nodeId || ('endpoint:' + (p.serverInfo || p.stableId));
-				if (!nodes.has(key)) {
-				  const endpoint = (p.serverInfo || 'Endpoint').replace(/:\d+$/, '');
-				  nodes.set(key, { label: 'Node · ' + endpoint, proxies: [], nodeId: p.nodeId });
-				}
-				nodes.get(key).proxies.push(p);
-			  }
-			  return [...nodes.entries()].map(([key, value]) => ({
-				key: 'n:' + key, group: value.label, nodeId: value.nodeId,
-				diagnosis: value.nodeId ? this.nodeDiagnoses[value.nodeId] : null,
-				proxies: value.proxies,
-				online: value.proxies.filter(p => p.status).length,
-				total: value.proxies.length,
-			  })).sort((a, b) => {
-				const aBroken = a.total - a.online, bBroken = b.total - b.online;
-				return bBroken - aBroken || a.group.localeCompare(b.group);
-			  });
-			}
             const groups = new Map();
             const ungrouped = [];
             for (const p of this.filteredProxies) {
@@ -1890,17 +2639,16 @@
             this.collapsedGroups[name] = !this.collapsedGroups[name];
           },
 
-		  setViewMode(mode) {
-			this.viewMode = mode;
-			localStorage.setItem('viewMode', mode);
-		  },
-
           init() {
             const params = new URLSearchParams(window.location.search);
 
             this.refreshNetworkStatus();
 			this.refreshNodeDiagnoses();
             this.networkStatusInterval = setInterval(() => this.refreshNetworkStatus(), 3000);
+			{{ if not .IsPublic }}
+			this.loadTelegramStatus(true);
+			this.alertsStatusInterval = setInterval(() => this.loadTelegramStatus(true), 30000);
+			{{ end }}
 
             // Check for badge mode
             const stableId = params.get('stableId');
@@ -2223,6 +2971,250 @@
 			this.diagnosisAnchor = null;
 		  },
 
+		  async openAlerts(event = null) {
+			this.closeDiagnosis();
+			const button = event && event.currentTarget;
+			if (button) {
+			  const rect = button.getBoundingClientRect();
+			  this.alertsAnchor = { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width };
+			}
+			this.alertsModalOpen = true;
+			this.telegramError = '';
+			this.scheduleAlertsReposition();
+			await this.loadTelegramStatus();
+		  },
+
+		  closeAlerts() {
+			this.alertsModalOpen = false;
+			this.alertsAnchor = null;
+			this.telegramError = '';
+			this.telegramToken = '';
+			this.telegramTokenVisible = false;
+			this.telegramBot = null;
+			this.telegramChats = [];
+			this.telegramChatsSearched = false;
+			this.telegramSelectedChatId = '';
+			this.telegramSelectedChatLabel = '';
+			this.telegramReplacing = false;
+			this.telegramRouteExpanded = false;
+		  },
+
+		  scheduleAlertsReposition() {
+			requestAnimationFrame(() => requestAnimationFrame(() => this.refreshAlertsPopoverPosition()));
+		  },
+
+		  refreshAlertsPopoverPosition() {
+			if (!this.alertsModalOpen || window.innerWidth <= 640) return;
+			const rect = this.alertsAnchor;
+			const card = this.$refs.alertsPopover;
+			if (!rect || !card) return;
+			const margin = 12, gap = 11;
+			const width = card.offsetWidth || Math.min(464, window.innerWidth - margin * 2);
+			let left = rect.right - width;
+			left = Math.min(window.innerWidth - width - margin, Math.max(margin, left));
+			const top = Math.min(window.innerHeight - 120, Math.max(margin, rect.bottom + gap));
+			const arrowLeft = Math.min(width - 24, Math.max(24, rect.left + rect.width / 2 - left));
+			this.alertsPopoverStyle = 'left:' + Math.round(left) + 'px;top:' + Math.round(top) + 'px;--diagnosis-arrow-left:' + Math.round(arrowLeft) + 'px;';
+		  },
+
+		  async loadTelegramStatus(quiet = false) {
+			if (!quiet) this.alertsLoading = true;
+			try {
+			  const res = await fetch('./api/v1/alerts/telegram');
+			  const json = await res.json();
+			  if (!res.ok || !json.success) throw new Error(json.error || 'Could not load Telegram settings');
+			  this.telegramStatus = { ...this.telegramStatus, ...(json.data || {}) };
+			  if (json.data && json.data.deliveryMode) this.telegramDeliveryMode = json.data.deliveryMode;
+			  if (json.data && json.data.preferences) this.telegramPreferences = { ...this.telegramPreferences, ...json.data.preferences };
+			} catch (e) {
+			  if (!quiet) this.telegramError = e.message || 'Could not load Telegram settings';
+			} finally {
+			  if (!quiet) {
+				this.alertsLoading = false;
+				this.scheduleAlertsReposition();
+			  }
+			}
+		  },
+
+		  async telegramRequest(path, options = {}) {
+			const res = await fetch('./api/v1/alerts/telegram' + path, options);
+			let json = {};
+			try { json = await res.json(); } catch {}
+			if (!res.ok || !json.success) throw new Error(json.error || 'Telegram request failed');
+			return json.data;
+		  },
+
+		  async verifyTelegramToken() {
+			this.telegramBusy = true;
+			this.telegramError = '';
+			try {
+			  this.telegramBot = await this.telegramRequest('/verify', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+				  token: this.telegramToken,
+				  deliveryMode: this.telegramDeliveryMode,
+				  customProxyUrl: this.telegramCustomProxy,
+				}),
+			  });
+			  this.showToast('Telegram bot connected');
+			  this.scheduleAlertsReposition();
+			} catch (e) {
+			  this.telegramBot = null;
+			  this.telegramError = e.message || 'Token verification failed';
+			} finally {
+			  this.telegramBusy = false;
+			}
+		  },
+
+		  async discoverTelegramChats() {
+			this.telegramBusy = true;
+			this.telegramError = '';
+			try {
+			  this.telegramChats = await this.telegramRequest('/discover-chat', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+				  token: this.telegramToken,
+				  deliveryMode: this.telegramDeliveryMode,
+				  customProxyUrl: this.telegramCustomProxy,
+				}),
+			  }) || [];
+			  this.telegramChatsSearched = true;
+			  if (this.telegramChats.length === 1) this.selectTelegramChat(this.telegramChats[0]);
+			  this.scheduleAlertsReposition();
+			} catch (e) {
+			  this.telegramError = e.message || 'Could not discover Telegram chats';
+			} finally {
+			  this.telegramBusy = false;
+			}
+		  },
+
+		  selectTelegramChat(chat) {
+			this.telegramSelectedChatId = chat.id;
+			this.telegramSelectedChatLabel = chat.label;
+		  },
+
+		  telegramSettingsPayload(overrides = {}) {
+			return {
+			  token: overrides.token !== undefined ? overrides.token : this.telegramToken,
+			  chatId: overrides.chatId !== undefined ? overrides.chatId : (this.telegramSelectedChatId || 0),
+			  chatLabel: overrides.chatLabel !== undefined ? overrides.chatLabel : this.telegramSelectedChatLabel,
+			  enabled: overrides.enabled !== undefined ? overrides.enabled : true,
+			  deliveryMode: this.telegramDeliveryMode,
+			  customProxyUrl: this.telegramCustomProxy,
+			  preferences: { ...this.telegramPreferences },
+			};
+		  },
+
+		  async persistTelegramSettings(payload, successMessage = '') {
+			this.telegramBusy = true;
+			this.telegramError = '';
+			try {
+			  const status = await this.telegramRequest('', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload),
+			  });
+			  this.telegramStatus = { ...this.telegramStatus, ...(status || {}) };
+			  if (status && status.deliveryMode) this.telegramDeliveryMode = status.deliveryMode;
+			  if (status && status.preferences) this.telegramPreferences = { ...this.telegramPreferences, ...status.preferences };
+			  this.telegramCustomProxy = '';
+			  if (successMessage) this.showToast(successMessage);
+			  return true;
+			} catch (e) {
+			  this.telegramError = e.message || 'Could not save Telegram settings';
+			  return false;
+			} finally {
+			  this.telegramBusy = false;
+			  this.scheduleAlertsReposition();
+			}
+		  },
+
+		  async saveTelegramSettings() {
+			const saved = await this.persistTelegramSettings(this.telegramSettingsPayload(), 'Telegram alerts enabled');
+			if (!saved) return;
+			this.telegramToken = '';
+			this.telegramTokenVisible = false;
+			this.telegramBot = null;
+			this.telegramChats = [];
+			this.telegramSelectedChatId = '';
+			this.telegramSelectedChatLabel = '';
+			this.telegramReplacing = false;
+		  },
+
+		  async saveTelegramPreferences() {
+			await this.persistTelegramSettings(this.telegramSettingsPayload({
+			  token: '', chatId: 0, chatLabel: '', enabled: this.telegramStatus.enabled,
+			}), 'Notification settings saved');
+		  },
+
+		  async toggleTelegramEnabled() {
+			const enable = !this.telegramStatus.enabled;
+			await this.persistTelegramSettings(this.telegramSettingsPayload({
+			  token: '', chatId: 0, chatLabel: '', enabled: enable,
+			}), enable ? 'Telegram alerts enabled' : 'Telegram alerts paused');
+		  },
+
+		  async sendTelegramTest() {
+			this.telegramBusy = true;
+			this.telegramError = '';
+			try {
+			  const status = await this.telegramRequest('/test', {
+				method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+			  });
+			  this.telegramStatus = { ...this.telegramStatus, ...(status || {}) };
+			  this.showToast('Test message sent');
+			} catch (e) {
+			  this.telegramError = e.message || 'Could not send the test message';
+			} finally {
+			  this.telegramBusy = false;
+			}
+		  },
+
+		  beginTelegramReplacement() {
+			this.telegramReplacing = true;
+			this.telegramRouteExpanded = false;
+			this.telegramToken = '';
+			this.telegramBot = null;
+			this.telegramChats = [];
+			this.telegramSelectedChatId = '';
+			this.telegramSelectedChatLabel = '';
+			this.scheduleAlertsReposition();
+		  },
+
+		  cancelTelegramReplacement() {
+			this.telegramReplacing = false;
+			this.telegramRouteExpanded = false;
+			this.telegramToken = '';
+			this.telegramBot = null;
+			this.telegramChats = [];
+			this.telegramError = '';
+		  },
+
+		  async disconnectTelegram() {
+			if (!window.confirm('Disconnect Telegram and remove the saved token?')) return;
+			this.telegramBusy = true;
+			this.telegramError = '';
+			try {
+			  const status = await this.telegramRequest('', { method: 'DELETE' });
+			  this.telegramStatus = { ...this.telegramStatus, ...(status || {}) };
+			  this.telegramPreferences = {
+				criticalFailures: true, ipChanges: true, recoveries: true,
+				newIpFailures: true, unstable: false, networkStatus: true,
+				batchWindowSec: 30, repeatHours: 12,
+			  };
+			  this.telegramDeliveryMode = 'auto';
+			  this.telegramCustomProxy = '';
+			  this.telegramRouteExpanded = false;
+			  this.showToast('Telegram disconnected');
+			} catch (e) {
+			  this.telegramError = e.message || 'Could not disconnect Telegram';
+			} finally {
+			  this.telegramBusy = false;
+			}
+		  },
+
           async recheckProxy(proxy) {
 			if (!proxy || proxy.rechecking) return;
 			const stableId = proxy.stableId;
@@ -2278,6 +3270,28 @@
 			}
 		  },
 
+          async copyText(value) {
+            try {
+              await navigator.clipboard.writeText(value);
+            } catch {
+              const t = Object.assign(document.createElement('textarea'), { value, style: 'position:fixed;opacity:0' });
+              document.body.appendChild(t);
+              t.select();
+              document.execCommand('copy');
+              t.remove();
+            }
+          },
+
+          async copyHostName(proxy) {
+            const name = String(proxy && proxy.name || '').trim();
+            if (!name) {
+              this.showToast('Host name is unavailable');
+              return;
+            }
+            await this.copyText(name);
+            this.showToast('Host name copied: ' + name);
+          },
+
           async copyIp(proxy) {
             let ip = String(proxy.currentResolved || proxy.serverInfo || '').split(',')[0].trim();
             const bracketed = ip.match(/^\[([^\]]+)\](?::\d+)?$/);
@@ -2290,8 +3304,7 @@
               this.showToast('IP is unavailable');
               return;
             }
-            try { await navigator.clipboard.writeText(ip); }
-            catch { const t = Object.assign(document.createElement('textarea'), {value: ip, style: 'position:fixed;opacity:0'}); document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
+            await this.copyText(ip);
             this.showToast('IP copied: ' + ip);
           },
 

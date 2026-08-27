@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"time"
+	"xray-checker/alerts"
 	"xray-checker/checker"
 	"xray-checker/config"
 	"xray-checker/logger"
@@ -114,6 +116,18 @@ func main() {
 	if err := proxyChecker.SetDiagnosisFile(config.CLIConfig.NodeDiagnosisFile); err != nil {
 		logger.Warn("Could not restore node diagnosis history: %v", err)
 	}
+	alertManager, err := alerts.NewManager(
+		proxyChecker,
+		config.CLIConfig.Xray.StartPort,
+		config.CLIConfig.Alerts.SettingsFile,
+		config.CLIConfig.Alerts.TelegramToken,
+		config.CLIConfig.Alerts.TelegramChat,
+		config.CLIConfig.Alerts.TelegramProxy,
+	)
+	if err != nil {
+		logger.Fatal("Could not initialize Telegram alerts: %v", err)
+	}
+	alertManager.Start(context.Background())
 
 	// The collector renders metrics from the checker's current proxy snapshot on
 	// each scrape, so custom metricsLabels (#124) can change across subscription
@@ -319,6 +333,8 @@ func main() {
 	protectedHandler.Handle("/api/v1/system/info", web.APISystemInfoHandler(version, startTime))
 	protectedHandler.Handle("/api/v1/system/ip", web.APISystemIPHandler(proxyChecker))
 	protectedHandler.Handle("/api/v1/network", web.APINetworkStatusHandler(proxyChecker))
+	protectedHandler.Handle("/api/v1/alerts/telegram", web.TelegramAlertsHandler(alertManager))
+	protectedHandler.Handle("/api/v1/alerts/telegram/", web.TelegramAlertsHandler(alertManager))
 	protectedHandler.Handle("/api/v1/docs", web.APIDocsHandler())
 	protectedHandler.Handle("/api/v1/openapi.yaml", web.APIOpenAPIHandler())
 

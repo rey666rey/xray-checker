@@ -34,6 +34,26 @@ func TestRenderIndexIncludesSubscriptionName(t *testing.T) {
 		!strings.Contains(out.String(), `Node diagnosis`) {
 		t.Fatal("rendered private dashboard does not include node diagnosis controls")
 	}
+	if !strings.Contains(out.String(), `@click.stop="copyHostName(item.proxy)"`) ||
+		!strings.Contains(out.String(), `Host name copied:`) {
+		t.Fatal("rendered private dashboard does not copy host names")
+	}
+	if strings.Contains(out.String(), `:href="item.proxy.url"`) {
+		t.Fatal("rendered private dashboard still links host names to config pages")
+	}
+	if !strings.Contains(out.String(), "Telegram alerts") ||
+		!strings.Contains(out.String(), "Alert center") ||
+		!strings.Contains(out.String(), "Quick setup") ||
+		!strings.Contains(out.String(), "Save changes") ||
+		!strings.Contains(out.String(), "./api/v1/alerts/telegram") ||
+		!strings.Contains(out.String(), "discoverTelegramChats") {
+		t.Fatal("rendered private dashboard does not include Telegram alert setup")
+	}
+	if strings.Contains(out.String(), "setViewMode(") ||
+		strings.Contains(out.String(), ">Nodes</button>") ||
+		!strings.Contains(out.String(), `<h2 class="text-base font-semibold text-primary">Hosts</h2>`) {
+		t.Fatal("rendered dashboard must expose Hosts as its only view")
+	}
 }
 
 func TestAPINodesGroupsSeveralHostsOnOneEndpoint(t *testing.T) {
