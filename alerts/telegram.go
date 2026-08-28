@@ -158,6 +158,7 @@ func (c *TelegramClient) SendMessage(ctx context.Context, token string, chatID i
 	request := map[string]interface{}{
 		"chat_id":                  chatID,
 		"text":                     text,
+		"parse_mode":               "HTML",
 		"disable_web_page_preview": true,
 	}
 	return c.call(ctx, token, "sendMessage", request, nil)

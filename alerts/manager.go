@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"net"
 	"os"
 	"path/filepath"
@@ -81,43 +82,50 @@ type PublicStatus struct {
 }
 
 type nodeSnapshot struct {
-	NodeID           string
-	Server           string
-	Names            []string
-	Affected         []string
-	State            string
-	AddressChangedAt int64
-	PreviousAddress  string
-	CurrentAddress   string
-	Failures         int
-	LastSuccess      int64
-	LastCheck        int64
-	LastError        string
-	NewIPFailed      bool
+	NodeID            string
+	Server            string
+	Names             []string
+	Affected          []string
+	Subscriptions     []string
+	State             string
+	AddressChangedAt  int64
+	PreviousAddress   string
+	CurrentAddress    string
+	Failures          int
+	LastSuccess       int64
+	LastCheck         int64
+	LastError         string
+	LatencyMs         int64
+	IncidentStartedAt int64
+	NewIPFailed       bool
 }
 
 type observedNode struct {
-	State            string `json:"state"`
-	AddressChangedAt int64  `json:"addressChangedAt,omitempty"`
-	LastAlertAt      int64  `json:"lastAlertAt,omitempty"`
-	LastSeen         int64  `json:"lastSeen"`
+	State             string `json:"state"`
+	AddressChangedAt  int64  `json:"addressChangedAt,omitempty"`
+	LastAlertAt       int64  `json:"lastAlertAt,omitempty"`
+	LastSeen          int64  `json:"lastSeen"`
+	IncidentStartedAt int64  `json:"incidentStartedAt,omitempty"`
 }
 
 type notification struct {
-	ID               string   `json:"id"`
-	Kind             string   `json:"kind"`
-	NodeID           string   `json:"nodeId,omitempty"`
-	Server           string   `json:"server,omitempty"`
-	Names            []string `json:"names,omitempty"`
-	Affected         []string `json:"affected,omitempty"`
-	PreviousAddress  string   `json:"previousAddress,omitempty"`
-	CurrentAddress   string   `json:"currentAddress,omitempty"`
-	Failures         int      `json:"failures,omitempty"`
-	LastSuccess      int64    `json:"lastSuccess,omitempty"`
-	LastError        string   `json:"lastError,omitempty"`
-	NetworkDownAt    int64    `json:"networkDownAt,omitempty"`
-	CreatedAt        int64    `json:"createdAt"`
-	AddressChangedAt int64    `json:"addressChangedAt,omitempty"`
+	ID                string   `json:"id"`
+	Kind              string   `json:"kind"`
+	NodeID            string   `json:"nodeId,omitempty"`
+	Server            string   `json:"server,omitempty"`
+	Names             []string `json:"names,omitempty"`
+	Affected          []string `json:"affected,omitempty"`
+	Subscriptions     []string `json:"subscriptions,omitempty"`
+	PreviousAddress   string   `json:"previousAddress,omitempty"`
+	CurrentAddress    string   `json:"currentAddress,omitempty"`
+	Failures          int      `json:"failures,omitempty"`
+	LastSuccess       int64    `json:"lastSuccess,omitempty"`
+	LastError         string   `json:"lastError,omitempty"`
+	LatencyMs         int64    `json:"latencyMs,omitempty"`
+	IncidentStartedAt int64    `json:"incidentStartedAt,omitempty"`
+	NetworkDownAt     int64    `json:"networkDownAt,omitempty"`
+	CreatedAt         int64    `json:"createdAt"`
+	AddressChangedAt  int64    `json:"addressChangedAt,omitempty"`
 }
 
 type managerState struct {
@@ -438,18 +446,18 @@ func (m *Manager) SendTest(ctx context.Context) error {
 		}
 	}
 	network := m.checker.GetNetworkStatus()
-	networkLabel := "available"
+	networkLabel := "доступен"
 	if network.Managed {
 		if network.Ready {
-			networkLabel = "iPhone connected"
+			networkLabel = "iPhone подключён"
 			if network.PublicIP != "" {
-				networkLabel += " · " + network.PublicIP
+				networkLabel += " · <code>" + escapeHTML(network.PublicIP) + "</code>"
 			}
 		} else {
-			networkLabel = "iPhone connection unavailable"
+			networkLabel = "соединение с iPhone недоступно"
 		}
 	}
-	message := fmt.Sprintf("✅ Xray Checker connected\n\nTelegram alerts are configured correctly.\nNodes: %d\nRequire attention: %d\nProbe: %s",
+	message := fmt.Sprintf("🧪 <b>Тестовый алерт</b>\n\n🟢 <b>Telegram подключён</b>\nНод в мониторинге: %d\nТребуют внимания: %d\nМаршрут: %s\n\n<i>Так будут выглядеть уведомления Xray Checker.</i>",
 		len(nodes), critical, networkLabel)
 	if err := m.tryDelivery(ctx, settings.DeliveryMode, "", nil, func(client *TelegramClient) error {
 		return client.SendMessage(ctx, token, settings.ChatID, message)
@@ -521,6 +529,7 @@ func (m *Manager) evaluate(ctx context.Context, now time.Time) {
 					m.enqueueCriticalLocked(node, now, &observed)
 				} else if m.settings.Preferences.RepeatHours > 0 &&
 					now.Unix()-observed.LastAlertAt >= int64(m.settings.Preferences.RepeatHours)*3600 {
+					node.IncidentStartedAt = observed.IncidentStartedAt
 					item := notificationFromNode("reminder", node, now)
 					m.enqueueLocked(item)
 					observed.LastAlertAt = now.Unix()
@@ -528,11 +537,19 @@ func (m *Manager) evaluate(ctx context.Context, now time.Time) {
 			} else if node.State == "healthy" &&
 				(observed.State == "critical" || observed.State == "verifying" || observed.State == "unstable") &&
 				m.settings.Preferences.Recoveries {
-				m.enqueueLocked(notificationFromNode("recovered", node, now))
+				node.IncidentStartedAt = observed.IncidentStartedAt
+				kind := "recovered"
+				if observed.State == "verifying" {
+					kind = "new_ip_verified"
+				}
+				m.enqueueLocked(notificationFromNode(kind, node, now))
 			} else if node.State == "unstable" && observed.State != "unstable" &&
 				m.settings.Preferences.Unstable {
 				m.enqueueLocked(notificationFromNode("unstable", node, now))
 			}
+		}
+		if node.State != "critical" {
+			observed.IncidentStartedAt = 0
 		}
 		observed.State = node.State
 		observed.AddressChangedAt = node.AddressChangedAt
@@ -587,6 +604,16 @@ func (m *Manager) evaluateNetworkLocked(network checker.NetworkStatus, now time.
 }
 
 func (m *Manager) enqueueCriticalLocked(node nodeSnapshot, now time.Time, observed *observedNode) {
+	if observed.IncidentStartedAt == 0 {
+		observed.IncidentStartedAt = node.LastSuccess
+		if observed.IncidentStartedAt == 0 {
+			observed.IncidentStartedAt = node.LastCheck
+		}
+		if observed.IncidentStartedAt == 0 {
+			observed.IncidentStartedAt = now.Unix()
+		}
+	}
+	node.IncidentStartedAt = observed.IncidentStartedAt
 	kind := "critical"
 	if node.NewIPFailed {
 		if !m.settings.Preferences.NewIPFailures {
@@ -657,13 +684,14 @@ func (m *Manager) flush(ctx context.Context) {
 func (m *Manager) collectNodes() []nodeSnapshot {
 	type builder struct {
 		nodeSnapshot
-		names    map[string]bool
-		affected map[string]bool
-		critical bool
-		verify   bool
-		unstable bool
-		unclear  bool
-		allGood  bool
+		names         map[string]bool
+		affected      map[string]bool
+		subscriptions map[string]bool
+		critical      bool
+		verify        bool
+		unstable      bool
+		unclear       bool
+		allGood       bool
 	}
 	groups := make(map[string]*builder)
 	for _, proxy := range m.checker.GetProxies() {
@@ -675,7 +703,8 @@ func (m *Manager) collectNodes() []nodeSnapshot {
 		if group == nil {
 			group = &builder{
 				nodeSnapshot: nodeSnapshot{NodeID: nodeID, Server: proxy.Server},
-				names:        make(map[string]bool), affected: make(map[string]bool), allGood: true,
+				names:        make(map[string]bool), affected: make(map[string]bool),
+				subscriptions: make(map[string]bool), allGood: true,
 			}
 			groups[nodeID] = group
 		}
@@ -684,6 +713,14 @@ func (m *Manager) collectNodes() []nodeSnapshot {
 			name = proxy.Server
 		}
 		group.names[name] = true
+		if subscription := strings.TrimSpace(proxy.SubName); subscription != "" {
+			group.subscriptions[subscription] = true
+		}
+		if _, _, latency, _, found := m.checker.GetProxyResultDetailsByStableID(proxy.StableID); found {
+			if latencyMs := latency.Milliseconds(); latencyMs > group.LatencyMs {
+				group.LatencyMs = latencyMs
+			}
+		}
 		monitor, ok := m.checker.GetNodeMonitorByStableID(proxy.StableID)
 		if !ok {
 			group.allGood = false
@@ -736,6 +773,7 @@ func (m *Manager) collectNodes() []nodeSnapshot {
 	for _, group := range groups {
 		group.Names = mapKeys(group.names)
 		group.Affected = mapKeys(group.affected)
+		group.Subscriptions = mapKeys(group.subscriptions)
 		switch {
 		case group.critical:
 			group.State = "critical"
@@ -761,28 +799,201 @@ func notificationFromNode(kind string, node nodeSnapshot, now time.Time) notific
 	return notification{
 		ID:   fmt.Sprintf("%s:%s:%d", kind, node.NodeID, maxInt64(node.AddressChangedAt, now.Unix())),
 		Kind: kind, NodeID: node.NodeID, Server: node.Server,
-		Names: node.Names, Affected: node.Affected,
+		Names: node.Names, Affected: node.Affected, Subscriptions: node.Subscriptions,
 		PreviousAddress: node.PreviousAddress, CurrentAddress: node.CurrentAddress,
 		Failures: node.Failures, LastSuccess: node.LastSuccess, LastError: node.LastError,
+		LatencyMs: node.LatencyMs, IncidentStartedAt: node.IncidentStartedAt,
 		CreatedAt: now.Unix(), AddressChangedAt: node.AddressChangedAt,
 	}
 }
 
 func formatNotifications(items []notification) []string {
-	sections := make([]string, 0, len(items))
-	for _, item := range items {
-		sections = append(sections, formatNotification(item))
+	if len(items) == 0 {
+		return nil
 	}
+	if len(items) == 1 {
+		return []string{formatNotification(items[0])}
+	}
+
+	type digestGroup struct {
+		title string
+		kinds map[string]bool
+	}
+	groups := []digestGroup{
+		{title: "🔴 <b>Требуют внимания</b>", kinds: map[string]bool{"critical": true, "new_ip_failed": true, "reminder": true}},
+		{title: "🟠 <b>Работают нестабильно</b>", kinds: map[string]bool{"unstable": true}},
+		{title: "🔵 <b>Изменился IP</b>", kinds: map[string]bool{"ip_changed": true}},
+		{title: "🟢 <b>Работают снова</b>", kinds: map[string]bool{"recovered": true, "new_ip_verified": true}},
+		{title: "📶 <b>Соединение с iPhone</b>", kinds: map[string]bool{"network_recovered": true}},
+	}
+
+	used := make(map[int]bool, len(items))
+	blocks := make([]string, 0, len(groups))
+	for _, group := range groups {
+		groupItems := make([]notification, 0)
+		for index, item := range items {
+			if group.kinds[item.Kind] {
+				used[index] = true
+				groupItems = append(groupItems, item)
+			}
+		}
+		blocks = append(blocks, formatDigestBlocks(group.title, groupItems)...)
+	}
+	unknown := make([]notification, 0)
+	for index, item := range items {
+		if !used[index] {
+			unknown = append(unknown, item)
+		}
+	}
+	blocks = append(blocks, formatDigestBlocks("ℹ️ <b>События мониторинга</b>", unknown)...)
+
+	return packTelegramMessages(blocks)
+}
+
+func formatNotification(item notification) string {
+	if item.Kind == "network_recovered" {
+		duration := humanAlertDuration(item.CreatedAt - item.NetworkDownAt)
+		return fmt.Sprintf("📶 <b>Соединение с iPhone восстановлено</b>\n\nМобильный маршрут был недоступен %s.\n\n<i>Проверки нод продолжены.</i>", duration)
+	}
+	title := map[string]string{
+		"critical":        "🔴 <b>Нода не проходит проверку</b>",
+		"new_ip_failed":   "🔴 <b>Новый IP не заработал</b>",
+		"ip_changed":      "🔵 <b>IP изменён</b>",
+		"recovered":       "🟢 <b>Нода снова работает</b>",
+		"new_ip_verified": "🟢 <b>Новый IP работает</b>",
+		"unstable":        "🟠 <b>Нода работает нестабильно</b>",
+		"reminder":        "🔴 <b>Нода всё ещё недоступна</b>",
+	}[item.Kind]
+	if title == "" {
+		title = "ℹ️ <b>Событие Xray Checker</b>"
+	}
+	lines := []string{title, ""}
+	if item.Kind == "ip_changed" && (item.PreviousAddress != "" || item.CurrentAddress != "") {
+		lines = append(lines, alertCode(emptyDash(item.PreviousAddress))+" → "+alertCode(emptyDash(item.CurrentAddress)))
+	} else {
+		address := item.Server
+		if (item.Kind == "new_ip_failed" || item.Kind == "new_ip_verified") && item.CurrentAddress != "" {
+			address = item.CurrentAddress
+		}
+		lines = append(lines, alertCode(displayServer(address)))
+	}
+	if context := alertContext(item); context != "" {
+		lines = append(lines, context)
+	}
+	lines = append(lines, alertHosts(item)...)
+
+	switch item.Kind {
+	case "critical", "new_ip_failed", "reminder":
+		facts := make([]string, 0, 2)
+		if item.Failures > 0 {
+			facts = append(facts, failurePhrase(item.Failures)+" подряд")
+		}
+		if item.IncidentStartedAt > 0 && item.CreatedAt >= item.IncidentStartedAt {
+			facts = append(facts, "около "+humanAlertDuration(item.CreatedAt-item.IncidentStartedAt))
+		}
+		if len(facts) > 0 {
+			lines = append(lines, "", strings.Join(facts, " · "))
+		}
+		if item.LastSuccess > 0 {
+			lines = append(lines, "Последний успех: "+formatAlertTime(item.LastSuccess))
+		}
+		if reason := humanAlertReason(item.LastError); reason != "" {
+			lines = append(lines, "Причина: "+reason)
+		}
+	case "ip_changed":
+		lines = append(lines, "", "Проверяем новый адрес…")
+	case "recovered":
+		if item.IncidentStartedAt > 0 && item.CreatedAt >= item.IncidentStartedAt {
+			lines = append(lines, "", "Не работала около "+humanAlertDuration(item.CreatedAt-item.IncidentStartedAt))
+		}
+		if item.LatencyMs > 0 {
+			lines = append(lines, fmt.Sprintf("Apple URL Test пройден · %d мс", item.LatencyMs))
+		}
+	case "new_ip_verified":
+		lines = append(lines, "")
+		if item.LatencyMs > 0 {
+			lines = append(lines, fmt.Sprintf("Apple URL Test пройден · %d мс", item.LatencyMs))
+		} else {
+			lines = append(lines, "Apple URL Test пройден")
+		}
+	case "unstable":
+		lines = append(lines, "", "Apple URL Test проходит не во всех попытках.")
+		if item.LatencyMs > 0 {
+			lines = append(lines, fmt.Sprintf("Последняя задержка: %d мс", item.LatencyMs))
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+func formatDigestBlocks(title string, items []notification) []string {
+	if len(items) == 0 {
+		return nil
+	}
+	heading := fmt.Sprintf("%s · %d", title, len(items))
+	blocks := make([]string, 0, 1)
+	current := heading
+	for _, item := range items {
+		line := formatDigestLine(item)
+		candidate := current + "\n" + line
+		if len([]rune(candidate)) > 3200 && current != heading {
+			blocks = append(blocks, current)
+			current = heading + "\n" + line
+		} else {
+			current = candidate
+		}
+	}
+	blocks = append(blocks, current)
+	return blocks
+}
+
+func formatDigestLine(item notification) string {
+	if item.Kind == "network_recovered" {
+		return "• маршрут восстановлен за " + humanAlertDuration(item.CreatedAt-item.NetworkDownAt)
+	}
+	context := compactAlertContext(item)
+	if item.Kind == "ip_changed" {
+		line := "• " + alertCode(emptyDash(item.PreviousAddress)) + " → " + alertCode(emptyDash(item.CurrentAddress))
+		if context != "" {
+			line += " — " + context
+		}
+		return line
+	}
+	address := item.Server
+	if (item.Kind == "new_ip_failed" || item.Kind == "new_ip_verified") && item.CurrentAddress != "" {
+		address = item.CurrentAddress
+	}
+	line := "• " + alertCode(displayServer(address))
+	if context != "" {
+		line += " — " + context
+	}
+	switch item.Kind {
+	case "critical", "reminder":
+		if item.Failures > 0 {
+			line += " · " + failurePhrase(item.Failures)
+		}
+	case "new_ip_failed":
+		line += " · новый IP не прошёл проверку"
+	case "new_ip_verified":
+		line += " · новый IP проверен"
+	case "recovered", "unstable":
+		if item.LatencyMs > 0 {
+			line += fmt.Sprintf(" · %d мс", item.LatencyMs)
+		}
+	}
+	return line
+}
+
+func packTelegramMessages(blocks []string) []string {
 	messages := make([]string, 0, 1)
 	current := ""
-	for _, section := range sections {
-		candidate := section
+	for _, block := range blocks {
+		candidate := block
 		if current != "" {
-			candidate = current + "\n\n──────────\n\n" + section
+			candidate = current + "\n\n" + block
 		}
 		if len([]rune(candidate)) > 3800 && current != "" {
 			messages = append(messages, current)
-			current = section
+			current = block
 		} else {
 			current = candidate
 		}
@@ -791,56 +1002,6 @@ func formatNotifications(items []notification) []string {
 		messages = append(messages, current)
 	}
 	return messages
-}
-
-func formatNotification(item notification) string {
-	if item.Kind == "network_recovered" {
-		duration := time.Duration(item.CreatedAt-item.NetworkDownAt) * time.Second
-		return fmt.Sprintf("🟢 iPhone connection restored\n\nThe mobile probe route was unavailable for %s. Node checks have resumed.",
-			duration.Round(time.Second))
-	}
-	title := map[string]string{
-		"critical":      "🔴 Node requires attention",
-		"new_ip_failed": "🔴 New IP verification failed",
-		"ip_changed":    "🟡 Node IP changed",
-		"recovered":     "🟢 Node recovered",
-		"unstable":      "🟠 Node is unstable",
-		"reminder":      "🔴 Node is still unavailable",
-	}[item.Kind]
-	if title == "" {
-		title = "Xray Checker alert"
-	}
-	lines := []string{title, "", "IP: " + displayServer(item.Server)}
-	if item.Kind == "ip_changed" && (item.PreviousAddress != "" || item.CurrentAddress != "") {
-		lines = append(lines, "Change: "+emptyDash(item.PreviousAddress)+" → "+emptyDash(item.CurrentAddress))
-	}
-	if item.Failures > 0 && (item.Kind == "critical" || item.Kind == "new_ip_failed" || item.Kind == "reminder") {
-		lines = append(lines, fmt.Sprintf("Failed checks: %d", item.Failures))
-	}
-	if item.LastSuccess > 0 && (item.Kind == "critical" || item.Kind == "new_ip_failed" || item.Kind == "reminder") {
-		lines = append(lines, "Last success: "+time.Unix(item.LastSuccess, 0).Format("02 Jan 15:04"))
-	}
-	names := item.Names
-	if len(item.Affected) > 0 {
-		names = item.Affected
-	}
-	if len(names) > 0 {
-		lines = append(lines, "", "Related hosts:")
-		limit := len(names)
-		if limit > 10 {
-			limit = 10
-		}
-		for _, name := range names[:limit] {
-			lines = append(lines, "• "+name)
-		}
-		if len(names) > limit {
-			lines = append(lines, fmt.Sprintf("• …and %d more", len(names)-limit))
-		}
-	}
-	if item.LastError != "" && item.Kind != "ip_changed" && item.Kind != "recovered" {
-		lines = append(lines, "", "Check: Apple URL Test via Proxy", "Reason: "+trimMessage(item.LastError, 180))
-	}
-	return strings.Join(lines, "\n")
 }
 
 func (m *Manager) load() error {
@@ -1003,6 +1164,162 @@ func trimMessage(value string, limit int) string {
 	}
 	runes := []rune(value)
 	return string(runes[:limit-1]) + "…"
+}
+
+func alertContext(item notification) string {
+	parts := make([]string, 0, 2)
+	if subscriptions := escapedList(item.Subscriptions, 2); subscriptions != "" {
+		parts = append(parts, subscriptions)
+	}
+	names := notificationNames(item)
+	if len(names) == 1 {
+		parts = append(parts, escapeHTML(trimMessage(names[0], 70)))
+	}
+	return strings.Join(parts, " · ")
+}
+
+func compactAlertContext(item notification) string {
+	parts := make([]string, 0, 2)
+	names := notificationNames(item)
+	if len(names) > 0 {
+		name := escapeHTML(trimMessage(names[0], 48))
+		if len(names) > 1 {
+			name += fmt.Sprintf(" +%d", len(names)-1)
+		}
+		parts = append(parts, name)
+	}
+	if subscriptions := escapedList(item.Subscriptions, 1); subscriptions != "" {
+		parts = append(parts, subscriptions)
+	}
+	return strings.Join(parts, " · ")
+}
+
+func alertHosts(item notification) []string {
+	names := notificationNames(item)
+	if len(names) <= 1 {
+		return nil
+	}
+	lines := []string{"", fmt.Sprintf("Связанные хосты: %d", len(names))}
+	limit := len(names)
+	if limit > 3 {
+		limit = 3
+	}
+	for _, name := range names[:limit] {
+		lines = append(lines, "• "+escapeHTML(trimMessage(name, 80)))
+	}
+	if len(names) > limit {
+		lines = append(lines, fmt.Sprintf("• + ещё %d", len(names)-limit))
+	}
+	return lines
+}
+
+func notificationNames(item notification) []string {
+	if len(item.Affected) > 0 {
+		return item.Affected
+	}
+	return item.Names
+}
+
+func escapedList(values []string, limit int) string {
+	if len(values) == 0 || limit <= 0 {
+		return ""
+	}
+	visible := len(values)
+	if visible > limit {
+		visible = limit
+	}
+	parts := make([]string, 0, visible+1)
+	for _, value := range values[:visible] {
+		parts = append(parts, escapeHTML(trimMessage(value, 40)))
+	}
+	if len(values) > visible {
+		parts = append(parts, fmt.Sprintf("+%d", len(values)-visible))
+	}
+	return strings.Join(parts, " · ")
+}
+
+func alertCode(value string) string {
+	return "<code>" + escapeHTML(strings.TrimSpace(value)) + "</code>"
+}
+
+func escapeHTML(value string) string {
+	return html.EscapeString(strings.TrimSpace(value))
+}
+
+func formatAlertTime(timestamp int64) string {
+	location, err := time.LoadLocation("Europe/Moscow")
+	if err != nil {
+		location = time.FixedZone("MSK", 3*60*60)
+	}
+	return time.Unix(timestamp, 0).In(location).Format("15:04")
+}
+
+func humanAlertDuration(seconds int64) string {
+	if seconds < 60 {
+		return "меньше минуты"
+	}
+	minutes := seconds / 60
+	if minutes < 60 {
+		return fmt.Sprintf("%d мин", minutes)
+	}
+	hours := minutes / 60
+	remainingMinutes := minutes % 60
+	if hours < 24 {
+		if remainingMinutes == 0 {
+			return fmt.Sprintf("%d ч", hours)
+		}
+		return fmt.Sprintf("%d ч %d мин", hours, remainingMinutes)
+	}
+	days := hours / 24
+	remainingHours := hours % 24
+	if remainingHours == 0 {
+		return fmt.Sprintf("%d дн", days)
+	}
+	return fmt.Sprintf("%d дн %d ч", days, remainingHours)
+}
+
+func failurePhrase(count int) string {
+	word := "ошибок"
+	lastTwo := count % 100
+	last := count % 10
+	if lastTwo < 11 || lastTwo > 14 {
+		switch last {
+		case 1:
+			word = "ошибка"
+		case 2, 3, 4:
+			word = "ошибки"
+		}
+	}
+	return fmt.Sprintf("%d %s", count, word)
+}
+
+func humanAlertReason(value string) string {
+	value = trimMessage(value, 180)
+	lower := strings.ToLower(value)
+	switch {
+	case value == "":
+		return ""
+	case strings.Contains(lower, "url test:"):
+		value = strings.ReplaceAll(value, "URL test", "Apple URL Test")
+		value = strings.ReplaceAll(value, "successful", "успешно")
+		return escapeHTML(value)
+	case strings.Contains(lower, "handshake"):
+		return "ошибка TLS/Reality handshake"
+	case strings.Contains(lower, "deadline exceeded"), strings.Contains(lower, "timeout"):
+		return "таймаут соединения"
+	case strings.Contains(lower, "connection refused"):
+		return "порт отклонил соединение"
+	case strings.Contains(lower, "connection reset"):
+		return "соединение сброшено"
+	case strings.Contains(lower, "no route"):
+		return "нет маршрута до IP"
+	case strings.Contains(lower, "network unavailable"), strings.Contains(lower, "mobile network unavailable"):
+		return "сеть iPhone недоступна"
+	case lower == "eof" || strings.HasSuffix(lower, ": eof"):
+		return "соединение закрыто сервером"
+	default:
+		return escapeHTML(value)
+	}
 }
 
 func maxInt64(left, right int64) int64 {

@@ -179,15 +179,56 @@ func TestTelegramRetriesOnlyTransportFailures(t *testing.T) {
 func TestFormatNotificationsGroupsRelatedHosts(t *testing.T) {
 	messages := formatNotifications([]notification{{
 		Kind: "critical", Server: "203.0.113.10", Failures: 3,
-		Affected:  []string{"Germany Reality", "Germany TLS"},
-		LastError: "URL test failed",
+		Affected:      []string{"Germany & Reality", "Germany <TLS>"},
+		Subscriptions: []string{"LETO"}, LastError: "URL test: 0/2 successful",
+		LastSuccess: 1_787_900_000, CreatedAt: 1_787_900_360, IncidentStartedAt: 1_787_900_000,
 	}})
 	if len(messages) != 1 {
 		t.Fatalf("messages = %d", len(messages))
 	}
-	for _, expected := range []string{"203.0.113.10", "Germany Reality", "Germany TLS", "Apple URL Test via Proxy"} {
+	for _, expected := range []string{
+		"🔴 <b>Нода не проходит проверку</b>", "<code>203.0.113.10</code>", "LETO",
+		"Germany &amp; Reality", "Germany &lt;TLS&gt;", "3 ошибки подряд", "Apple URL Test: 0/2 успешно",
+	} {
 		if !strings.Contains(messages[0], expected) {
 			t.Fatalf("message does not contain %q: %s", expected, messages[0])
+		}
+	}
+}
+
+func TestFormatNotificationsBuildsCompactDigest(t *testing.T) {
+	messages := formatNotifications([]notification{
+		{Kind: "critical", Server: "203.0.113.10", Failures: 3, Affected: []string{"Germany Reality"}, Subscriptions: []string{"MASTER"}},
+		{Kind: "ip_changed", PreviousAddress: "198.51.100.1", CurrentAddress: "198.51.100.2", Names: []string{"Spain"}, Subscriptions: []string{"LETO"}},
+		{Kind: "recovered", Server: "192.0.2.20", LatencyMs: 374, Names: []string{"Turkey"}, Subscriptions: []string{"LETO"}},
+	})
+	if len(messages) != 1 {
+		t.Fatalf("messages = %d", len(messages))
+	}
+	for _, expected := range []string{
+		"🔴 <b>Требуют внимания</b> · 1",
+		"🔵 <b>Изменился IP</b> · 1",
+		"🟢 <b>Работают снова</b> · 1",
+		"<code>198.51.100.1</code> → <code>198.51.100.2</code>",
+		"Turkey · LETO · 374 мс",
+	} {
+		if !strings.Contains(messages[0], expected) {
+			t.Fatalf("digest does not contain %q: %s", expected, messages[0])
+		}
+	}
+	if strings.Contains(messages[0], "──────────") {
+		t.Fatalf("digest still contains legacy dividers: %s", messages[0])
+	}
+}
+
+func TestFormatNotificationDistinguishesVerifiedNewIP(t *testing.T) {
+	message := formatNotification(notification{
+		Kind: "new_ip_verified", Server: "198.51.100.2", CurrentAddress: "198.51.100.2",
+		LatencyMs: 412, Names: []string{"Spain"}, Subscriptions: []string{"MASTER"},
+	})
+	for _, expected := range []string{"🟢 <b>Новый IP работает</b>", "<code>198.51.100.2</code>", "MASTER · Spain", "412 мс"} {
+		if !strings.Contains(message, expected) {
+			t.Fatalf("message does not contain %q: %s", expected, message)
 		}
 	}
 }
@@ -215,6 +256,15 @@ func newTelegramTestServer(t *testing.T, messages *atomic.Int32) *httptest.Serve
 				},
 			})
 		case strings.HasSuffix(r.URL.Path, "/sendMessage"):
+			var payload map[string]interface{}
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if payload["parse_mode"] != "HTML" {
+				http.Error(w, "missing HTML parse mode", http.StatusBadRequest)
+				return
+			}
 			messages.Add(1)
 			json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "result": map[string]interface{}{"message_id": 1}})
 		default:

@@ -334,6 +334,14 @@ second ordinary failures remain silent; the critical notification follows the
 existing three-failure `needs_replacement` threshold. Pending messages and
 deduplication state survive checker restarts.
 
+Alerts use compact Russian-language HTML cards. IP addresses are rendered as
+copy-friendly monospace text, technical failures are reduced to short causes,
+and IP replacement has distinct `IP changed`, `New IP works`, and `New IP
+failed` outcomes. Multiple events inside the batch window become one digest,
+grouped by critical, unstable, changed, and recovered nodes. Detailed cards show
+at most three related host names and collapse the remainder into a `+ N more`
+counter.
+
 Telegram delivery defaults to `Auto via healthy Xray nodes`. The alert worker
 reads the latest completed checker snapshot, picks up to three different
 physical nodes, and sends the Bot API request through their already-running
