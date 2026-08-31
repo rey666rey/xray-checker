@@ -34,6 +34,7 @@ services:
       # Deliberately not cleared by start.sh: IP replacement history survives runs.
       NODE_HISTORY_FILE: "/app/data/node-history.json"
       NODE_DIAGNOSIS_FILE: "/app/data/node-diagnostics.json"
+      ACCESS_CHECK_FILE: "/app/data/access-checks.json"
       ALERTS_SETTINGS_FILE: "/app/data/telegram-settings.json"
       TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
       TELEGRAM_CHAT_ID: "${TELEGRAM_CHAT_ID:-0}"

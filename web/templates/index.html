@@ -414,6 +414,199 @@
 		border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
 		background: color-mix(in srgb, var(--bg-tertiary) 76%, transparent);
 	}
+	.access-backdrop {
+		position: fixed;
+		inset: 0;
+		z-index: 60;
+		background: rgba(4, 7, 12, 0.12);
+		overflow: hidden;
+		backdrop-filter: blur(2px);
+	}
+	.access-card {
+		position: fixed;
+		isolation: isolate;
+		width: min(43rem, calc(100vw - 1.5rem));
+		max-height: var(--access-max-height, min(28rem, calc(100dvh - 1.5rem)));
+		overflow: visible;
+		border-radius: 1.3rem;
+		border: 1px solid color-mix(in srgb, #7c5cff 42%, var(--border));
+		background: var(--bg-secondary);
+		box-shadow: 0 38px 110px rgba(0, 0, 0, 0.62), 0 12px 34px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255,255,255,.07);
+		animation: access-modal-in .2s cubic-bezier(.2,.8,.2,1);
+		transform-origin: top right;
+	}
+	.access-card::before {
+		content: "";
+		position: absolute;
+		z-index: 0;
+		left: var(--access-arrow-left, 85%);
+		width: .85rem;
+		height: .85rem;
+		background: color-mix(in srgb, #7c5cff 13%, var(--bg-secondary));
+		border-left: 1px solid color-mix(in srgb, #7c5cff 42%, var(--border));
+		border-top: 1px solid color-mix(in srgb, #7c5cff 42%, var(--border));
+		transform: translateX(-50%) rotate(45deg);
+	}
+	.access-card.popover-below::before { top: -.48rem; }
+	.access-card.popover-above::before {
+		bottom: -.48rem;
+		transform: translateX(-50%) rotate(225deg);
+	}
+	.access-card.popover-above { transform-origin: bottom right; }
+	.access-scroll {
+		position: relative;
+		z-index: 1;
+		max-height: var(--access-max-height, min(28rem, calc(100dvh - 1.5rem)));
+		overflow-y: auto;
+		border-radius: calc(1.3rem - 1px);
+		background:
+			radial-gradient(circle at 96% 0%, color-mix(in srgb, #7c5cff 15%, transparent), transparent 30%),
+			var(--bg-secondary);
+	}
+	.access-header {
+		position: sticky;
+		top: 0;
+		z-index: 5;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		padding: 1.05rem 1.2rem;
+		border-bottom: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+		background: color-mix(in srgb, var(--bg-secondary) 91%, transparent);
+		backdrop-filter: blur(18px);
+	}
+	.access-icon {
+		display: grid;
+		place-items: center;
+		width: 2.3rem;
+		height: 2.3rem;
+		border-radius: .82rem;
+		color: #fff;
+		background: linear-gradient(145deg, #8d72ff, #5541d7);
+		box-shadow: 0 8px 20px rgba(100, 76, 230, .34), inset 0 1px 0 rgba(255,255,255,.28);
+	}
+	.access-content { padding: 1.1rem; }
+	.access-launch {
+		border-color: color-mix(in srgb, #7c5cff 38%, var(--border));
+		background: linear-gradient(145deg, color-mix(in srgb, #7c5cff 11%, var(--bg-tertiary)), var(--bg-tertiary));
+	}
+	.access-launch:hover { border-color: color-mix(in srgb, #7c5cff 65%, var(--border)); }
+	.access-methods {
+		display: grid;
+		grid-template-columns: repeat(5, minmax(0, 1fr));
+		gap: .5rem;
+	}
+	.access-method {
+		min-height: 4.4rem;
+		padding: .65rem;
+		text-align: left;
+		border: 1px solid var(--border);
+		border-radius: .82rem;
+		background: color-mix(in srgb, var(--bg-primary) 30%, var(--bg-tertiary));
+		transition: transform .15s ease, border-color .15s ease, background .15s ease, box-shadow .15s ease;
+	}
+	.access-method:hover { transform: translateY(-1px); border-color: color-mix(in srgb, #7c5cff 38%, var(--border)); }
+	.access-method.selected {
+		border-color: color-mix(in srgb, #7c5cff 70%, var(--border));
+		background: linear-gradient(145deg, color-mix(in srgb, #7c5cff 16%, var(--bg-tertiary)), color-mix(in srgb, #7c5cff 7%, var(--bg-tertiary)));
+		box-shadow: inset 0 0 0 1px color-mix(in srgb, #7c5cff 9%, transparent), 0 8px 20px color-mix(in srgb, #7c5cff 8%, transparent);
+	}
+	.access-method-mark {
+		display: grid;
+		place-items: center;
+		width: 1.65rem;
+		height: 1.65rem;
+		margin-bottom: .55rem;
+		border-radius: .56rem;
+		background: var(--bg-primary);
+		color: var(--text-muted);
+		font-size: .56rem;
+		font-weight: 800;
+		letter-spacing: -.02em;
+	}
+	.access-method.selected .access-method-mark { color: #8d72ff; background: color-mix(in srgb, #7c5cff 17%, var(--bg-primary)); }
+	.access-form-panel, .access-history-panel {
+		border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+		border-radius: 1rem;
+		background: color-mix(in srgb, var(--bg-tertiary) 79%, transparent);
+	}
+	.access-submit {
+		border: 1px solid color-mix(in srgb, #7c5cff 68%, var(--border));
+		background: linear-gradient(145deg, #8468f4, #5a43d3);
+		color: #fff;
+		box-shadow: 0 9px 22px rgba(91, 66, 216, .24), inset 0 1px 0 rgba(255,255,255,.22);
+		transition: transform .15s ease, filter .15s ease, box-shadow .15s ease;
+	}
+	.access-submit:hover { transform: translateY(-1px); filter: brightness(1.06); box-shadow: 0 12px 26px rgba(91, 66, 216, .3); }
+	.access-submit:disabled { opacity: .5; cursor: wait; transform: none; filter: none; }
+	.access-progress {
+		display: grid;
+		grid-template-columns: 1fr auto 1fr;
+		align-items: center;
+		gap: .65rem;
+	}
+	.access-progress-step {
+		display: flex;
+		align-items: center;
+		gap: .65rem;
+		padding: .72rem;
+		border: 1px solid var(--border);
+		border-radius: .82rem;
+		background: color-mix(in srgb, var(--bg-primary) 35%, var(--bg-tertiary));
+	}
+	.access-progress-step.active { border-color: color-mix(in srgb, #7c5cff 62%, var(--border)); background: color-mix(in srgb, #7c5cff 9%, var(--bg-tertiary)); }
+	.access-progress-step.done { border-color: color-mix(in srgb, var(--color-green) 42%, var(--border)); }
+	.access-step-dot {
+		display: grid;
+		place-items: center;
+		width: 1.6rem;
+		height: 1.6rem;
+		border-radius: 999px;
+		background: var(--bg-primary);
+		color: var(--text-muted);
+		font-size: .62rem;
+		font-weight: 800;
+	}
+	.access-progress-step.active .access-step-dot { color: #9b87ff; box-shadow: 0 0 0 3px color-mix(in srgb, #7c5cff 12%, transparent); }
+	.access-progress-step.done .access-step-dot { color: var(--color-green); }
+	.access-progress-line { width: 1.4rem; height: 1px; background: var(--border); }
+	.access-verdict {
+		position: relative;
+		overflow: hidden;
+		padding: 1rem;
+		border: 1px solid var(--border);
+		border-radius: 1rem;
+		background: var(--bg-tertiary);
+	}
+	.access-verdict::after {
+		content: "";
+		position: absolute;
+		width: 9rem;
+		height: 9rem;
+		right: -5rem;
+		top: -5rem;
+		border-radius: 999px;
+		background: color-mix(in srgb, currentColor 11%, transparent);
+	}
+	.access-verdict.available { color: var(--color-green); border-color: color-mix(in srgb, var(--color-green) 38%, var(--border)); background: color-mix(in srgb, var(--color-green) 7%, var(--bg-tertiary)); }
+	.access-verdict.blocked { color: var(--color-red); border-color: color-mix(in srgb, var(--color-red) 40%, var(--border)); background: color-mix(in srgb, var(--color-red) 8%, var(--bg-tertiary)); }
+	.access-verdict.unavailable { color: var(--color-yellow); border-color: color-mix(in srgb, var(--color-yellow) 38%, var(--border)); background: color-mix(in srgb, var(--color-yellow) 7%, var(--bg-tertiary)); }
+	.access-route {
+		display: grid;
+		grid-template-columns: minmax(0, 1.25fr) auto minmax(0, 1fr);
+		align-items: center;
+		gap: .8rem;
+		padding: .78rem .85rem;
+		border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+		border-radius: .82rem;
+		background: color-mix(in srgb, var(--bg-primary) 26%, var(--bg-tertiary));
+	}
+	.access-result-pill { padding: .24rem .48rem; border-radius: 999px; font-size: .58rem; font-weight: 750; white-space: nowrap; }
+	.access-result-pill.ok { color: var(--color-green); background: color-mix(in srgb, var(--color-green) 11%, var(--bg-primary)); }
+	.access-result-pill.fail { color: var(--color-red); background: color-mix(in srgb, var(--color-red) 10%, var(--bg-primary)); }
+	.access-history-item { transition: background .15s ease, border-color .15s ease; }
+	.access-history-item:hover { border-color: color-mix(in srgb, #7c5cff 36%, var(--border)); background: color-mix(in srgb, #7c5cff 5%, var(--bg-primary)); }
 	.alerts-button {
 		position: relative;
 	}
@@ -768,6 +961,10 @@
 		from { opacity: 0; transform: translateY(-5px) scale(0.985); }
 		to { opacity: 1; transform: translateY(0) scale(1); }
 	}
+	@keyframes access-modal-in {
+		from { opacity: 0; transform: translateY(9px) scale(.985); }
+		to { opacity: 1; transform: translateY(0) scale(1); }
+	}
 	@media (max-width: 640px) {
 		.diagnosis-card, .alerts-card {
 			left: 0.75rem !important;
@@ -788,8 +985,28 @@
 			margin: 0 -.8rem -.8rem;
 			padding: .7rem .8rem calc(.8rem + env(safe-area-inset-bottom));
 		}
+		.access-content { padding: .85rem; }
+		.access-methods { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+		.access-method { min-height: 4rem; }
+		.access-progress { grid-template-columns: 1fr; gap: .4rem; }
+		.access-progress-line { width: 1px; height: .65rem; margin-left: 1.5rem; }
+		.access-route { grid-template-columns: minmax(0, 1fr) auto; }
+		.access-route-detail { grid-column: 1 / -1; }
 		.alerts-route-option { min-height: 4.35rem; padding: .58rem .48rem; }
 		.alerts-notification-row { padding: .67rem 0; }
+	}
+	@media (max-width: 520px) {
+		.access-card {
+			left: .65rem !important;
+			right: .65rem !important;
+			top: auto !important;
+			bottom: max(.65rem, env(safe-area-inset-bottom));
+			width: auto;
+			max-height: calc(100dvh - 1.3rem) !important;
+			border-radius: 1.2rem;
+		}
+		.access-card::before { display: none; }
+		.access-scroll { max-height: calc(100dvh - 1.3rem); }
 	}
 	@media (max-width: 390px) {
 		.alerts-card { left: .45rem !important; right: .45rem !important; bottom: .45rem; }
@@ -1337,6 +1554,17 @@
         <h2 class="text-base font-semibold text-primary">Hosts</h2>
         {{ if not .IsPublic }}
         <div class="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+			x-ref="accessButton"
+            @click="openAccessCheck($event)"
+            class="btn access-launch px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 12h3l2-5 4 10 2-5h5M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" />
+            </svg>
+            Check access
+          </button>
           <a
             href="./metrics"
             target="_blank"
@@ -1838,6 +2066,209 @@
 
     {{ if not .IsPublic }}
     <div
+      x-show="accessModalOpen"
+      x-transition.opacity
+      @keydown.escape.window="closeAccessCheck()"
+	  @resize.window="scheduleAccessReposition()"
+      @click.self="closeAccessCheck()"
+      class="access-backdrop fixed inset-0 z-[60]"
+      style="display: none"
+    >
+      <div
+		x-ref="accessPopover"
+		class="access-card"
+		:class="accessPopoverPlacement === 'above' ? 'popover-above' : 'popover-below'"
+		:style="accessPopoverStyle"
+		@click.stop
+	  >
+        <div class="access-scroll">
+          <div class="access-header">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="access-icon flex-shrink-0">
+                <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 12h3l2-5 4 10 2-5h5M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" />
+                </svg>
+              </div>
+              <div class="min-w-0">
+                <div class="text-[9px] uppercase tracking-[.14em] font-bold" style="color:#8d72ff">Route diagnostics</div>
+                <h2 class="text-base font-semibold text-primary">Check access</h2>
+                <p class="text-[10px] text-muted mt-0.5 truncate">Direct iPhone route first, healthy VPN routes second</p>
+              </div>
+            </div>
+            <button type="button" @click="closeAccessCheck()" class="diagnosis-close flex-shrink-0" title="Close" aria-label="Close access check">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+
+          <div class="access-content">
+            <div x-show="accessError" class="alerts-error-banner mb-3">
+              <svg class="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v4m0 4h.01M10.3 3.7 2.7 17a2 2 0 0 0 1.73 3h15.14A2 2 0 0 0 21.3 17L13.7 3.7a2 2 0 0 0-3.4 0Z"/></svg>
+              <span x-text="accessError"></span>
+            </div>
+
+            <template x-if="accessView === 'form'">
+              <div>
+                <section class="access-form-panel p-4">
+                  <div class="flex items-start justify-between gap-3 mb-3">
+                    <div>
+                      <h3 class="text-sm font-semibold text-primary">What should answer?</h3>
+                      <p class="text-[10px] text-muted mt-1">Choose a protocol so a bare open port cannot masquerade as success.</p>
+                    </div>
+                    <span class="alerts-route-count" x-show="networkStatus.ready">iPhone ready</span>
+                  </div>
+
+                  <div class="access-methods">
+                    <template x-for="method in accessMethods" :key="method.key">
+                      <button type="button" @click="selectAccessMethod(method.key)" class="access-method" :class="accessForm.method === method.key && 'selected'">
+                        <span class="access-method-mark" x-text="method.mark"></span>
+                        <span class="text-[11px] font-semibold text-primary block" x-text="method.label"></span>
+                        <span class="text-[8px] text-muted block mt-0.5 truncate" x-text="method.hint"></span>
+                      </button>
+                    </template>
+                  </div>
+
+                  <div class="grid grid-cols-[minmax(0,1fr)_7rem] gap-2 mt-4">
+                    <label>
+                      <span class="alerts-label"><span>Public IP address</span><span class="font-normal text-muted">Required</span></span>
+                      <input class="alerts-input font-mono" type="text" inputmode="decimal" x-model.trim="accessForm.ip" placeholder="203.0.113.10" autocomplete="off" spellcheck="false" />
+                    </label>
+                    <label>
+                      <span class="alerts-label"><span>Port</span></span>
+                      <input class="alerts-input" type="number" min="1" max="65535" x-model.number="accessForm.port" />
+                    </label>
+                  </div>
+
+                  <div x-show="accessForm.method === 'tls' || accessForm.method === 'https'" x-transition class="mt-3">
+                    <label>
+                      <span class="alerts-label"><span>TLS server name · SNI</span><span class="font-normal text-muted">Optional</span></span>
+                      <input class="alerts-input" type="text" x-model.trim="accessForm.serverName" placeholder="example.com" autocomplete="off" spellcheck="false" />
+                    </label>
+                  </div>
+
+                  <div x-show="accessForm.method === 'http' || accessForm.method === 'https'" x-transition class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
+                    <label>
+                      <span class="alerts-label"><span>HTTP Host</span><span class="font-normal text-muted">Optional</span></span>
+                      <input class="alerts-input" type="text" x-model.trim="accessForm.httpHost" placeholder="example.com" autocomplete="off" spellcheck="false" />
+                    </label>
+                    <label>
+                      <span class="alerts-label"><span>Request path</span></span>
+                      <input class="alerts-input font-mono" type="text" x-model.trim="accessForm.path" placeholder="/" autocomplete="off" spellcheck="false" />
+                    </label>
+                    <label>
+                      <span class="alerts-label"><span>Expected status</span><span class="font-normal text-muted">Any response</span></span>
+                      <input class="alerts-input" type="number" min="100" max="599" x-model="accessForm.expectedStatus" placeholder="200" />
+                    </label>
+                    <label>
+                      <span class="alerts-label"><span>Expected text</span><span class="font-normal text-muted">Optional</span></span>
+                      <input class="alerts-input" type="text" x-model="accessForm.expectedText" placeholder="Welcome" autocomplete="off" />
+                    </label>
+                  </div>
+
+                  <div class="flex items-start gap-2 mt-3 text-[10px] text-muted leading-relaxed">
+                    <svg class="w-3.5 h-3.5 flex-shrink-0 mt-0.5" style="color:#8d72ff" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m9 12 2 2 4-4"/></svg>
+                    <span>No credentials are used. If direct access fails but the same protocol works through VPN, the target is marked blocked.</span>
+                  </div>
+
+                  <button type="button" @click="startAccessCheck()" :disabled="accessSubmitting || !accessForm.ip || !accessForm.port || !networkStatus.ready" class="access-submit w-full mt-4 px-4 py-3 rounded-xl text-sm font-semibold flex items-center justify-center gap-2">
+                    <span x-show="accessSubmitting" class="alerts-spinner !w-3.5 !h-3.5 !border-white/30 !border-t-white"></span>
+                    <svg x-show="!accessSubmitting" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14m-6-6 6 6-6 6"/></svg>
+                    <span x-text="accessSubmitting ? 'Starting secure probe…' : 'Run direct + VPN check'"></span>
+                  </button>
+                </section>
+
+                <section x-show="accessHistory.length" class="access-history-panel p-3 mt-3">
+                  <div class="flex items-center justify-between mb-2 px-1">
+                    <h3 class="text-xs font-semibold text-primary">Recent checks</h3>
+                    <span class="text-[9px] text-muted" x-text="accessHistory.length + ' saved locally'"></span>
+                  </div>
+                  <div class="space-y-1.5 max-h-44 overflow-y-auto">
+                    <template x-for="item in accessHistory" :key="item.runId">
+                      <button type="button" @click="showAccessResult(item)" class="access-history-item diagnosis-result-row w-full px-3 py-2.5 flex items-center gap-3 text-left">
+                        <span class="w-2 h-2 rounded-full flex-shrink-0" :class="accessVerdictDot(item.verdict)"></span>
+                        <span class="min-w-0 flex-1">
+                          <span class="text-[11px] font-semibold text-primary block truncate" x-text="item.ip + ':' + item.port"></span>
+                          <span class="text-[9px] text-muted block mt-0.5" x-text="item.method.toUpperCase() + ' · ' + formatTimestamp(item.completedAt || item.startedAt)"></span>
+                        </span>
+                        <span class="text-[9px] font-semibold" :class="accessVerdictTextClass(item.verdict)" x-text="accessVerdictLabel(item.verdict)"></span>
+                        <svg class="w-3.5 h-3.5 text-muted flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m9 18 6-6-6-6"/></svg>
+                      </button>
+                    </template>
+                  </div>
+                </section>
+              </div>
+            </template>
+
+            <template x-if="accessView === 'result' && accessCurrent">
+              <div>
+                <div x-show="accessCurrent.state !== 'completed'" class="access-form-panel p-4">
+                  <div class="access-progress">
+                    <div class="access-progress-step" :class="accessCurrent.stage === 'direct' ? 'active' : (accessCurrent.stage === 'vpn' || accessCurrent.state === 'completed' ? 'done' : '')">
+                      <span class="access-step-dot" x-text="accessCurrent.stage === 'vpn' || accessCurrent.state === 'completed' ? '✓' : '1'"></span>
+                      <span class="min-w-0"><span class="text-[11px] font-semibold text-primary block">Direct · iPhone</span><span class="text-[9px] text-muted block mt-0.5">3 protocol attempts</span></span>
+                    </div>
+                    <span class="access-progress-line"></span>
+                    <div class="access-progress-step" :class="accessCurrent.stage === 'vpn' ? 'active' : ''">
+                      <span class="access-step-dot">2</span>
+                      <span class="min-w-0"><span class="text-[11px] font-semibold text-primary block">VPN comparison</span><span class="text-[9px] text-muted block mt-0.5">Up to 3 healthy routes</span></span>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-3 mt-4 px-1">
+                    <span class="alerts-spinner flex-shrink-0"></span>
+                    <div class="min-w-0"><div class="text-xs font-semibold text-primary" x-text="accessStageLabel(accessCurrent)"></div><div class="text-[10px] text-muted mt-1 truncate" x-text="accessCurrent.ip + ':' + accessCurrent.port + ' · ' + accessCurrent.method.toUpperCase()"></div></div>
+                  </div>
+                </div>
+
+                <div x-show="accessCurrent.state === 'completed'">
+                  <div class="access-verdict" :class="accessVerdictCardClass(accessCurrent.verdict)">
+                    <div class="relative z-10 flex items-start justify-between gap-4">
+                      <div class="min-w-0">
+                        <div class="text-[9px] uppercase tracking-[.13em] font-bold opacity-80" x-text="accessCurrent.method.toUpperCase() + ' verdict'"></div>
+                        <h3 class="text-xl font-semibold mt-1" x-text="accessVerdictLabel(accessCurrent.verdict)"></h3>
+                        <p class="text-[11px] mt-2 leading-relaxed text-primary" x-text="accessCurrent.summary"></p>
+                      </div>
+                      <div class="text-right flex-shrink-0">
+                        <div class="font-mono text-xs text-primary" x-text="accessCurrent.ip + ':' + accessCurrent.port"></div>
+                        <div class="text-[9px] text-muted mt-1" x-text="formatTimestamp(accessCurrent.completedAt || accessCurrent.startedAt)"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center justify-between gap-3 mt-4 mb-2 px-1">
+                    <h3 class="text-xs font-semibold text-primary">Route evidence</h3>
+                    <span class="text-[9px] text-muted" x-show="accessCurrent.sourceIp" x-text="'Mobile IP · ' + accessCurrent.sourceIp"></span>
+                  </div>
+                  <div class="space-y-2">
+                    <template x-for="route in accessResultRoutes" :key="route.route + ':' + (route.nodeId || 'direct')">
+                      <div class="access-route">
+                        <div class="min-w-0 flex items-center gap-2.5">
+                          <span class="w-7 h-7 rounded-lg grid place-items-center flex-shrink-0" :style="route.route === 'direct' ? 'background:color-mix(in srgb,#7c5cff 14%,var(--bg-primary));color:#9b87ff' : 'background:color-mix(in srgb,#2aabee 12%,var(--bg-primary));color:#2aabee'">
+                            <svg x-show="route.route === 'direct'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2" stroke-width="1.8"/><path stroke-linecap="round" stroke-width="1.8" d="M10.5 5h3M11 18.5h2"/></svg>
+                            <svg x-show="route.route !== 'direct'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3v6m0 6v6M5 12h14M7.8 6.5l8.4 11M16.2 6.5l-8.4 11"/></svg>
+                          </span>
+                          <span class="min-w-0"><span class="text-[11px] font-semibold text-primary block truncate" x-text="route.name"></span><span class="text-[9px] text-muted block mt-0.5 truncate" x-text="route.exitIp ? 'Exit ' + route.exitIp : (route.route === 'direct' ? 'No VPN' : 'Xray SOCKS route')"></span></span>
+                        </div>
+                        <span class="access-result-pill" :class="route.successes > 0 ? 'ok' : 'fail'" x-text="route.successes > 0 ? 'AVAILABLE' : 'FAILED'"></span>
+                        <div class="access-route-detail min-w-0 text-right">
+                          <div class="text-[10px] text-primary" x-text="accessRouteEvidence(route)"></div>
+                          <div class="text-[9px] text-muted mt-0.5 truncate" :title="route.lastError || ''" x-text="route.successes + '/' + route.attempts + (route.bestLatencyMs ? ' · ' + route.bestLatencyMs + 'ms' : '') + (route.lastError && route.successes === 0 ? ' · ' + route.lastError : '')"></div>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-2 mt-4">
+                    <button type="button" @click="returnToAccessForm()" class="btn px-4 py-2.5 rounded-xl text-xs font-semibold">New check</button>
+                    <button type="button" @click="closeAccessCheck()" class="access-submit px-4 py-2.5 rounded-xl text-xs font-semibold">Done</button>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
       x-show="diagnosisModalOpen"
       x-transition.opacity
       @keydown.escape.window="closeDiagnosis()"
@@ -2319,6 +2750,27 @@
 		  diagnosisPopoverPlacement: 'below',
 		  diagnosisAnchor: null,
 		  recheckingNodeIds: {},
+		  accessModalOpen: false,
+		  accessView: 'form',
+		  accessSubmitting: false,
+		  accessError: '',
+		  accessCurrent: null,
+		  accessHistory: [],
+		  accessPollTimer: null,
+		  accessPopoverStyle: 'left: 50%; top: 5rem; --access-max-height: min(28rem, calc(100dvh - 1.5rem));',
+		  accessPopoverPlacement: 'below',
+		  accessAnchor: null,
+		  accessMethods: [
+			{ key: 'tcp', label: 'TCP', mark: '01', hint: 'Open port', defaultPort: '' },
+			{ key: 'ssh', label: 'SSH', mark: '22', hint: 'Server banner', defaultPort: 22 },
+			{ key: 'tls', label: 'TLS', mark: 'TLS', hint: 'Handshake', defaultPort: 443 },
+			{ key: 'http', label: 'HTTP', mark: 'H', hint: 'Response', defaultPort: 80 },
+			{ key: 'https', label: 'HTTPS', mark: 'S', hint: 'TLS + HTTP', defaultPort: 443 },
+		  ],
+		  accessForm: {
+			ip: '', port: 22, method: 'ssh', serverName: '', httpHost: '', path: '/',
+			expectedStatus: '', expectedText: '',
+		  },
 		  alertsModalOpen: false,
 		  alertsLoading: false,
 		  alertsStatusInterval: null,
@@ -2463,6 +2915,13 @@
 		  get telegramDeliveryDescription() {
 			const route = this.telegramDeliveryOptions.find(option => option.key === this.telegramDeliveryMode);
 			return route ? route.description : this.telegramDeliveryOptions[0].description;
+		  },
+
+		  get accessResultRoutes() {
+			if (!this.accessCurrent) return [];
+			const routes = [];
+			if (this.accessCurrent.direct) routes.push(this.accessCurrent.direct);
+			return routes.concat(this.accessCurrent.vpn || []);
 		  },
 
           collapsedGroups: {},
@@ -2857,6 +3316,208 @@
 			}
 		  },
 
+		  positionAccessPopover(event) {
+			const button = (event && event.currentTarget) || this.$refs.accessButton;
+			if (button) {
+			  const rect = button.getBoundingClientRect();
+			  this.accessAnchor = {
+				left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom,
+				width: rect.width, height: rect.height,
+			  };
+			}
+			this.refreshAccessPopoverPosition();
+		  },
+
+		  scheduleAccessReposition() {
+			requestAnimationFrame(() => requestAnimationFrame(() => this.refreshAccessPopoverPosition()));
+		  },
+
+		  refreshAccessPopoverPosition() {
+			if (!this.accessModalOpen || window.innerWidth <= 520) return;
+			const button = this.$refs.accessButton;
+			if (button) {
+			  const current = button.getBoundingClientRect();
+			  this.accessAnchor = {
+				left: current.left, right: current.right, top: current.top, bottom: current.bottom,
+				width: current.width, height: current.height,
+			  };
+			}
+			const rect = this.accessAnchor;
+			if (!rect) return;
+			const margin = 12, gap = 12;
+			const width = Math.min(688, window.innerWidth - margin * 2);
+			const roomBelow = window.innerHeight - rect.bottom - gap - margin;
+			const roomAbove = rect.top - gap - margin;
+			const below = roomBelow >= 260 || roomBelow >= roomAbove;
+			this.accessPopoverPlacement = below ? 'below' : 'above';
+			const maxHeight = Math.max(180, Math.min(448, below ? roomBelow : roomAbove));
+			let left = rect.left + rect.width / 2 - width / 2;
+			left = Math.min(window.innerWidth - width - margin, Math.max(margin, left));
+			let top = below ? rect.bottom + gap : rect.top - gap - maxHeight;
+			top = Math.min(window.innerHeight - maxHeight - margin, Math.max(margin, top));
+			const arrowLeft = Math.min(width - 24, Math.max(24, rect.left + rect.width / 2 - left));
+			this.accessPopoverStyle = 'left:' + Math.round(left) + 'px;top:' + Math.round(top) + 'px;--access-arrow-left:' + Math.round(arrowLeft) + 'px;--access-max-height:' + Math.round(maxHeight) + 'px;';
+		  },
+
+		  selectAccessMethod(method) {
+			const previous = this.accessMethods.find(item => item.key === this.accessForm.method);
+			const next = this.accessMethods.find(item => item.key === method);
+			if (!next) return;
+			const portFollowsDefault = !this.accessForm.port || (previous && Number(this.accessForm.port) === Number(previous.defaultPort));
+			this.accessForm.method = method;
+			if (portFollowsDefault) this.accessForm.port = next.defaultPort;
+			this.accessError = '';
+		  },
+
+		  async openAccessCheck(event = null) {
+			this.closeDiagnosis();
+			this.closeAlerts();
+			this.accessModalOpen = true;
+			this.accessView = 'form';
+			this.accessCurrent = null;
+			this.accessError = '';
+			this.positionAccessPopover(event);
+			await Promise.all([this.refreshNetworkStatus(), this.loadAccessHistory()]);
+			this.scheduleAccessReposition();
+		  },
+
+		  closeAccessCheck() {
+			clearTimeout(this.accessPollTimer);
+			this.accessPollTimer = null;
+			this.accessModalOpen = false;
+			this.accessSubmitting = false;
+			this.accessError = '';
+			this.accessAnchor = null;
+		  },
+
+		  returnToAccessForm() {
+			clearTimeout(this.accessPollTimer);
+			this.accessPollTimer = null;
+			this.accessCurrent = null;
+			this.accessView = 'form';
+			this.accessError = '';
+			this.loadAccessHistory();
+			this.scheduleAccessReposition();
+		  },
+
+		  async loadAccessHistory() {
+			try {
+			  const res = await fetch('./api/v1/access-checks');
+			  const json = await res.json();
+			  if (!res.ok || !json.success) throw new Error(json.error || 'Could not load access checks');
+			  this.accessHistory = json.data || [];
+			} catch (e) {
+			  this.accessError = e.message || 'Could not load access checks';
+			}
+		  },
+
+		  async startAccessCheck() {
+			if (this.accessSubmitting) return;
+			this.accessSubmitting = true;
+			this.accessError = '';
+			const method = this.accessForm.method;
+			const payload = {
+			  ip: this.accessForm.ip,
+			  port: Number(this.accessForm.port),
+			  method,
+			};
+			if (method === 'tls' || method === 'https') payload.serverName = this.accessForm.serverName;
+			if (method === 'http' || method === 'https') {
+			  payload.httpHost = this.accessForm.httpHost;
+			  payload.path = this.accessForm.path || '/';
+			  payload.expectedStatus = Number(this.accessForm.expectedStatus) || 0;
+			  payload.expectedText = this.accessForm.expectedText;
+			}
+			try {
+			  const res = await fetch('./api/v1/access-checks', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload),
+			  });
+			  const json = await res.json();
+			  if (!res.ok || !json.success) throw new Error(json.error || 'Could not start access check');
+			  this.accessCurrent = json.data;
+			  this.accessView = 'result';
+			  this.scheduleAccessReposition();
+			  this.pollAccessCheck(json.data.runId);
+			} catch (e) {
+			  this.accessError = e.message || 'Could not start access check';
+			} finally {
+			  this.accessSubmitting = false;
+			}
+		  },
+
+		  async pollAccessCheck(runId) {
+			clearTimeout(this.accessPollTimer);
+			if (!runId || !this.accessModalOpen) return;
+			try {
+			  const res = await fetch('./api/v1/access-checks/' + encodeURIComponent(runId));
+			  const json = await res.json();
+			  if (!res.ok || !json.success) throw new Error(json.error || 'Could not update access check');
+			  this.accessCurrent = json.data;
+			  this.scheduleAccessReposition();
+			  if (json.data.state === 'completed') {
+				await this.loadAccessHistory();
+				return;
+			  }
+			  this.accessPollTimer = setTimeout(() => this.pollAccessCheck(runId), 900);
+			} catch (e) {
+			  this.accessError = e.message || 'Could not update access check';
+			  this.accessPollTimer = setTimeout(() => this.pollAccessCheck(runId), 1800);
+			}
+		  },
+
+		  showAccessResult(item) {
+			if (!item) return;
+			this.accessCurrent = item;
+			this.accessView = 'result';
+			this.accessError = '';
+			this.scheduleAccessReposition();
+			if (item.state !== 'completed') this.pollAccessCheck(item.runId);
+		  },
+
+		  accessVerdictLabel(verdict) {
+			return {
+			  available: 'Available', available_unstable: 'Available · unstable', blocked: 'Blocked',
+			  unavailable: 'Unavailable', inconclusive: 'Not confirmed', interrupted: 'Interrupted',
+			}[verdict] || 'Running';
+		  },
+
+		  accessVerdictCardClass(verdict) {
+			if (verdict === 'available' || verdict === 'available_unstable') return 'available';
+			if (verdict === 'blocked') return 'blocked';
+			return 'unavailable';
+		  },
+
+		  accessVerdictDot(verdict) {
+			if (verdict === 'available') return 'status-online';
+			if (verdict === 'blocked' || verdict === 'unavailable') return 'status-offline';
+			return 'status-unstable';
+		  },
+
+		  accessVerdictTextClass(verdict) {
+			if (verdict === 'available') return 'latency-good';
+			if (verdict === 'blocked' || verdict === 'unavailable') return 'latency-bad';
+			return 'latency-medium';
+		  },
+
+		  accessStageLabel(check) {
+			if (!check) return 'Preparing check';
+			if (check.stage === 'vpn') return 'Direct access failed · comparing VPN routes';
+			if (check.stage === 'direct') return 'Checking the direct iPhone route';
+			return 'Preparing the direct probe';
+		  },
+
+		  accessRouteEvidence(route) {
+			if (!route) return 'No result';
+			if (route.banner) return route.banner;
+			if (route.statusCode) return 'HTTP ' + route.statusCode;
+			if (route.tlsVersion) return route.tlsVersion + (route.peerName ? ' · ' + route.peerName : '');
+			if (route.protocolMatched) return 'Protocol confirmed';
+			if (route.tcpConnected) return 'TCP connected, protocol did not answer';
+			return 'No connection';
+		  },
+
 		  positionDiagnosisPopover(event) {
 			const button = event && event.currentTarget;
 			if (button) {
@@ -2895,6 +3556,7 @@
 
 		  async diagnoseNode(nodeId, event = null) {
 			if (!nodeId) return;
+			this.closeAccessCheck();
 			this.positionDiagnosisPopover(event);
 			const existing = this.nodeDiagnoses[nodeId];
 			if (existing && ['queued', 'running'].includes(existing.state)) {
@@ -2927,6 +3589,7 @@
 
 		  async openDiagnosis(nodeId, quiet = false, event = null) {
 			if (!nodeId) return;
+			this.closeAccessCheck();
 			if (event) this.positionDiagnosisPopover(event);
 			this.diagnosisNodeId = nodeId;
 			this.diagnosisModalOpen = true;
@@ -2973,6 +3636,7 @@
 
 		  async openAlerts(event = null) {
 			this.closeDiagnosis();
+			this.closeAccessCheck();
 			const button = event && event.currentTarget;
 			if (button) {
 			  const rect = button.getBoundingClientRect();

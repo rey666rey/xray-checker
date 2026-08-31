@@ -202,6 +202,92 @@ paths:
                         items:
                           $ref: '#/components/schemas/NodeDiagnosis'
 
+  /api/v1/access-checks:
+    get:
+      summary: List recent direct-vs-VPN access checks
+      description: Returns up to 20 checks, newest first. This endpoint is available only on the private API.
+      tags:
+        - Access checks
+      responses:
+        '200':
+          description: Recent access-check history
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/AccessCheck'
+    post:
+      summary: Start a direct-vs-VPN access check
+      description: Checks the selected protocol directly through the iPhone route. Only when direct access fails, repeats it through up to three healthy Xray routes. Only one access check runs at a time.
+      tags:
+        - Access checks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccessCheckRequest'
+      responses:
+        '200':
+          description: Access check queued
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AccessCheck'
+        '400':
+          description: Invalid or unsafe target
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIErrorResponse'
+        '409':
+          description: Another access check is already running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIErrorResponse'
+
+  /api/v1/access-checks/{runID}:
+    get:
+      summary: Get one access check
+      tags:
+        - Access checks
+      parameters:
+        - name: runID
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Current or completed access check
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AccessCheck'
+        '404':
+          description: Access check not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIErrorResponse'
+
   /api/v1/status:
     get:
       summary: Get system status
@@ -635,6 +721,105 @@ components:
           enum: [tunnel, response]
         lastError:
           type: string
+
+    AccessCheckRequest:
+      type: object
+      required: [ip, port, method]
+      properties:
+        ip:
+          type: string
+          description: Public unicast IPv4 or IPv6 address
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+        method:
+          type: string
+          enum: [tcp, ssh, tls, http, https]
+        serverName:
+          type: string
+          description: Optional TLS SNI for TLS and HTTPS
+        httpHost:
+          type: string
+          description: Optional HTTP Host header for HTTP and HTTPS
+        path:
+          type: string
+          default: /
+        expectedStatus:
+          type: integer
+          minimum: 100
+          maximum: 599
+        expectedText:
+          type: string
+
+    AccessRouteResult:
+      type: object
+      properties:
+        route:
+          type: string
+          enum: [direct, vpn]
+        nodeId:
+          type: string
+        name:
+          type: string
+        exitIp:
+          type: string
+        attempts:
+          type: integer
+        successes:
+          type: integer
+        tcpConnected:
+          type: boolean
+        protocolMatched:
+          type: boolean
+        bestLatencyMs:
+          type: integer
+          format: int64
+        banner:
+          type: string
+        tlsVersion:
+          type: string
+        peerName:
+          type: string
+        statusCode:
+          type: integer
+        lastError:
+          type: string
+
+    AccessCheck:
+      allOf:
+        - $ref: '#/components/schemas/AccessCheckRequest'
+        - type: object
+          properties:
+            runId:
+              type: string
+            state:
+              type: string
+              enum: [queued, running, completed]
+            stage:
+              type: string
+              enum: [queued, direct, vpn, completed]
+            verdict:
+              type: string
+              enum: [available, available_unstable, blocked, unavailable, inconclusive, interrupted]
+            summary:
+              type: string
+            sourceIp:
+              type: string
+            interface:
+              type: string
+            startedAt:
+              type: integer
+              format: int64
+            completedAt:
+              type: integer
+              format: int64
+            direct:
+              $ref: '#/components/schemas/AccessRouteResult'
+            vpn:
+              type: array
+              items:
+                $ref: '#/components/schemas/AccessRouteResult'
 
     StatusResponse:
       type: object

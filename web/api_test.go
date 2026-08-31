@@ -49,6 +49,12 @@ func TestRenderIndexIncludesSubscriptionName(t *testing.T) {
 		!strings.Contains(out.String(), "discoverTelegramChats") {
 		t.Fatal("rendered private dashboard does not include Telegram alert setup")
 	}
+	if !strings.Contains(out.String(), "Check access") ||
+		!strings.Contains(out.String(), "./api/v1/access-checks") ||
+		!strings.Contains(out.String(), "Run direct + VPN check") ||
+		!strings.Contains(out.String(), "accessMethods") {
+		t.Fatal("rendered private dashboard does not include access-check controls")
+	}
 	if strings.Contains(out.String(), "setViewMode(") ||
 		strings.Contains(out.String(), ">Nodes</button>") ||
 		!strings.Contains(out.String(), `<h2 class="text-base font-semibold text-primary">Hosts</h2>`) {

@@ -298,6 +298,21 @@ credentials, Reality/TLS-параметров или transport даже при �
 `Degraded` не означает блокировку: это частичная работоспособность или
 нестабильность. Смотрите счётчики попыток конкретных binding.
 
+## Проверка доступности напрямую и через VPN
+
+`Check access` проверяет произвольный публичный IP без добавления его в панель
+и без создания Xray-конфигурации. Можно выбрать TCP, SSH, TLS, HTTP или HTTPS.
+Сначала checker делает три протокольные попытки напрямую через iPhone. Только
+если все они провалились, та же проверка повторяется по два раза через максимум
+три здоровых физически разных Xray-маршрута.
+
+Вердикт `Blocked` появляется только если прямой маршрут не ответил, а хотя бы
+один VPN-маршрут ответил. Успех напрямую означает `Available`, провал обоих
+маршрутов — `Unavailable`. Если нет здоровых VPN-маршрутов или связь iPhone
+прервалась, результат остаётся неопределённым. SSH-проверка читает только banner
+сервера и не использует логины, пароли или ключи. Локально хранятся 20 последних
+проверок.
+
 ## Веб-панель
 
 Панель доступна по адресу <http://127.0.0.1:2112>.
@@ -548,6 +563,7 @@ docker --context colima-iphone compose ps
 | `RESULTS_FILE` | `/app/data/results.json` | снимок результатов |
 | `NODE_HISTORY_FILE` | `/app/data/node-history.json` | история ремонта |
 | `NODE_DIAGNOSIS_FILE` | `/app/data/node-diagnostics.json` | история Diagnose |
+| `ACCESS_CHECK_FILE` | `/app/data/access-checks.json` | 20 последних проверок direct/VPN |
 | `ALERTS_SETTINGS_FILE` | `/app/data/telegram-settings.json` | базовый путь настроек и состояния Telegram |
 | `TELEGRAM_PROXY_URL` | пусто | скрытый от панели пользовательский HTTP(S)/SOCKS5-маршрут Telegram |
 | `WEB_SHOW_DETAILS` | `true` | показывать приватные IP/port/details |
@@ -571,6 +587,9 @@ docker --context colima-iphone compose ps
 | `POST /api/v1/nodes/{nodeID}/recheck` | re-check всех binding Node |
 | `POST /api/v1/nodes/{nodeID}/diagnose` | начать глубокую диагностику |
 | `GET /api/v1/nodes/{nodeID}/diagnosis` | история Diagnose |
+| `GET /api/v1/access-checks` | последние проверки direct/VPN |
+| `POST /api/v1/access-checks` | запустить протокольную проверку IP |
+| `GET /api/v1/access-checks/{runID}` | статус и доказательства проверки |
 | `GET /api/v1/status` | агрегированные счётчики |
 | `GET /api/v1/config` | активная безопасная конфигурация |
 | `GET /api/v1/network` | состояние iPhone-route |

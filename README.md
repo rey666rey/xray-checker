@@ -296,6 +296,20 @@ configuration is marked `Stale`.
 `Degraded` is not equivalent to blocked. It means partial operation or
 instability; inspect the individual binding attempt counters.
 
+## Direct vs VPN access check
+
+`Check access` tests an arbitrary public IP without adding it to the panel or
+creating an Xray configuration. Select TCP, SSH, TLS, HTTP, or HTTPS and the
+checker first makes three protocol-aware attempts through the direct iPhone
+route. Only if they all fail, it repeats the same probe twice through up to
+three healthy, physically distinct Xray routes.
+
+`Blocked` is returned only when the direct probe fails and at least one VPN
+probe succeeds. A successful direct probe is `Available`; failure on both
+routes is `Unavailable`. Missing healthy VPN routes or an interrupted iPhone
+connection produces a non-definitive result. SSH checks only the server banner
+and never use credentials or keys. The latest 20 checks are retained locally.
+
 ## Dashboard
 
 Open <http://127.0.0.1:2112>.
@@ -539,6 +553,7 @@ Values are defined in [`compose.yaml`](compose.yaml).
 | `RESULTS_FILE` | `/app/data/results.json` | result snapshot |
 | `NODE_HISTORY_FILE` | `/app/data/node-history.json` | repair history |
 | `NODE_DIAGNOSIS_FILE` | `/app/data/node-diagnostics.json` | Diagnose history |
+| `ACCESS_CHECK_FILE` | `/app/data/access-checks.json` | latest 20 direct-vs-VPN checks |
 | `ALERTS_SETTINGS_FILE` | `/app/data/telegram-settings.json` | Telegram settings, token, and delivery state base path |
 | `TELEGRAM_PROXY_URL` | empty | optional dashboard-hidden custom HTTP(S)/SOCKS5 Telegram route |
 | `WEB_SHOW_DETAILS` | `true` | expose private endpoint details in the local UI |
@@ -561,6 +576,9 @@ Values are defined in [`compose.yaml`](compose.yaml).
 | `POST /api/v1/nodes/{nodeID}/recheck` | recheck every binding on a node |
 | `POST /api/v1/nodes/{nodeID}/diagnose` | begin deep diagnosis |
 | `GET /api/v1/nodes/{nodeID}/diagnosis` | diagnosis history |
+| `GET /api/v1/access-checks` | recent direct-vs-VPN checks |
+| `POST /api/v1/access-checks` | start a protocol-aware access check |
+| `GET /api/v1/access-checks/{runID}` | access-check status and evidence |
 | `GET /api/v1/status` | aggregate counters |
 | `GET /api/v1/config` | active non-secret configuration |
 | `GET /api/v1/network` | iPhone route state |

@@ -433,3 +433,11 @@ Path to persistent binding repair history. Unlike the disposable full-sweep snap
 - Default: None
 
 Path to persistent manual node-diagnosis history. The checker keeps up to ten reports per physical node, including the probe interface/source IP, direct port and TLS results, and real Xray binding attempts. Reports are stored separately from normal online/offline state and become stale when the connection revision changes.
+
+### ACCESS_CHECK_FILE
+
+- CLI: `--access-check-file`
+- Required: No
+- Default: None
+
+Path to persistent direct-vs-VPN access-check history. The checker retains the latest 20 protocol-aware TCP, SSH, TLS, HTTP, or HTTPS checks and restores completed reports after restart.

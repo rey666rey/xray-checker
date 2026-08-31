@@ -116,6 +116,9 @@ func main() {
 	if err := proxyChecker.SetDiagnosisFile(config.CLIConfig.NodeDiagnosisFile); err != nil {
 		logger.Warn("Could not restore node diagnosis history: %v", err)
 	}
+	if err := proxyChecker.SetAccessCheckFile(config.CLIConfig.AccessCheckFile); err != nil {
+		logger.Warn("Could not restore access-check history: %v", err)
+	}
 	alertManager, err := alerts.NewManager(
 		proxyChecker,
 		config.CLIConfig.Xray.StartPort,
@@ -328,6 +331,8 @@ func main() {
 	protectedHandler.Handle("/api/v1/proxies", web.APIProxiesHandler(proxyChecker, config.CLIConfig.Xray.StartPort))
 	protectedHandler.Handle("/api/v1/nodes/", web.APINodesHandler(proxyChecker, config.CLIConfig.Xray.StartPort))
 	protectedHandler.Handle("/api/v1/nodes", web.APINodesHandler(proxyChecker, config.CLIConfig.Xray.StartPort))
+	protectedHandler.Handle("/api/v1/access-checks", web.APIAccessChecksHandler(proxyChecker))
+	protectedHandler.Handle("/api/v1/access-checks/", web.APIAccessChecksHandler(proxyChecker))
 	protectedHandler.Handle("/api/v1/config", web.APIConfigHandler(proxyChecker))
 	protectedHandler.Handle("/api/v1/status", web.APIStatusHandler(proxyChecker))
 	protectedHandler.Handle("/api/v1/system/info", web.APISystemInfoHandler(version, startTime))

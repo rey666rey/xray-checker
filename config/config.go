@@ -88,6 +88,7 @@ type CLI struct {
 	ResultsFile         string      `name:"results-file" help:"Path to a persistent proxy-results snapshot" default:"" env:"RESULTS_FILE"`
 	NodeHistoryFile     string      `name:"node-history-file" help:"Path to persistent logical-node repair history" default:"" env:"NODE_HISTORY_FILE"`
 	NodeDiagnosisFile   string      `name:"node-diagnosis-file" help:"Path to persistent manual node-diagnosis history" default:"" env:"NODE_DIAGNOSIS_FILE"`
+	AccessCheckFile     string      `name:"access-check-file" help:"Path to persistent direct-vs-VPN access-check history" default:"" env:"ACCESS_CHECK_FILE"`
 	Version             VersionFlag `name:"version" help:"Print version information and quit"`
 	RunOnce             bool        `name:"run-once" help:"Run one check cycle and exit" default:"false" env:"RUN_ONCE"`
 	LogLevel            string      `name:"log-level" help:"Log level (debug|info|warn|error|none)" default:"info" env:"LOG_LEVEL"`

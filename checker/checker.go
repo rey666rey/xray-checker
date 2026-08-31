@@ -62,6 +62,12 @@ type ProxyChecker struct {
 	diagnosisRunning    bool
 	diagnosisFile       string
 	diagnosisPersistMu  sync.Mutex
+	accessMu            sync.RWMutex
+	accessHistory       []AccessCheck
+	accessRunning       bool
+	accessFile          string
+	accessPersistMu     sync.Mutex
+	accessDialerFactory accessDialerFactory
 	mu                  sync.RWMutex
 }
 
@@ -86,14 +92,16 @@ func NewProxyChecker(proxies []*models.ProxyConfig, startPort int, ipCheckURL st
 		httpClient: &http.Client{
 			Timeout: time.Second * time.Duration(ipCheckTimeout),
 		},
-		ipCheckTimeout:   ipCheckTimeout,
-		genMethodURL:     genMethodURL,
-		downloadURL:      downloadURL,
-		downloadTimeout:  downloadTimeout,
-		downloadMinSize:  downloadMinSize,
-		checkMethod:      checkMethod,
-		checkConcurrency: checkConcurrency,
-		diagnosisHistory: make(map[string][]NodeDiagnosis),
+		ipCheckTimeout:      ipCheckTimeout,
+		genMethodURL:        genMethodURL,
+		downloadURL:         downloadURL,
+		downloadTimeout:     downloadTimeout,
+		downloadMinSize:     downloadMinSize,
+		checkMethod:         checkMethod,
+		checkConcurrency:    checkConcurrency,
+		diagnosisHistory:    make(map[string][]NodeDiagnosis),
+		accessHistory:       make([]AccessCheck, 0),
+		accessDialerFactory: defaultAccessDialerFactory,
 	}
 }
 
