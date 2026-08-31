@@ -6,28 +6,33 @@ NETWORK_INTERFACE="${NETWORK_INTERFACE:-col0}"
 NETWORK_CHECK_URL="${NETWORK_CHECK_URL:-http://captive.apple.com/hotspot-detect.html}"
 NETWORK_CHECK_EXPECTED="${NETWORK_CHECK_EXPECTED:-Success}"
 NETWORK_CHECK_INTERVAL="${NETWORK_CHECK_INTERVAL:-5}"
+NETWORK_CHECK_TIMEOUT="${NETWORK_CHECK_TIMEOUT:-5}"
+NETWORK_IP_CHECK_URL="${NETWORK_IP_CHECK_URL:-}"
+NETWORK_IP_CHECK_INTERVAL="${NETWORK_IP_CHECK_INTERVAL:-60}"
 NETWORK_STATUS_FILE="${NETWORK_STATUS_FILE:-/app/runtime/network-status.json}"
 
 status_dir="$(dirname "${NETWORK_STATUS_FILE}")"
 last_state=""
 failures=0
+public_ip=""
+last_ip_check=0
 
 write_status() {
   state="$1"
-  public_ip="${2:-}"
+  reported_public_ip="${2:-}"
   message="$3"
   temporary="${NETWORK_STATUS_FILE}.tmp.$$"
 
   mkdir -p "${status_dir}"
   printf '{"state":"%s","interface":"%s","publicIp":"%s","message":"%s","updatedAt":%s}\n' \
-    "${state}" "${NETWORK_INTERFACE}" "${public_ip}" "${message}" "$(date +%s)" \
+    "${state}" "${NETWORK_INTERFACE}" "${reported_public_ip}" "${message}" "$(date +%s)" \
     >"${temporary}"
   mv -f "${temporary}" "${NETWORK_STATUS_FILE}"
 
   if [ "${state}" != "${last_state}" ]; then
     printf '%s network=%s interface=%s public_ip=%s message=%s\n' \
       "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${state}" "${NETWORK_INTERFACE}" \
-      "${public_ip:-none}" "${message}"
+      "${reported_public_ip:-none}" "${message}"
     last_state="${state}"
   fi
 }
@@ -50,11 +55,21 @@ while true; do
   fi
 
   response="$(curl --interface "${NETWORK_INTERFACE}" --fail --silent \
-    --show-error --max-time 8 "${NETWORK_CHECK_URL}" 2>/dev/null || true)"
+    --show-error --max-time "${NETWORK_CHECK_TIMEOUT}" "${NETWORK_CHECK_URL}" 2>/dev/null || true)"
 
   if [ -n "${response}" ] && printf '%s' "${response}" | grep -Fq "${NETWORK_CHECK_EXPECTED}"; then
     failures=0
-    write_status "connected" "" "iPhone mobile route is active"
+    now="$(date +%s)"
+    if [ -n "${NETWORK_IP_CHECK_URL}" ] && \
+      { [ -z "${public_ip}" ] || [ $((now - last_ip_check)) -ge "${NETWORK_IP_CHECK_INTERVAL}" ]; }; then
+      candidate="$(curl --interface "${NETWORK_INTERFACE}" --fail --silent \
+        --show-error --max-time "${NETWORK_CHECK_TIMEOUT}" "${NETWORK_IP_CHECK_URL}" 2>/dev/null || true)"
+      if [ ${#candidate} -le 64 ] && printf '%s' "${candidate}" | grep -Eq '^[0-9A-Fa-f:.]+$'; then
+        public_ip="${candidate}"
+      fi
+      last_ip_check="${now}"
+    fi
+    write_status "connected" "${public_ip}" "iPhone mobile route is active"
   else
     failures=$((failures + 1))
     if [ "${failures}" -ge 3 ]; then

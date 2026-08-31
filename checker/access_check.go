@@ -122,13 +122,14 @@ type accessSnapshot struct {
 }
 
 type accessRoute struct {
-	kind      string
-	nodeID    string
-	name      string
-	exitIP    string
-	proxyPort int
-	latency   time.Duration
-	lastCheck time.Time
+	kind          string
+	nodeID        string
+	name          string
+	exitIP        string
+	proxyPort     int
+	interfaceName string
+	latency       time.Duration
+	lastCheck     time.Time
 }
 
 type accessDialer interface {
@@ -150,9 +151,9 @@ func (d *socksAccessDialer) DialContext(ctx context.Context, network, address st
 }
 
 func defaultAccessDialerFactory(route accessRoute) (accessDialer, error) {
-	base := &net.Dialer{Timeout: accessAttemptTimeout, KeepAlive: -1}
+	base := newInterfaceDialer("", accessAttemptTimeout)
 	if route.kind == "direct" {
-		return &directAccessDialer{Dialer: *base}, nil
+		return &directAccessDialer{Dialer: *newInterfaceDialer(route.interfaceName, accessAttemptTimeout)}, nil
 	}
 	if route.proxyPort <= 0 {
 		return nil, errors.New("VPN route has no SOCKS port")
@@ -361,7 +362,7 @@ func (pc *ProxyChecker) executeAccessCheck(run AccessCheck, request AccessCheckR
 	run.Summary = "Checking the target directly through the iPhone route"
 	pc.replaceAccessCheck(run)
 
-	direct := accessRoute{kind: "direct", name: "iPhone direct", exitIP: status.PublicIP}
+	direct := accessRoute{kind: "direct", name: "iPhone direct", exitIP: status.PublicIP, interfaceName: status.Interface}
 	run.Direct = pc.runAccessRoute(request, direct, accessDirectAttempts)
 	pc.replaceAccessCheck(run)
 	if status = pc.GetNetworkStatus(); !status.Ready {

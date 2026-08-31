@@ -35,13 +35,17 @@ ARG REPOSITORY_NAME=xray-checker
 
 LABEL org.opencontainers.image.source=https://github.com/${USERNAME}/${REPOSITORY_NAME}
 
-RUN apk add --no-cache ca-certificates curl tzdata && \
+RUN apk add --no-cache ca-certificates curl tzdata libcap-setcap socat && \
     adduser -D -u 1000 appuser && \
     mkdir -p /app/geo /app/data && \
     chown -R appuser:appuser /app
 
 WORKDIR /app
 COPY --from=builder /usr/bin/xray-checker /usr/bin/xray-checker
+
+# SO_BINDTODEVICE requires CAP_NET_RAW. Grant it only to this binary while the
+# process itself continues to run as the unprivileged appuser.
+RUN setcap cap_net_raw=ep /usr/bin/xray-checker
 
 USER appuser
 

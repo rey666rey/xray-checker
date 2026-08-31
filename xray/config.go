@@ -12,10 +12,19 @@ import (
 	"github.com/xtls/xray-core/infra/conf/serial"
 )
 
-type ConfigGenerator struct{}
+type ConfigGenerator struct {
+	outboundInterface string
+}
 
 func NewConfigGenerator() *ConfigGenerator {
 	return &ConfigGenerator{}
+}
+
+// SetOutboundInterface makes generated Xray sockets fail closed when the
+// dedicated probe interface disappears instead of falling back to another
+// default route. An empty value preserves the portable default behavior.
+func (g *ConfigGenerator) SetOutboundInterface(name string) {
+	g.outboundInterface = strings.TrimSpace(name)
 }
 
 func (g *ConfigGenerator) GenerateConfig(proxies []*models.ProxyConfig, startPort int, xrayLogLevel string) ([]byte, error) {
@@ -150,11 +159,17 @@ func (g *ConfigGenerator) generateInbounds(proxies []*models.ProxyConfig, startP
 func (g *ConfigGenerator) generateOutbounds(proxies []*models.ProxyConfig) []map[string]interface{} {
 	var outbounds []map[string]interface{}
 
-	outbounds = append(outbounds, map[string]interface{}{
+	direct := map[string]interface{}{
 		"tag":      "direct",
 		"protocol": "freedom",
 		"settings": map[string]interface{}{"domainStrategy": "UseIP"},
-	})
+	}
+	if g.outboundInterface != "" {
+		direct["streamSettings"] = map[string]interface{}{
+			"sockopt": map[string]interface{}{"interface": g.outboundInterface},
+		}
+	}
+	outbounds = append(outbounds, direct)
 
 	outbounds = append(outbounds, map[string]interface{}{
 		"tag":      "block",
@@ -328,6 +343,9 @@ func (g *ConfigGenerator) generateStreamSettings(proxy *models.ProxyConfig) map[
 	ss := map[string]interface{}{
 		"network":  network,
 		"security": security,
+	}
+	if g.outboundInterface != "" {
+		ss["sockopt"] = map[string]interface{}{"interface": g.outboundInterface}
 	}
 
 	if security == "tls" {

@@ -100,7 +100,9 @@ the request without recording a false failure.
 
 This macOS LaunchAgent provides last-resort recovery. If the iPhone is attached
 but `col0` has not returned for about 15 seconds, the supervisor recreates the
-Colima bridge and profile. Recovery attempts have a 60-second cooldown.
+Colima bridge and profile. Recovery attempts have a 60-second cooldown. An
+unavailable dashboard alone does not trigger VM recovery while Colima still has
+a default route through `col0`; Docker's restart policy handles that case.
 
 Recovery mode keeps the saved result snapshot, so the dashboard returns without
 another full sweep.
@@ -549,11 +551,15 @@ Values are defined in [`compose.yaml`](compose.yaml).
 | `PROXY_RETRY_TIMEOUT` | `10` | seconds per retry attempt |
 | `PROXY_CHECK_METHOD` | `urltest` | Apple URL Test through Xray |
 | `PROXY_URL_TEST_ATTEMPTS` | `2` | requests per health check |
+| `XRAY_OUTBOUND_INTERFACE` | `col0` | bind Xray and direct diagnostic sockets to the iPhone route (fail closed) |
+| `METRICS_HOST` | `172.17.0.1` | listen only on Colima's Docker bridge, not on the iPhone/LAN interface |
+| `METRICS_PORT` | `2113` | checker port inside the Colima host namespace; forwarded to Mac `127.0.0.1:2112` |
 | `NETWORK_STATUS_MAX_AGE` | `15` | sidecar is stale after 15 seconds |
 | `RESULTS_FILE` | `/app/data/results.json` | result snapshot |
 | `NODE_HISTORY_FILE` | `/app/data/node-history.json` | repair history |
 | `NODE_DIAGNOSIS_FILE` | `/app/data/node-diagnostics.json` | Diagnose history |
 | `ACCESS_CHECK_FILE` | `/app/data/access-checks.json` | latest 20 direct-vs-VPN checks |
+| `HEALTH_MIN_FREE_MB` | `256` | minimum free persistent-volume space required by `/health` |
 | `ALERTS_SETTINGS_FILE` | `/app/data/telegram-settings.json` | Telegram settings, token, and delivery state base path |
 | `TELEGRAM_PROXY_URL` | empty | optional dashboard-hidden custom HTTP(S)/SOCKS5 Telegram route |
 | `WEB_SHOW_DETAILS` | `true` | expose private endpoint details in the local UI |

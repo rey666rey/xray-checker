@@ -26,6 +26,13 @@ mobile_route_is_ready() {
     /usr/bin/grep -q '"state":"connected"'
 }
 
+colima_route_is_ready() {
+  /opt/homebrew/bin/colima status --profile "${COLIMA_PROFILE}" >/dev/null 2>&1 &&
+    /opt/homebrew/bin/colima ssh --profile "${COLIMA_PROFILE}" -- \
+      ip -4 route show default 2>/dev/null |
+      /usr/bin/grep -Eq '^default .* dev col0 '
+}
+
 run_supervisor() {
   local failures=0
   local last_recovery=0
@@ -40,6 +47,15 @@ run_supervisor() {
     fi
 
     if mobile_route_is_ready; then
+      failures=0
+      sleep "${CHECK_INTERVAL}"
+      continue
+    fi
+
+    # A planned checker/container restart makes the local API unavailable even
+    # though the VM route is healthy. Docker's restart policy handles that case;
+    # recreating the whole Colima profile would only prolong the outage.
+    if colima_route_is_ready; then
       failures=0
       sleep "${CHECK_INTERVAL}"
       continue

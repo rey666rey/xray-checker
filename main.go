@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 	"xray-checker/alerts"
@@ -318,7 +319,12 @@ func main() {
 	if err != nil {
 		logger.Fatal("Error creating web server: %v", err)
 	}
-	mux.Handle("/health", web.HealthHandler())
+	healthChecks := make([]web.HealthCheck, 0, 1)
+	if config.CLIConfig.ResultsFile != "" {
+		minimumFree := uint64(config.CLIConfig.HealthMinFreeMB) * 1024 * 1024
+		healthChecks = append(healthChecks, web.PersistentStorageHealthCheck(filepath.Dir(config.CLIConfig.ResultsFile), minimumFree))
+	}
+	mux.Handle("/health", web.HealthHandler(healthChecks...))
 	mux.Handle("/static/", web.StaticHandler())
 	mux.Handle("/api/v1/public/proxies", web.APIPublicProxiesHandler(proxyChecker))
 
@@ -388,6 +394,7 @@ func updateConfiguration(newConfigs []*models.ProxyConfig, currentConfigs *[]*mo
 
 	configFile := "xray_config.json"
 	configGenerator := xray.NewConfigGenerator()
+	configGenerator.SetOutboundInterface(config.CLIConfig.Xray.OutboundInterface)
 	validProxies, err := configGenerator.GenerateValidatedConfig(
 		newConfigs,
 		config.CLIConfig.Xray.StartPort,

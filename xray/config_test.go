@@ -184,6 +184,52 @@ func TestGenerateVlessConfigStillBuilds(t *testing.T) {
 	buildsWithXrayCore(t, []*models.ProxyConfig{proxy})
 }
 
+func TestOutboundInterfaceAppliedToDirectAndProxySockets(t *testing.T) {
+	proxy := &models.ProxyConfig{
+		Protocol: "vless", Server: "example.com", Port: 443, Name: "bound-vless",
+		UUID: "00000000-0000-0000-0000-000000000000", Type: "tcp", Security: "none", Index: 0,
+	}
+	g := NewConfigGenerator()
+	g.SetOutboundInterface(" col0 ")
+	configBytes, err := g.GenerateConfig([]*models.ProxyConfig{proxy}, 10000, "none")
+	if err != nil {
+		t.Fatalf("GenerateConfig failed: %v", err)
+	}
+	if err := validateConfigBuild(configBytes); err != nil {
+		t.Fatalf("xray-core rejected interface-bound config: %v", err)
+	}
+
+	var parsed struct {
+		Outbounds []struct {
+			Protocol       string `json:"protocol"`
+			StreamSettings struct {
+				Sockopt struct {
+					Interface string `json:"interface"`
+				} `json:"sockopt"`
+			} `json:"streamSettings"`
+		} `json:"outbounds"`
+	}
+	if err := json.Unmarshal(configBytes, &parsed); err != nil {
+		t.Fatalf("parse generated config: %v", err)
+	}
+
+	want := map[string]bool{"freedom": false, "vless": false}
+	for _, outbound := range parsed.Outbounds {
+		if _, ok := want[outbound.Protocol]; !ok {
+			continue
+		}
+		if outbound.StreamSettings.Sockopt.Interface != "col0" {
+			t.Errorf("%s socket interface=%q, want col0", outbound.Protocol, outbound.StreamSettings.Sockopt.Interface)
+		}
+		want[outbound.Protocol] = true
+	}
+	for protocol, found := range want {
+		if !found {
+			t.Errorf("missing %s outbound", protocol)
+		}
+	}
+}
+
 func TestGenerateSocksHttpConfigsBuild(t *testing.T) {
 	proxies := []*models.ProxyConfig{
 		{Protocol: "socks", Server: "1.2.3.4", Port: 1080, Name: "socks-auth", Type: "tcp", Username: "user", Password: "pass", Index: 0},

@@ -309,6 +309,14 @@ Starting port number for SOCKS5 proxies. Each proxy will use sequential ports st
 
 Controls Xray Core logging verbosity.
 
+### XRAY_OUTBOUND_INTERFACE
+
+- CLI: `--xray-outbound-interface`
+- Required: No
+- Default: None
+
+Linux network interface used by Xray outbound sockets and the checker's direct diagnostics. When set, loss of that interface fails closed instead of allowing requests to follow another default route. The process needs permission to use `SO_BINDTODEVICE`; the supplied container grants only `CAP_NET_RAW` to the checker binary.
+
 ## Metrics
 
 ### METRICS_HOST
@@ -424,7 +432,7 @@ Path to a persistent JSON snapshot of proxy results. A completed proxy set is re
 - Required: No
 - Default: None
 
-Path to persistent binding repair history. Unlike the disposable full-sweep snapshot, this file retains endpoint changes, repair states, exit IPs, and recent node events across fresh runs. During a running container, subscription samples build a many-to-many host/node endpoint pool; an endpoint detaches only after 30 successful polls without a sighting.
+Path to persistent binding repair history. Unlike the disposable full-sweep snapshot, this file retains endpoint changes, repair states, exit IPs, and recent node events across fresh runs. During a running container, subscription samples build a many-to-many host/node endpoint pool. An endpoint normally detaches after 30 successful polls without a sighting; a same-host, same-server port replacement confirmed by every sample in two consecutive rounds detaches the previous port early.
 
 ### NODE_DIAGNOSIS_FILE
 
@@ -441,3 +449,11 @@ Path to persistent manual node-diagnosis history. The checker keeps up to ten re
 - Default: None
 
 Path to persistent direct-vs-VPN access-check history. The checker retains the latest 20 protocol-aware TCP, SSH, TLS, HTTP, or HTTPS checks and restores completed reports after restart.
+
+### HEALTH_MIN_FREE_MB
+
+- CLI: `--health-min-free-mb`
+- Required: No
+- Default: `256`
+
+Minimum free space, in MiB, required on the filesystem containing `RESULTS_FILE`. The `/health` endpoint returns HTTP 503 when the threshold is crossed or the persistent directory is no longer writable. Set to `0` to disable the free-space threshold while keeping the write check.

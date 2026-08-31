@@ -25,14 +25,16 @@ type EndpointPool struct {
 }
 
 type endpointCandidate struct {
-	config          *models.ProxyConfig
-	firstSeenAt     int64
-	lastSeenAt      int64
-	lastSeenRound   int64
-	missingPolls    int
-	pendingRevision string
-	pendingRounds   int
-	pendingConfig   *models.ProxyConfig
+	config                *models.ProxyConfig
+	firstSeenAt           int64
+	lastSeenAt            int64
+	lastSeenRound         int64
+	missingPolls          int
+	pendingRevision       string
+	pendingRounds         int
+	pendingConfig         *models.ProxyConfig
+	pendingReplacementKey string
+	replacementRounds     int
 }
 
 type EndpointPoolStats struct {
@@ -136,6 +138,8 @@ func (pool *EndpointPool) Observe(reads ...[]*models.ProxyConfig) ([]*models.Pro
 		current.lastSeenAt = now
 		current.lastSeenRound = pool.round
 		current.missingPolls = 0
+		current.pendingReplacementKey = ""
+		current.replacementRounds = 0
 		observedRevision := observed.config.GenerateRevisionID()
 		if current.config.GenerateRevisionID() == observedRevision {
 			copyDisplayMetadata(current.config, observed.config)
@@ -174,6 +178,46 @@ func (pool *EndpointPool) Observe(reads ...[]*models.ProxyConfig) ([]*models.Pro
 	for key, candidate := range pool.candidates {
 		if candidate.lastSeenRound == pool.round {
 			continue
+		}
+		// A deliberate profile change commonly keeps the same host and server but
+		// moves it to a new port. Treat a single replacement observed in every
+		// sample for two consecutive rounds as authoritative. This retires the old
+		// port in about two polls without confusing a genuinely rotating multi-port
+		// pool, where both bindings continue to appear in the same round.
+		replacementKey := ""
+		if len(reads) >= 2 {
+			identity := endpointHostServerKey(candidate.config)
+			replacements := make(map[string]bool)
+			for seenKey, revisions := range seen {
+				if seenKey == key {
+					continue
+				}
+				for _, observed := range revisions {
+					if observed.count == len(reads) && endpointHostServerKey(observed.config) == identity {
+						replacements[seenKey] = true
+					}
+				}
+			}
+			if len(replacements) == 1 {
+				for replacementKey = range replacements {
+				}
+			}
+		}
+		if replacementKey != "" {
+			if candidate.pendingReplacementKey == replacementKey {
+				candidate.replacementRounds++
+			} else {
+				candidate.pendingReplacementKey = replacementKey
+				candidate.replacementRounds = 1
+			}
+			if candidate.replacementRounds >= 2 {
+				delete(pool.candidates, key)
+				stats.Detached++
+				continue
+			}
+		} else {
+			candidate.pendingReplacementKey = ""
+			candidate.replacementRounds = 0
 		}
 		candidate.missingPolls++
 		if candidate.missingPolls >= endpointDetachAfterPolls {
@@ -222,6 +266,10 @@ func ensureTopologyIDs(proxy *models.ProxyConfig) {
 }
 
 func endpointPoolKey(proxy *models.ProxyConfig) string {
+	return endpointHostServerKey(proxy) + fmt.Sprintf(":%d", proxy.Port)
+}
+
+func endpointHostServerKey(proxy *models.ProxyConfig) string {
 	hostID := proxy.HostID
 	if hostID == "" {
 		hostID = proxy.GenerateHostID()
@@ -230,7 +278,7 @@ func endpointPoolKey(proxy *models.ProxyConfig) string {
 	if ip := net.ParseIP(server); ip != nil {
 		server = ip.String()
 	}
-	return hostID + "\x00" + server + fmt.Sprintf(":%d", proxy.Port)
+	return hostID + "\x00" + server
 }
 
 func copyDisplayMetadata(target, source *models.ProxyConfig) {

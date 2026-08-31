@@ -28,6 +28,11 @@ services:
       PROXY_TIMEOUT: "4"
       PROXY_RETRY_TIMEOUT: "10"
       PROXY_RETRY_CONCURRENCY: "10"
+      # Xray and direct diagnostics must fail closed with the iPhone route.
+      XRAY_OUTBOUND_INTERFACE: "col0"
+      # Host-network checker port; web-forwarder exposes the stable Mac port 2112.
+      METRICS_HOST: "172.17.0.1"
+      METRICS_PORT: "2113"
       NETWORK_STATUS_FILE: "/app/runtime/network-status.json"
       NETWORK_STATUS_MAX_AGE: "15"
       RESULTS_FILE: "/app/data/results.json"
@@ -35,19 +40,38 @@ services:
       NODE_HISTORY_FILE: "/app/data/node-history.json"
       NODE_DIAGNOSIS_FILE: "/app/data/node-diagnostics.json"
       ACCESS_CHECK_FILE: "/app/data/access-checks.json"
+      HEALTH_MIN_FREE_MB: "256"
       ALERTS_SETTINGS_FILE: "/app/data/telegram-settings.json"
       TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
       TELEGRAM_CHAT_ID: "${TELEGRAM_CHAT_ID:-0}"
       TELEGRAM_PROXY_URL: "${TELEGRAM_PROXY_URL:-}"
       WEB_SHOW_DETAILS: "true"
-    ports:
-      - "127.0.0.1:2112:2112"
+    network_mode: host
     volumes:
       - xray-geo:/app/geo
       - xray-network-status:/app/runtime:ro
       - xray-results:/app/data
     depends_on:
       - network-monitor
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://172.17.0.1:2113/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  web-forwarder:
+    image: xray-checker:local
+    entrypoint:
+      - /usr/bin/socat
+      - TCP-LISTEN:2112,fork,reuseaddr
+      - TCP:172.17.0.1:2113
+    ports:
+      - "127.0.0.1:2112:2112"
+    depends_on:
+      xray-checker:
+        condition: service_healthy
     restart: unless-stopped
 
   network-monitor:
@@ -59,6 +83,9 @@ services:
       NETWORK_CHECK_URL: "http://captive.apple.com/hotspot-detect.html"
       NETWORK_CHECK_EXPECTED: "Success"
       NETWORK_CHECK_INTERVAL: "3"
+      NETWORK_CHECK_TIMEOUT: "3"
+      NETWORK_IP_CHECK_URL: "https://api.ipify.org?format=text"
+      NETWORK_IP_CHECK_INTERVAL: "60"
       NETWORK_STATUS_FILE: "/app/runtime/network-status.json"
     network_mode: host
     volumes:

@@ -278,7 +278,7 @@ func (pc *ProxyChecker) executeNodeDiagnosis(run NodeDiagnosis, bindings []*mode
 	if controlTimeout <= 0 {
 		controlTimeout = 5 * time.Second
 	}
-	run.Control = pc.runDiagnosisControl(controlTimeout)
+	run.Control = pc.runDiagnosisControl(controlTimeout, status.Interface)
 	if !run.Control.Online {
 		run.Verdict = DiagnosisInconclusive
 		run.Summary = "Control request failed on the probe network"
@@ -293,7 +293,7 @@ func (pc *ProxyChecker) executeNodeDiagnosis(run NodeDiagnosis, bindings []*mode
 	run.Stage = "direct_endpoint"
 	run.Summary = "Testing endpoint ports and configured TLS/Reality handshakes"
 	pc.replaceDiagnosis(run)
-	run.Ports, run.TLS = runDirectDiagnostics(bindings, probeTimeout)
+	run.Ports, run.TLS = runDirectDiagnostics(bindings, probeTimeout, status.Interface)
 	if allTCPPortsUnreachable(run.Ports) {
 		run.Verdict = DiagnosisNetUnreachable
 		run.Summary = "Control network works, but every TCP endpoint attempt failed"
@@ -329,14 +329,21 @@ func allTCPPortsUnreachable(ports []PortDiagnosis) bool {
 	return tcpPorts > 0
 }
 
-func (pc *ProxyChecker) runDiagnosisControl(timeout time.Duration) ControlDiagnosis {
+func (pc *ProxyChecker) runDiagnosisControl(timeout time.Duration, interfaceName string) ControlDiagnosis {
 	target := pc.urlTestURL
 	result := ControlDiagnosis{URL: target}
 	if target == "" {
 		result.Error = "no control URL configured"
 		return result
 	}
-	client := &http.Client{Timeout: timeout}
+	dialer := newInterfaceDialer(interfaceName, timeout)
+	client := &http.Client{
+		Timeout: timeout,
+		Transport: &http.Transport{
+			DialContext:       dialer.DialContext,
+			DisableKeepAlives: true,
+		},
+	}
 	status, body, latency, err := timedProxyGET(client, target, 64*1024)
 	result.StatusCode = status
 	result.LatencyMs = latency.Milliseconds()
@@ -361,7 +368,7 @@ type directTarget struct {
 	network     string
 }
 
-func runDirectDiagnostics(bindings []*models.ProxyConfig, timeout time.Duration) ([]PortDiagnosis, []TLSProbeDiagnosis) {
+func runDirectDiagnostics(bindings []*models.ProxyConfig, timeout time.Duration, interfaceName string) ([]PortDiagnosis, []TLSProbeDiagnosis) {
 	targets := make(map[string]*directTarget)
 	for _, binding := range bindings {
 		network := "tcp"
@@ -392,7 +399,7 @@ func runDirectDiagnostics(bindings []*models.ProxyConfig, timeout time.Duration)
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			portResult := probeDirectPort(server, target.network, target.port, timeout)
+			portResult := probeDirectPort(server, target.network, target.port, timeout, interfaceName)
 			localTLS := make([]TLSProbeDiagnosis, 0, len(target.serverNames))
 			if target.network == "tcp" && portResult.Successes > 0 {
 				names := make([]string, 0, len(target.serverNames))
@@ -401,7 +408,7 @@ func runDirectDiagnostics(bindings []*models.ProxyConfig, timeout time.Duration)
 				}
 				sort.Strings(names)
 				for _, name := range names {
-					localTLS = append(localTLS, probeDirectTLS(server, target.port, name, timeout))
+					localTLS = append(localTLS, probeDirectTLS(server, target.port, name, timeout, interfaceName))
 				}
 			}
 			mu.Lock()
@@ -426,7 +433,7 @@ func runDirectDiagnostics(bindings []*models.ProxyConfig, timeout time.Duration)
 	return ports, tlsProbes
 }
 
-func probeDirectPort(server, network string, port int, timeout time.Duration) PortDiagnosis {
+func probeDirectPort(server, network string, port int, timeout time.Duration, interfaceName string) PortDiagnosis {
 	result := PortDiagnosis{Port: port, Network: network, Attempts: diagnosisAttempts}
 	if network == "udp" {
 		result.Attempts = 0
@@ -434,9 +441,10 @@ func probeDirectPort(server, network string, port int, timeout time.Duration) Po
 		return result
 	}
 	address := net.JoinHostPort(server, fmt.Sprintf("%d", port))
+	dialer := newInterfaceDialer(interfaceName, timeout)
 	for i := 0; i < diagnosisAttempts; i++ {
 		start := time.Now()
-		conn, err := net.DialTimeout("tcp", address, timeout)
+		conn, err := dialer.Dial("tcp", address)
 		if err != nil {
 			result.LastError = normalizeProbeError(err)
 			continue
@@ -451,13 +459,13 @@ func probeDirectPort(server, network string, port int, timeout time.Duration) Po
 	return result
 }
 
-func probeDirectTLS(server string, port int, serverName string, timeout time.Duration) TLSProbeDiagnosis {
+func probeDirectTLS(server string, port int, serverName string, timeout time.Duration, interfaceName string) TLSProbeDiagnosis {
 	result := TLSProbeDiagnosis{Port: port, ServerName: serverName, Attempts: diagnosisAttempts}
 	address := net.JoinHostPort(server, fmt.Sprintf("%d", port))
 	for i := 0; i < diagnosisAttempts; i++ {
 		ctx, cancel := context.WithTimeout(context.Background(), timeout)
 		start := time.Now()
-		raw, err := (&net.Dialer{}).DialContext(ctx, "tcp", address)
+		raw, err := newInterfaceDialer(interfaceName, timeout).DialContext(ctx, "tcp", address)
 		if err != nil {
 			cancel()
 			result.LastError = normalizeProbeError(err)

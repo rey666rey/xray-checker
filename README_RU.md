@@ -100,7 +100,9 @@ checker ждёт подтверждения от `network-monitor`, восста
 Это LaunchAgent macOS для аварийного восстановления. Когда iPhone снова
 подключён, но маршрут `col0` не восстановился примерно за 15 секунд, supervisor
 пересоздаёт bridge и профиль Colima. Между такими попытками действует cooldown
-60 секунд.
+60 секунд. Одна лишь недоступность панели не запускает recovery VM, пока в
+Colima сохраняется default route через `col0`; этот случай обрабатывает restart
+policy Docker.
 
 В recovery-режиме сохранённый снимок результатов не удаляется, поэтому панель
 возвращается без новой полной проходки.
@@ -559,11 +561,15 @@ docker --context colima-iphone compose ps
 | `PROXY_RETRY_TIMEOUT` | `10` | секунд на retry-попытку |
 | `PROXY_CHECK_METHOD` | `urltest` | Apple URL Test через Xray |
 | `PROXY_URL_TEST_ATTEMPTS` | `2` | запросов на одну health-проверку |
+| `XRAY_OUTBOUND_INTERFACE` | `col0` | привязать сокеты Xray и прямой диагностики к маршруту iPhone (fail closed) |
+| `METRICS_HOST` | `172.17.0.1` | слушать только Docker bridge Colima, а не интерфейс iPhone/LAN |
+| `METRICS_PORT` | `2113` | порт checker внутри host namespace Colima; на Mac пробрасывается как `127.0.0.1:2112` |
 | `NETWORK_STATUS_MAX_AGE` | `15` | считать sidecar недоступным после 15 секунд тишины |
 | `RESULTS_FILE` | `/app/data/results.json` | снимок результатов |
 | `NODE_HISTORY_FILE` | `/app/data/node-history.json` | история ремонта |
 | `NODE_DIAGNOSIS_FILE` | `/app/data/node-diagnostics.json` | история Diagnose |
 | `ACCESS_CHECK_FILE` | `/app/data/access-checks.json` | 20 последних проверок direct/VPN |
+| `HEALTH_MIN_FREE_MB` | `256` | минимальный свободный объём persistent volume для `/health` |
 | `ALERTS_SETTINGS_FILE` | `/app/data/telegram-settings.json` | базовый путь настроек и состояния Telegram |
 | `TELEGRAM_PROXY_URL` | пусто | скрытый от панели пользовательский HTTP(S)/SOCKS5-маршрут Telegram |
 | `WEB_SHOW_DETAILS` | `true` | показывать приватные IP/port/details |

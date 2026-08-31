@@ -82,3 +82,45 @@ func TestEndpointPoolDetachesOnlyAfterLongAbsence(t *testing.T) {
 		t.Fatalf("configs=%d stats=%+v, want detached binding", len(configs), stats)
 	}
 }
+
+func TestEndpointPoolReplacesPortAfterTwoAuthoritativeRounds(t *testing.T) {
+	old := poolProxy("host", "192.0.2.10")
+	old.Port = 8443
+	pool := NewEndpointPool([]*models.ProxyConfig{old})
+	newPort := poolProxy("host", "192.0.2.10")
+	newPort.Port = 443
+
+	configs, stats := pool.Observe(
+		[]*models.ProxyConfig{newPort},
+		[]*models.ProxyConfig{newPort},
+	)
+	if len(configs) != 2 || stats.Detached != 0 || stats.Missing != 1 {
+		t.Fatalf("first replacement round: configs=%d stats=%+v", len(configs), stats)
+	}
+
+	configs, stats = pool.Observe(
+		[]*models.ProxyConfig{newPort},
+		[]*models.ProxyConfig{newPort},
+	)
+	if len(configs) != 1 || configs[0].Port != 443 || stats.Detached != 1 {
+		t.Fatalf("confirmed replacement: configs=%#v stats=%+v", configs, stats)
+	}
+}
+
+func TestEndpointPoolKeepsPortsThatAppearTogether(t *testing.T) {
+	first := poolProxy("host", "192.0.2.10")
+	first.Port = 443
+	second := poolProxy("host", "192.0.2.10")
+	second.Port = 8443
+	pool := NewEndpointPool([]*models.ProxyConfig{first, second})
+
+	for round := 0; round < 3; round++ {
+		configs, stats := pool.Observe(
+			[]*models.ProxyConfig{first, second},
+			[]*models.ProxyConfig{first, second},
+		)
+		if len(configs) != 2 || stats.Detached != 0 || stats.Missing != 0 {
+			t.Fatalf("round %d: configs=%d stats=%+v", round, len(configs), stats)
+		}
+	}
+}

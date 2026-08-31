@@ -52,7 +52,11 @@ func TestRenderIndexIncludesSubscriptionName(t *testing.T) {
 	if !strings.Contains(out.String(), "Check access") ||
 		!strings.Contains(out.String(), "./api/v1/access-checks") ||
 		!strings.Contains(out.String(), "Run direct + VPN check") ||
-		!strings.Contains(out.String(), "accessMethods") {
+		!strings.Contains(out.String(), "accessMethods") ||
+		!strings.Contains(out.String(), ".access-backdrop {") ||
+		!strings.Contains(out.String(), "position: fixed;") ||
+		!strings.Contains(out.String(), "inset: 0;") ||
+		!strings.Contains(out.String(), "z-index: 60;") {
 		t.Fatal("rendered private dashboard does not include access-check controls")
 	}
 	if strings.Contains(out.String(), "setViewMode(") ||
