@@ -17,13 +17,18 @@ subscriptions:
 - distinguish one transient network failure from a repeatable problem;
 - retain the previous and current address after a replacement;
 - manually recheck one binding or deeply diagnose a physical node;
+- compare access to an arbitrary public endpoint directly and through healthy
+  VPN routes;
+- fail closed instead of silently moving checks to Colima's `eth0` fallback;
 - preserve results across a short iPhone disconnect or Colima recreation;
 - optionally expose the current state to Prometheus.
 
-This is not ICMP ping, a Cloudflare test, `ipify`, or a block-list lookup. The
-checker makes a real HTTP request through every Xray configuration and answers a
-practical question: “can this binding open the control URL from the network used
-by Colima right now?”
+This is not ICMP ping, a Cloudflare test, an `ipify`-based proxy check, or a
+block-list lookup. The checker makes a real HTTP request through every Xray
+configuration and answers a practical question: “can this binding open the
+control URL from the network used by Colima right now?” `network-monitor` uses
+`ipify` separately, at most once per minute, only to label the current direct
+iPhone public IP in the UI and reports.
 
 ## Check flow at a glance
 
@@ -50,16 +55,21 @@ macOS (the Mac keeps its normal Wi-Fi default route)
 └── Colima profile: iphone
     │ default route: col0 → iPhone USB → mobile network
     │
-    ├── network-monitor
-    │   └── direct captive.apple.com GET bound to col0
+    ├── network-monitor (host network)
+    │   ├── direct captive.apple.com GET bound to col0
+    │   └── direct public-IP refresh through col0 (once per minute)
     │
-    └── xray-checker (Go)
-        ├── downloads subscriptions
-        ├── starts and reloads Xray
-        ├── SOCKS5 :10000 + index for every binding
-        ├── GET: mobile network → proxy → captive.apple.com
-        ├── dashboard and JSON API on 127.0.0.1:2112
-        └── /metrics for an external Prometheus server
+    ├── xray-checker (Go, host network)
+    │   ├── downloads subscriptions
+    │   ├── starts and reloads Xray
+    │   ├── binds Xray and direct diagnostic sockets to col0
+    │   ├── SOCKS5 :10000 + index for every binding
+    │   ├── GET: mobile network → proxy → captive.apple.com
+    │   ├── dashboard/API on Docker bridge 172.17.0.1:2113
+    │   └── /metrics and disk-aware /health
+    │
+    └── web-forwarder (bridge network)
+        └── Mac 127.0.0.1:2112 → checker 172.17.0.1:2113
 ```
 
 Only the virtual machine and its containers use the iPhone path. The Mac does
@@ -75,26 +85,38 @@ The primary process is written in Go. It:
 - builds the `Host ↔ Node` topology;
 - starts Xray and safely reloads its configuration;
 - schedules bulk, targeted, and manual checks;
-- stores current results, repair history, and diagnoses;
-- serves the HTML dashboard, JSON API, and `/metrics`.
+- stores current results, repair history, diagnoses, and access-check history;
+- serves the HTML dashboard, JSON API, `/metrics`, and disk-aware `/health`.
 
 ### Xray
 
 Xray implements VLESS, Reality, TLS, Hysteria, and the other proxy protocols.
 The checker does not try to reproduce those protocols. Xray creates a local
 SOCKS5 listener for each configuration, and Go sends the control HTTP request
-through that listener.
+through that listener. The generated Xray `sockopt.interface` and the Go direct
+dialers both bind to `col0`. The checker runs as the unprivileged `appuser`; only
+its binary receives `CAP_NET_RAW`, which Linux requires for `SO_BINDTODEVICE`.
+If `col0` disappears, those sockets fail closed instead of following `eth0`.
 
 ### `network-monitor`
 
 A separate container tests the Apple URL directly through `col0` every three
 seconds. It writes `connected`, `recovering`, or `waiting` into a shared status
-file. If the iPhone disappears, the Go process pauses new checks instead of
-turning a cable disconnect into hundreds of false `Offline` results.
+file and refreshes the route's public IP through `col0` at most once per minute.
+If the iPhone disappears, the Go process pauses new checks instead of turning a
+cable disconnect into hundreds of false `Offline` results.
 
 When a proxy request fails at the same time as the mobile route, the checker
 waits for confirmation from `network-monitor`, waits for recovery, and repeats
 the request without recording a false failure.
+
+### `web-forwarder`
+
+The checker needs host networking so its sockets can see `col0`, but Colima does
+not automatically forward host-network listeners back to macOS. A small `socat`
+container therefore publishes only Mac loopback `127.0.0.1:2112` and forwards it
+to the checker on the Docker bridge. The checker listens on `172.17.0.1:2113`,
+not on the iPhone or LAN interface.
 
 ### `iphone-supervisor.sh`
 
@@ -172,6 +194,12 @@ An endpoint is detached after 30 successful minute cycles without a sighting.
 After the first missed cycle it is marked missing and hidden from the active
 dashboard list. If the exact binding returns, its history and last state are
 restored and a fresh check is scheduled.
+
+A deliberate same-host port replacement is handled faster. If every sample in
+two consecutive refresh rounds reports the new port and not the old one, the old
+binding is detached immediately instead of waiting 30 cycles. If both ports are
+observed, they remain independent active bindings; this preserves legitimate
+multi-port nodes such as simultaneous `443` and `8443` inbounds.
 
 ### Large-diff protection
 
@@ -278,7 +306,8 @@ and never runs automatically.
 Stages:
 
 1. verify the iPhone route and direct Apple control request;
-2. make three direct attempts to the endpoint ports;
+2. make three direct attempts to every TCP port present in the Node's active
+   bindings (for example both `443` and `8443`);
 3. probe configured TLS/Reality SNI handshakes;
 4. make three real Apple GETs through each Xray binding.
 
@@ -304,7 +333,9 @@ instability; inspect the individual binding attempt counters.
 creating an Xray configuration. Select TCP, SSH, TLS, HTTP, or HTTPS and the
 checker first makes three protocol-aware attempts through the direct iPhone
 route. Only if they all fail, it repeats the same probe twice through up to
-three healthy, physically distinct Xray routes.
+three healthy, physically distinct Xray routes. The direct socket and the Xray
+outbounds are bound to `col0`, so loss of the iPhone route cannot silently turn
+the test into a Wi-Fi result.
 
 `Blocked` is returned only when the direct probe fails and at least one VPN
 probe succeeds. A successful direct probe is `Available`; failure on both
@@ -325,9 +356,12 @@ Open <http://127.0.0.1:2112>.
 - Cards show local last-check time as `HH:MM`.
 - `IP changed` uses a full-width wrapping row for the old and new addresses.
 - `Hosts` is the only dashboard view and displays subscription entries.
+- `Check access` opens a workspace modal for direct-vs-VPN evidence and recent
+  history without navigating away from the host list.
 
-Compose binds the port to `127.0.0.1`, so the dashboard is not exposed to other
-devices on the LAN by default.
+`web-forwarder` binds the public-facing Compose port to Mac loopback
+`127.0.0.1:2112`. The checker itself listens only on Colima's Docker bridge, so
+the dashboard is not exposed through the iPhone or LAN interface.
 
 ### Telegram alerts
 
@@ -410,6 +444,7 @@ The named `xray-results` volume is mounted at `/app/data`.
 | `results.json` | last online/latency/error per binding and completed-sweep flag | removed to force a new full sweep |
 | `node-history.json` | repair states, revisions, and the latest 40 events | preserved |
 | `node-diagnostics.json` | latest ten manual diagnoses per Node | preserved |
+| `access-checks.json` | latest 20 completed direct-vs-VPN access checks | preserved |
 | `telegram-settings.json` | non-secret Telegram recipient and preferences | preserved |
 | `telegram-settings.token` | Telegram bot token, mode `0600` | preserved |
 | `telegram-settings.proxy` | optional custom Telegram proxy, mode `0600` | preserved |
@@ -417,6 +452,11 @@ The named `xray-results` volume is mounted at `/app/data`.
 
 Snapshots use a temporary file and atomic rename. Stopping Compose without
 deleting named volumes does not erase the history.
+
+`/health` also verifies that `/app/data` remains writable and has at least
+`HEALTH_MIN_FREE_MB` free (256 MiB in the local profile). It returns HTTP 503 on
+a write failure or low disk space, allowing Docker to mark the service
+unhealthy before persistence starts failing with `no space left on device`.
 
 ## Requirements
 
@@ -481,7 +521,7 @@ IPHONE_INTERFACE=en8 ./start.sh
 4. verifies that the VM default route uses `col0`;
 5. builds the image;
 6. removes only the previous `results.json`;
-7. starts `network-monitor` and `xray-checker`;
+7. starts `network-monitor`, `xray-checker`, and `web-forwarder`;
 8. installs the recovery LaunchAgent.
 
 Dashboard: <http://127.0.0.1:2112>
@@ -523,6 +563,7 @@ docker-compose --context colima-iphone stop xray-checker
 docker-compose --context colima-iphone ps
 docker-compose --context colima-iphone logs -f xray-checker
 docker-compose --context colima-iphone logs -f network-monitor
+docker-compose --context colima-iphone logs -f web-forwarder
 curl -fsS http://127.0.0.1:2112/health
 curl -fsS http://127.0.0.1:2112/api/v1/network
 curl -fsS http://127.0.0.1:2112/api/v1/status
@@ -572,7 +613,7 @@ Values are defined in [`compose.yaml`](compose.yaml).
 | Method / URL | Purpose |
 | --- | --- |
 | `GET /` | dashboard |
-| `GET /health` | HTTP process liveness |
+| `GET /health` | process, persistent-directory writeability, and minimum free disk space |
 | `GET /metrics` | current Prometheus metrics |
 | `GET /api/v1/proxies` | private binding list and results |
 | `GET /api/v1/public/proxies` | reduced public snapshot |
@@ -658,11 +699,15 @@ minute improve discovery but cannot guarantee a complete pool by a deadline.
 ## Development and verification
 
 ```bash
+go vet ./...
 go test ./...
 bash -n start.sh stop.sh iphone-supervisor.sh
 sh -n network-watch.sh
 docker-compose --context colima-iphone config --quiet
 ```
+
+GitHub Actions runs `gofmt`, `go vet`, and the complete Go test suite on pushes
+and pull requests to `main`.
 
 Primary packages:
 
@@ -677,7 +722,8 @@ Primary packages:
 
 - never commit `.env`;
 - the private API contains endpoints and generated configurations;
-- keep the port bound to loopback unless authentication is added;
+- keep the `web-forwarder` publication bound to Mac loopback unless
+  authentication is added;
 - use Basic Auth or a trusted reverse proxy for public mode;
 - do not paste subscription URLs, HWIDs, or full diagnostic payloads into public
   issues.
@@ -687,5 +733,7 @@ Primary packages:
 This repository is based on
 [`kutovoys/xray-checker`](https://github.com/kutovoys/xray-checker). The local
 branch adds the isolated iPhone/Colima route, Apple URL Test, resilient recovery,
-endpoint-pool accumulation, targeted repair monitoring, and deep diagnosis.
+fail-closed socket binding, endpoint-pool accumulation and port replacement,
+targeted repair monitoring, direct-vs-VPN access checks, disk-aware health, and
+deep diagnosis.
 See [`LICENSE`](LICENSE) for licensing terms.
