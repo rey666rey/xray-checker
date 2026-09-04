@@ -34,9 +34,21 @@ func TestRenderIndexIncludesSubscriptionName(t *testing.T) {
 		!strings.Contains(out.String(), `Node diagnosis`) {
 		t.Fatal("rendered private dashboard does not include node diagnosis controls")
 	}
+	if !strings.Contains(out.String(), `Primary failure`) ||
+		!strings.Contains(out.String(), `Connection path`) ||
+		!strings.Contains(out.String(), `diagnosis-state-network`) ||
+		!strings.Contains(out.String(), `diagnosis-state-handshake`) ||
+		!strings.Contains(out.String(), `diagnosis-state-tunnel`) ||
+		!strings.Contains(out.String(), `nodeDiagnoses[item.proxy.nodeId]`) {
+		t.Fatal("rendered private dashboard does not visually separate diagnosis causes")
+	}
 	if !strings.Contains(out.String(), `@click.stop="copyHostName(item.proxy)"`) ||
 		!strings.Contains(out.String(), `Host name copied:`) {
 		t.Fatal("rendered private dashboard does not copy host names")
+	}
+	if !strings.Contains(out.String(), `class="proxy-card-heading"`) ||
+		!strings.Contains(out.String(), `class="proxy-card-title`) {
+		t.Fatal("rendered dashboard does not give the host title its own full-width row")
 	}
 	if strings.Contains(out.String(), `:href="item.proxy.url"`) {
 		t.Fatal("rendered private dashboard still links host names to config pages")

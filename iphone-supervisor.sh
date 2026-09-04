@@ -9,8 +9,11 @@ readonly LABEL="com.xray-checker.iphone-supervisor"
 readonly RUNTIME_DIR="${SCRIPT_DIR}/.runtime"
 readonly PLIST_PATH="${HOME}/Library/LaunchAgents/${LABEL}.plist"
 readonly CHECK_INTERVAL="${IPHONE_RECOVERY_CHECK_INTERVAL:-3}"
-readonly FAILURE_THRESHOLD="${IPHONE_RECOVERY_FAILURE_THRESHOLD:-5}"
+readonly FAILURE_THRESHOLD="${IPHONE_RECOVERY_FAILURE_THRESHOLD:-3}"
 readonly RECOVERY_COOLDOWN="${IPHONE_RECOVERY_COOLDOWN:-60}"
+readonly PROBE_URL="${IPHONE_RECOVERY_PROBE_URL:-https://1.1.1.1/cdn-cgi/trace}"
+readonly PROBE_EXPECTED="${IPHONE_RECOVERY_PROBE_EXPECTED:-ip=}"
+readonly PROBE_TIMEOUT="${IPHONE_RECOVERY_PROBE_TIMEOUT:-3}"
 
 log() {
   printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
@@ -26,42 +29,77 @@ mobile_route_is_ready() {
     /usr/bin/grep -q '"state":"connected"'
 }
 
-colima_route_is_ready() {
+iphone_data_plane_is_ready() {
+  /usr/bin/curl --interface "${IPHONE_INTERFACE}" --fail --silent \
+    --connect-timeout 1 --max-time "${PROBE_TIMEOUT}" "${PROBE_URL}" 2>/dev/null |
+    /usr/bin/grep -Fq "${PROBE_EXPECTED}"
+}
+
+colima_data_plane_is_ready() {
   /opt/homebrew/bin/colima status --profile "${COLIMA_PROFILE}" >/dev/null 2>&1 &&
     /opt/homebrew/bin/colima ssh --profile "${COLIMA_PROFILE}" -- \
-      ip -4 route show default 2>/dev/null |
-      /usr/bin/grep -Eq '^default .* dev col0 '
+      curl --interface col0 --fail --silent --connect-timeout 1 \
+        --max-time "${PROBE_TIMEOUT}" "${PROBE_URL}" 2>/dev/null |
+      /usr/bin/grep -Fq "${PROBE_EXPECTED}"
 }
 
 run_supervisor() {
   local failures=0
   local last_recovery=0
+  local last_state=""
   local now=0
 
   log "iPhone recovery supervisor started (interface=${IPHONE_INTERFACE}, profile=${COLIMA_PROFILE})"
   while true; do
     if ! iphone_is_attached; then
       failures=0
+      if [[ "${last_state}" != "detached" ]]; then
+        log "iPhone interface ${IPHONE_INTERFACE} has no IPv4 address; waiting"
+        last_state="detached"
+      fi
       sleep "${CHECK_INTERVAL}"
       continue
     fi
 
     if mobile_route_is_ready; then
       failures=0
+      if [[ "${last_state}" != "connected" ]]; then
+        log "iPhone route and checker are connected"
+        last_state="connected"
+      fi
+      sleep "${CHECK_INTERVAL}"
+      continue
+    fi
+
+    # Do not rebuild Colima when the phone itself has no usable mobile route.
+    # Recreating the bridge cannot fix that and would only prolong the outage.
+    if ! iphone_data_plane_is_ready; then
+      failures=0
+      if [[ "${last_state}" != "iphone_unavailable" ]]; then
+        log "iPhone is attached but its mobile data path is unavailable; waiting"
+        last_state="iphone_unavailable"
+      fi
       sleep "${CHECK_INTERVAL}"
       continue
     fi
 
     # A planned checker/container restart makes the local API unavailable even
-    # though the VM route is healthy. Docker's restart policy handles that case;
-    # recreating the whole Colima profile would only prolong the outage.
-    if colima_route_is_ready; then
+    # though the VM data plane is healthy. Docker's restart policy handles it.
+    if colima_data_plane_is_ready; then
       failures=0
+      if [[ "${last_state}" != "checker_unavailable" ]]; then
+        log "col0 data plane is healthy; waiting for the checker API"
+        last_state="checker_unavailable"
+      fi
       sleep "${CHECK_INTERVAL}"
       continue
     fi
 
     failures=$((failures + 1))
+    if [[ "${last_state}" != "bridge_unavailable" ]]; then
+      log "iPhone data works on macOS but not through col0; confirming bridge failure"
+      last_state="bridge_unavailable"
+    fi
     if ((failures < FAILURE_THRESHOLD)); then
       sleep "${CHECK_INTERVAL}"
       continue
@@ -75,11 +113,13 @@ run_supervisor() {
 
     last_recovery="${now}"
     failures=0
-    log "iPhone is attached but col0 is unavailable; recreating the Colima bridge"
+    log "col0 data plane failed ${FAILURE_THRESHOLD} consecutive checks; recreating the Colima bridge"
     if XRAY_RECOVERY_MODE=true "${SCRIPT_DIR}/start.sh"; then
       log "Colima bridge recovery completed"
+      last_state="recovered"
     else
       log "Colima bridge recovery failed; another attempt will be made after cooldown"
+      last_state="recovery_failed"
     fi
     sleep "${CHECK_INTERVAL}"
   done

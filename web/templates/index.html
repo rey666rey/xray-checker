@@ -288,6 +288,23 @@
         min-width: 0;
         width: 100%;
       }
+      .proxy-card-heading {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-width: 0;
+        margin-left: 1.25rem;
+        margin-bottom: 0.1rem;
+      }
+      .proxy-card-title {
+        flex: 1 1 auto;
+        min-width: 0;
+        text-align: left;
+        justify-content: flex-start;
+      }
+      .proxy-card-heading .proto-badge {
+        flex: 0 0 auto;
+      }
       .address-change-row {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr);
@@ -319,12 +336,17 @@
       .state-attention { color: var(--color-red); border-color: color-mix(in srgb, var(--color-red) 35%, transparent); }
       .state-verifying { color: var(--color-yellow); border-color: color-mix(in srgb, var(--color-yellow) 35%, transparent); }
       .state-fixed { color: var(--color-green); border-color: color-mix(in srgb, var(--color-green) 35%, transparent); }
+      .diagnosis-state-network { color: #ff4d5e; border-color: color-mix(in srgb, #ff4d5e 45%, transparent); background: color-mix(in srgb, #ff4d5e 10%, transparent); }
+      .diagnosis-state-handshake { color: #ff9f43; border-color: color-mix(in srgb, #ff9f43 45%, transparent); background: color-mix(in srgb, #ff9f43 10%, transparent); }
+      .diagnosis-state-tunnel { color: #a78bfa; border-color: color-mix(in srgb, #8b5cf6 48%, transparent); background: color-mix(in srgb, #8b5cf6 11%, transparent); }
+      .diagnosis-state-inconclusive { color: #8ea0b9; border-color: color-mix(in srgb, #8ea0b9 42%, transparent); background: color-mix(in srgb, #8ea0b9 9%, transparent); }
+      .diagnosis-stale { opacity: 0.62; border-style: dashed; }
       .diagnosis-backdrop {
 		background: rgba(4, 7, 12, 0.08);
       }
       .diagnosis-card {
 		position: fixed;
-		width: min(34rem, calc(100vw - 1.5rem));
+		width: min(43rem, calc(100vw - 1.5rem));
 		border-radius: 1.15rem;
 		background: linear-gradient(145deg, color-mix(in srgb, var(--accent) 22%, var(--bg-secondary)), var(--bg-secondary) 18%);
 		border: 1px solid color-mix(in srgb, var(--accent) 46%, var(--border));
@@ -403,6 +425,43 @@
 		border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
 		background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, var(--bg-tertiary)), var(--bg-tertiary));
 	}
+	.diagnosis-hero-network { border-color: color-mix(in srgb, #ff4d5e 38%, var(--border)); background: linear-gradient(135deg, color-mix(in srgb, #ff4d5e 10%, var(--bg-tertiary)), var(--bg-tertiary)); }
+	.diagnosis-hero-handshake { border-color: color-mix(in srgb, #ff9f43 38%, var(--border)); background: linear-gradient(135deg, color-mix(in srgb, #ff9f43 10%, var(--bg-tertiary)), var(--bg-tertiary)); }
+	.diagnosis-hero-tunnel { border-color: color-mix(in srgb, #8b5cf6 40%, var(--border)); background: linear-gradient(135deg, color-mix(in srgb, #8b5cf6 11%, var(--bg-tertiary)), var(--bg-tertiary)); }
+	.diagnosis-stage-map {
+		display: grid;
+		grid-template-columns: repeat(5, minmax(0, 1fr));
+		gap: 0.45rem;
+	}
+	.diagnosis-stage {
+		position: relative;
+		min-width: 0;
+		padding: 0.7rem 0.6rem;
+		border-radius: 0.75rem;
+		border: 1px solid var(--border);
+		background: color-mix(in srgb, var(--bg-tertiary) 82%, transparent);
+	}
+	.diagnosis-stage::after {
+		content: "";
+		position: absolute;
+		top: 1.05rem;
+		right: -0.47rem;
+		width: 0.47rem;
+		height: 1px;
+		background: var(--border);
+	}
+	.diagnosis-stage:last-child::after { display: none; }
+	.diagnosis-stage-pass { border-color: color-mix(in srgb, var(--color-green) 38%, var(--border)); }
+	.diagnosis-stage-pass .diagnosis-stage-mark { color: var(--color-green); }
+	.diagnosis-stage-partial { border-color: color-mix(in srgb, var(--color-yellow) 42%, var(--border)); }
+	.diagnosis-stage-partial .diagnosis-stage-mark { color: var(--color-yellow); }
+	.diagnosis-stage-fail { border-color: color-mix(in srgb, #ff5f6d 48%, var(--border)); background: color-mix(in srgb, #ff5f6d 7%, var(--bg-tertiary)); }
+	.diagnosis-stage-fail .diagnosis-stage-mark { color: #ff5f6d; }
+	.diagnosis-stage-running { border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); }
+	.diagnosis-stage-running .diagnosis-stage-mark { color: var(--accent); }
+	.diagnosis-stage-blocked { opacity: 0.55; }
+	.diagnosis-stage-mark { font-weight: 800; line-height: 1; color: var(--text-muted); }
+	.diagnosis-cause-badge { max-width: 10rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 	.diagnosis-metric {
 		border-radius: 0.8rem;
 		border: 1px solid var(--border);
@@ -966,6 +1025,8 @@
 		to { opacity: 1; transform: translateY(0) scale(1); }
 	}
 	@media (max-width: 640px) {
+		.diagnosis-stage-map { grid-template-columns: 1fr; }
+		.diagnosis-stage::after { display: none; }
 		.diagnosis-card, .alerts-card {
 			left: 0.75rem !important;
 			right: 0.75rem !important;
@@ -1853,6 +1914,28 @@
 				class="proxy-card group card rounded-lg px-3 py-2.5 transition-all duration-150"
 				:class="initialLoad && 'animate'"
 			  >
+				<div class="proxy-card-heading">
+                  {{ if .IsPublic }}
+                  <span
+                    class="proxy-card-title text-sm text-primary truncate"
+                    x-text="item.proxy.name"
+                  ></span>
+                  {{ else }}
+                  <button
+                    type="button"
+                    @click.stop="copyHostName(item.proxy)"
+                    class="proxy-card-title text-sm text-primary link-hover truncate transition-colors text-left"
+                    :title="'Copy host name: ' + item.proxy.name"
+                    x-text="item.proxy.name"
+                  ></button>
+                  {{ end }}
+                  <span
+                    x-show="item.proxy.protocol"
+                    class="proto-badge"
+                    :class="'proto-' + item.proxy.protocol"
+                    x-text="protoLabel(item.proxy.protocol)"
+                  ></span>
+				</div>
 				<div class="proxy-card-main">
 				<!-- Status dot -->
                 <div class="relative flex-shrink-0">
@@ -1864,28 +1947,6 @@
 
                 <!-- Info -->
                 <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-1.5 min-w-0">
-                    {{ if .IsPublic }}
-                    <span
-                      class="text-sm text-primary truncate"
-                      x-text="item.proxy.name"
-                    ></span>
-                    {{ else }}
-                    <button
-                      type="button"
-                      @click.stop="copyHostName(item.proxy)"
-                      class="text-sm text-primary link-hover truncate transition-colors min-w-0 text-left"
-                      :title="'Copy host name: ' + item.proxy.name"
-                      x-text="item.proxy.name"
-                    ></button>
-                    {{ end }}
-                    <span
-                      x-show="item.proxy.protocol"
-                      class="proto-badge"
-                      :class="'proto-' + item.proxy.protocol"
-                      x-text="protoLabel(item.proxy.protocol)"
-                    ></span>
-                  </div>
                   {{ if .ShowServerDetails }}
                   <span class="text-xs text-muted truncate block"
                     ><span x-text="item.proxy.serverInfo"></span> · :<span
@@ -1899,6 +1960,16 @@
 					  :class="stateClass(item.proxy.missingPolls > 0 ? 'missing' : item.proxy.monitorState)"
 					  x-text="item.proxy.rechecking ? 'Rechecking…' : stateLabel(item.proxy.missingPolls > 0 ? 'missing' : item.proxy.monitorState)"
                     ></span>
+					<template x-if="nodeDiagnoses[item.proxy.nodeId]">
+					  <button
+						type="button"
+						@click.stop="openDiagnosis(item.proxy.nodeId, false, $event)"
+						class="state-badge diagnosis-cause-badge"
+						:class="diagnosisClass(nodeDiagnoses[item.proxy.nodeId])"
+						:title="diagnosisLayerDescription(nodeDiagnoses[item.proxy.nodeId])"
+						x-text="diagnosisLabel(nodeDiagnoses[item.proxy.nodeId])"
+					  ></button>
+					</template>
                     <span
                       x-show="item.proxy.lastCheck"
                       class="text-[10px] text-muted truncate"
@@ -2307,10 +2378,15 @@
 		<div x-show="diagnosisError && !diagnosisLoading" class="card-flat rounded-lg p-4 text-sm latency-bad" x-text="diagnosisError"></div>
         <template x-if="!diagnosisLoading && selectedDiagnosis">
           <div>
-			<div class="diagnosis-hero p-4 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+			<div class="diagnosis-hero p-4 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3" :class="'diagnosis-hero-' + diagnosisTone(selectedDiagnosis)">
               <div>
-                <span class="state-badge" :class="diagnosisClass(selectedDiagnosis)" x-text="diagnosisLabel(selectedDiagnosis)"></span>
+				<div class="text-[9px] uppercase tracking-[.14em] font-bold text-muted mb-1">Primary failure</div>
+				<div class="flex flex-wrap items-center gap-2">
+				  <span class="state-badge" :class="diagnosisClass(selectedDiagnosis)" x-text="diagnosisLabel(selectedDiagnosis)"></span>
+				  <span class="text-xs font-semibold text-secondary" x-text="diagnosisLayerTitle(selectedDiagnosis)"></span>
+				</div>
 				<p class="text-sm text-primary mt-2" x-text="diagnosisProgress(selectedDiagnosis)"></p>
+				<p class="text-xs text-muted mt-1" x-text="diagnosisLayerDescription(selectedDiagnosis)"></p>
               </div>
               <div class="text-xs text-muted sm:text-right">
                 <div x-text="formatTimestamp(selectedDiagnosis.completedAt || selectedDiagnosis.startedAt)"></div>
@@ -2318,9 +2394,24 @@
               </div>
             </div>
 
+			<div class="mb-4">
+			  <h3 class="text-xs font-semibold text-primary mb-2">Connection path</h3>
+			  <div class="diagnosis-stage-map">
+				<template x-for="stage in diagnosisStages(selectedDiagnosis)" :key="stage.key">
+				  <div class="diagnosis-stage" :class="diagnosisStageClass(stage.status)" :title="stage.detail">
+					<div class="flex items-center gap-1.5 min-w-0">
+					  <span class="diagnosis-stage-mark" x-text="diagnosisStageMark(stage.status)"></span>
+					  <span class="text-[10px] leading-tight font-semibold text-primary" x-text="stage.label"></span>
+					</div>
+					<div class="text-[9px] text-muted mt-1 truncate" x-text="stage.detail"></div>
+				  </div>
+				</template>
+			  </div>
+			</div>
+
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
 			  <div class="diagnosis-metric p-3">
-                <div class="text-xs text-muted mb-1">Network control</div>
+				<div class="text-xs text-muted mb-1">iPhone route</div>
                 <div class="text-sm" :class="selectedDiagnosis.control && selectedDiagnosis.control.online ? 'latency-good' : 'latency-bad'" x-text="selectedDiagnosis.control && selectedDiagnosis.control.online ? 'Available' : 'Failed'"></div>
                 <div class="text-[10px] text-muted mt-1" x-show="selectedDiagnosis.control" x-text="selectedDiagnosis.control ? ((selectedDiagnosis.control.latencyMs || 0) + 'ms · HTTP ' + (selectedDiagnosis.control.statusCode || '—')) : ''"></div>
               </div>
@@ -2347,7 +2438,7 @@
             </div>
 
             <div x-show="(selectedDiagnosis.tls || []).length" class="mb-4">
-              <h3 class="text-xs font-semibold text-primary mb-2">TLS / Reality camouflage</h3>
+			  <h3 class="text-xs font-semibold text-primary mb-2">TLS / SNI camouflage probe</h3>
               <div class="space-y-1">
                 <template x-for="p in selectedDiagnosis.tls || []" :key="p.port + ':' + p.serverName">
 				  <div class="diagnosis-result-row px-3 py-2 flex items-center justify-between gap-3 text-xs">
@@ -2363,7 +2454,7 @@
               <div class="space-y-1">
                 <template x-for="b in selectedDiagnosis.bindings || []" :key="b.stableId">
 				  <div class="diagnosis-result-row px-3 py-2 flex items-center justify-between gap-3 text-xs">
-                    <div class="min-w-0"><span class="text-primary truncate block" x-text="b.name"></span><span class="text-[10px] text-muted" x-text="b.protocol.toUpperCase() + (b.security ? ' · ' + b.security : '') + ' · :' + b.port"></span></div>
+					<div class="min-w-0"><span class="text-primary truncate block" x-text="b.name"></span><span class="text-[10px] text-muted" x-text="b.protocol.toUpperCase() + (b.security ? ' · ' + b.security : '') + ' · :' + b.port + (b.failureStage ? ' · ' + diagnosisFailureStageLabel(b.failureStage) : '')"></span></div>
                     <span class="text-right" :class="b.successes > 0 ? 'latency-good' : 'latency-bad'" x-text="b.successes + '/' + b.attempts + (b.bestLatencyMs ? ' · ' + b.bestLatencyMs + 'ms' : '') + (b.lastError ? ' · ' + b.lastError : '')"></span>
                   </div>
                 </template>
@@ -2956,24 +3047,105 @@
             return '';
           },
 
-		  diagnosisLabel(diagnosis) {
+          diagnosisLabel(diagnosis) {
 			if (!diagnosis) return 'Not diagnosed';
 			if (diagnosis.state === 'queued') return 'Queued';
 			if (diagnosis.state === 'running') return 'Diagnosing…';
-			if (diagnosis.stale) return 'Stale';
-			return {
+			const label = {
 			  healthy: 'Healthy', degraded: 'Degraded',
 			  net_unreachable: 'Port filtered', handshake_failed: 'Handshake failed',
-			  tunnel_failed: 'Tunnel failed', inconclusive: 'Inconclusive',
+			  tunnel_failed: 'Xray tunnel failed', inconclusive: 'Inconclusive',
 			}[diagnosis.verdict] || 'Not diagnosed';
+			return diagnosis.stale ? label + ' · stale' : label;
 		  },
 
 		  diagnosisClass(diagnosis) {
 			if (!diagnosis) return '';
-			if (diagnosis.stale || ['queued', 'running'].includes(diagnosis.state) || ['degraded', 'inconclusive'].includes(diagnosis.verdict)) return 'state-verifying';
-			if (diagnosis.verdict === 'healthy') return 'state-fixed';
-			if (['net_unreachable', 'handshake_failed', 'tunnel_failed'].includes(diagnosis.verdict)) return 'state-attention';
-			return '';
+			if (['queued', 'running'].includes(diagnosis.state)) return 'state-verifying';
+			const className = {
+			  healthy: 'state-fixed', degraded: 'state-verifying',
+			  net_unreachable: 'diagnosis-state-network',
+			  handshake_failed: 'diagnosis-state-handshake',
+			  tunnel_failed: 'diagnosis-state-tunnel',
+			  inconclusive: 'diagnosis-state-inconclusive',
+			}[diagnosis.verdict] || '';
+			return className + (diagnosis.stale ? ' diagnosis-stale' : '');
+		  },
+
+		  diagnosisTone(diagnosis) {
+			return {
+			  net_unreachable: 'network', handshake_failed: 'handshake',
+			  tunnel_failed: 'tunnel',
+			}[diagnosis && diagnosis.verdict] || 'neutral';
+		  },
+
+		  diagnosisLayerTitle(diagnosis) {
+			if (!diagnosis || ['queued', 'running'].includes(diagnosis.state)) return 'Diagnosis in progress';
+			if (diagnosis.verdict === 'net_unreachable') return 'Network / TCP layer';
+			if (diagnosis.verdict === 'handshake_failed') return 'Secure transport layer';
+			if (diagnosis.verdict === 'tunnel_failed') {
+			  return (diagnosis.bindings || []).some(b => b.failureStage === 'response') ? 'Control response layer' : 'Xray inbound / profile layer';
+			}
+			if (diagnosis.verdict === 'inconclusive') return 'Probe route';
+			if (diagnosis.verdict === 'degraded') return 'Mixed binding result';
+			return 'All connection layers';
+		  },
+
+		  diagnosisLayerDescription(diagnosis) {
+			if (!diagnosis) return '';
+			if (diagnosis.stale) return 'This is an older point-in-time result. Run Diagnose again before acting on it.';
+			if (diagnosis.verdict === 'net_unreachable') return 'The iPhone route works, but the configured TCP ports did not accept a connection.';
+			if (diagnosis.verdict === 'handshake_failed') return 'TCP is reachable, but the TLS/SNI negotiation did not complete. This is not classified as a blocked port.';
+			if (diagnosis.verdict === 'tunnel_failed') return 'The endpoint is reachable, but the configured Xray binding did not carry the control request.';
+			if (diagnosis.verdict === 'inconclusive') return 'The probe route was unavailable, so this run cannot classify the node.';
+			if (diagnosis.verdict === 'degraded') return 'At least one binding works, while another binding on the same node failed.';
+			if (diagnosis.verdict === 'healthy') return 'The route, endpoint and every configured binding passed.';
+			return diagnosis.summary || 'Waiting for enough evidence to classify the failure.';
+		  },
+
+		  diagnosisFailureStageLabel(stage) {
+			return { configuration: 'configuration', tunnel: 'tunnel', response: 'response' }[stage] || stage;
+		  },
+
+		  diagnosisStageClass(status) {
+			return 'diagnosis-stage-' + status;
+		  },
+
+		  diagnosisStageMark(status) {
+			return { pass: '✓', partial: '!', fail: '×', running: '…', blocked: '—', neutral: '—' }[status] || '—';
+		  },
+
+		  diagnosisStages(diagnosis) {
+			if (!diagnosis) return [];
+			const completed = diagnosis.state === 'completed';
+			const control = diagnosis.control || {};
+			const ports = (diagnosis.ports || []).filter(p => p.network === 'tcp' && p.attempts > 0);
+			const tls = diagnosis.tls || [];
+			const bindings = diagnosis.bindings || [];
+			const reachablePorts = ports.filter(p => p.successes > 0).length;
+			const securePassed = tls.filter(p => p.successes > 0).length;
+			const workingBindings = bindings.filter(b => b.successes > 0).length;
+			const responseFailures = bindings.filter(b => b.failureStage === 'response').length;
+			const statusForCount = (passed, total) => total === 0 ? 'neutral' : (passed === total ? 'pass' : (passed > 0 ? 'partial' : 'fail'));
+			const routeStatus = completed ? (control.online ? 'pass' : 'fail') : (diagnosis.stage === 'network_control' ? 'running' : (control.online ? 'pass' : 'neutral'));
+			let endpointStatus = statusForCount(reachablePorts, ports.length);
+			if (!control.online && completed) endpointStatus = 'blocked';
+			else if (!completed && diagnosis.stage === 'direct_endpoint') endpointStatus = 'running';
+			let secureStatus = statusForCount(securePassed, tls.length);
+			if (ports.length && reachablePorts === 0) secureStatus = 'blocked';
+			else if (!completed && diagnosis.stage === 'direct_endpoint' && tls.length) secureStatus = 'running';
+			let tunnelStatus = statusForCount(workingBindings, bindings.length);
+			if (['net_unreachable', 'handshake_failed'].includes(diagnosis.verdict)) tunnelStatus = 'blocked';
+			else if (!completed && diagnosis.stage === 'xray_tunnels') tunnelStatus = 'running';
+			let responseStatus = workingBindings > 0 ? (workingBindings === bindings.length ? 'pass' : 'partial') : (responseFailures > 0 ? 'fail' : 'blocked');
+			if (!completed && diagnosis.stage === 'xray_tunnels') responseStatus = 'running';
+			return [
+			  { key: 'route', label: 'iPhone route', status: routeStatus, detail: control.online ? ('Available' + (control.latencyMs ? ' · ' + control.latencyMs + 'ms' : '')) : (control.error || (completed ? 'Unavailable' : 'Waiting')) },
+			  { key: 'endpoint', label: 'TCP endpoint', status: endpointStatus, detail: endpointStatus === 'blocked' ? 'Not reached' : (ports.length ? reachablePorts + '/' + ports.length + ' ports reachable' : 'No direct TCP probe') },
+			  { key: 'secure', label: 'TLS / SNI', status: secureStatus, detail: secureStatus === 'blocked' ? 'Not reached' : (tls.length ? securePassed + '/' + tls.length + ' probes passed' : 'Not required or not tested') },
+			  { key: 'tunnel', label: 'Xray tunnel', status: tunnelStatus, detail: tunnelStatus === 'blocked' ? 'Not reached' : (bindings.length ? workingBindings + '/' + bindings.length + ' bindings working' : 'No bindings tested') },
+			  { key: 'response', label: 'Response', status: responseStatus, detail: workingBindings > 0 ? workingBindings + ' control requests passed' : (responseFailures > 0 ? responseFailures + ' unexpected responses' : 'Not reached') },
+			];
 		  },
 
 		  diagnosisProgress(diagnosis) {
@@ -3066,12 +3238,16 @@
             }
             for (const [key, value] of groups) {
               const proxies = value.proxies;
+			  const nodeIds = [...new Set(proxies.map(p => p.nodeId).filter(Boolean))];
+			  const nodeId = nodeIds.length === 1 ? nodeIds[0] : '';
               blocks.push({
                 key,
                 group: value.label,
                 proxies,
                 online: proxies.filter(p => p.status).length,
                 total: proxies.length,
+				nodeId,
+				diagnosis: nodeId ? this.nodeDiagnoses[nodeId] : null,
               });
             }
             return blocks;

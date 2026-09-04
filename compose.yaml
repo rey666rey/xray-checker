@@ -80,8 +80,9 @@ services:
     entrypoint: ["/bin/sh", "/app/network-watch.sh"]
     environment:
       NETWORK_INTERFACE: "col0"
-      NETWORK_CHECK_URL: "http://captive.apple.com/hotspot-detect.html"
-      NETWORK_CHECK_EXPECTED: "Success"
+      # IP-based probe avoids treating a DNS or single-host outage as a dead route.
+      NETWORK_CHECK_URL: "https://1.1.1.1/cdn-cgi/trace"
+      NETWORK_CHECK_EXPECTED: "ip="
       NETWORK_CHECK_INTERVAL: "3"
       NETWORK_CHECK_TIMEOUT: "3"
       NETWORK_IP_CHECK_URL: "https://api.ipify.org?format=text"
