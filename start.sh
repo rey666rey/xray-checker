@@ -8,9 +8,26 @@ readonly IPHONE_INTERFACE="${IPHONE_INTERFACE:-en7}"
 readonly DOCKER_CONTEXT="colima-${COLIMA_PROFILE}"
 readonly RECOVERY_MODE="${XRAY_RECOVERY_MODE:-false}"
 
+supervisor_needs_restore=false
+
 die() {
   printf 'Ошибка: %s\n' "$*" >&2
   exit 1
+}
+
+restore_supervisor() {
+  local exit_code=$?
+
+  # Avoid recursively running this handler if installation itself fails.
+  trap - EXIT
+  if [[ "${supervisor_needs_restore}" == "true" ]]; then
+    if ! "${SCRIPT_DIR}/iphone-supervisor.sh" install; then
+      printf 'Ошибка: не удалось вернуть supervisor автовосстановления.\n' >&2
+      exit 1
+    fi
+  fi
+
+  exit "${exit_code}"
 }
 
 command -v colima >/dev/null 2>&1 || die "Colima не установлена."
@@ -28,6 +45,8 @@ else
 fi
 
 if [[ "${RECOVERY_MODE}" != "true" ]] && [[ -x "${SCRIPT_DIR}/iphone-supervisor.sh" ]]; then
+  supervisor_needs_restore=true
+  trap restore_supervisor EXIT
   "${SCRIPT_DIR}/iphone-supervisor.sh" uninstall
 fi
 
@@ -73,10 +92,6 @@ printf 'Запускаю Xray Checker с монитором сети...\n'
     "${compose[@]}" up -d --force-recreate
   fi
 )
-
-if [[ "${RECOVERY_MODE}" != "true" ]]; then
-  "${SCRIPT_DIR}/iphone-supervisor.sh" install
-fi
 
 printf '\nXray Checker запущен: http://127.0.0.1:2112\n'
 printf 'Состояние контейнера:\n'
