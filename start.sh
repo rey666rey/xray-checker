@@ -7,6 +7,11 @@ readonly COLIMA_PROFILE="${COLIMA_PROFILE:-iphone}"
 readonly IPHONE_INTERFACE="${IPHONE_INTERFACE:-en7}"
 readonly DOCKER_CONTEXT="colima-${COLIMA_PROFILE}"
 readonly RECOVERY_MODE="${XRAY_RECOVERY_MODE:-false}"
+readonly BRIDGE_READY_TIMEOUT="${IPHONE_BRIDGE_READY_TIMEOUT:-90}"
+readonly BRIDGE_READY_SUCCESSES="${IPHONE_BRIDGE_READY_SUCCESSES:-3}"
+readonly BRIDGE_PROBE_URL="https://1.1.1.1/cdn-cgi/trace"
+readonly CHECKER_START_ATTEMPTS=3
+readonly CHECKER_START_TIMEOUT=120
 
 supervisor_needs_restore=false
 
@@ -28,6 +33,46 @@ restore_supervisor() {
   fi
 
   exit "${exit_code}"
+}
+
+wait_for_bridge_data_plane() {
+  local deadline=$((SECONDS + BRIDGE_READY_TIMEOUT))
+  local successes=0
+
+  printf 'Жду стабильного доступа в интернет через col0...\n'
+  while ((SECONDS < deadline)); do
+    if colima ssh --profile "${COLIMA_PROFILE}" -- \
+      curl --interface col0 --fail --silent --connect-timeout 2 --max-time 4 \
+        "${BRIDGE_PROBE_URL}" 2>/dev/null | grep -Fq 'ip='; then
+      successes=$((successes + 1))
+      if ((successes >= BRIDGE_READY_SUCCESSES)); then
+        return 0
+      fi
+    else
+      successes=0
+    fi
+    sleep 2
+  done
+
+  return 1
+}
+
+wait_for_checker_services() {
+  local attempt
+
+  for ((attempt = 1; attempt <= CHECKER_START_ATTEMPTS; attempt++)); do
+    if "${compose[@]}" up -d --wait --wait-timeout "${CHECKER_START_TIMEOUT}" \
+      network-monitor xray-checker; then
+      return 0
+    fi
+    if ((attempt < CHECKER_START_ATTEMPTS)); then
+      printf 'Сеть ещё нестабильна; повторяю запуск checker (%s/%s)...\n' \
+        "$((attempt + 1))" "${CHECKER_START_ATTEMPTS}"
+      sleep 10
+    fi
+  done
+
+  return 1
 }
 
 command -v colima >/dev/null 2>&1 || die "Colima не установлена."
@@ -77,19 +122,26 @@ if ! grep -Eq '^default .* dev col0 ' <<<"${vm_routes}"; then
   colima stop --profile "${COLIMA_PROFILE}" >/dev/null 2>&1 || true
   die "Colima не получила основной bridge-маршрут col0 через iPhone; checker не запущен."
 fi
+if ! wait_for_bridge_data_plane; then
+  die "Маршрут col0 получен, но не стал стабильно пропускать трафик за ${BRIDGE_READY_TIMEOUT} секунд."
+fi
 
 printf 'Запускаю Xray Checker с монитором сети...\n'
 (
   cd "${SCRIPT_DIR}"
   if [[ "${RECOVERY_MODE}" == "true" ]]; then
-    "${compose[@]}" up -d
+    "${compose[@]}" up -d network-monitor xray-checker
+    wait_for_checker_services
+    "${compose[@]}" up -d --no-deps web-forwarder
   else
     printf 'Собираю образ...\n'
     "${compose[@]}" build
     printf 'Удаляю результаты прошлого запуска для новой полной проверки...\n'
     "${compose[@]}" run --rm --no-deps --entrypoint /bin/rm \
       xray-checker -f /app/data/results.json /app/data/results.json.tmp
-    "${compose[@]}" up -d --force-recreate
+    "${compose[@]}" up -d --force-recreate network-monitor xray-checker
+    wait_for_checker_services
+    "${compose[@]}" up -d --force-recreate --no-deps web-forwarder
   fi
 )
 
