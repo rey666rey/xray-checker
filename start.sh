@@ -97,12 +97,19 @@ fi
 
 if colima status --profile "${COLIMA_PROFILE}" >/dev/null 2>&1; then
   printf 'Останавливаю профиль Colima %s перед переключением сети...\n' "${COLIMA_PROFILE}"
-  colima stop --profile "${COLIMA_PROFILE}"
+  if ! colima stop --profile "${COLIMA_PROFILE}"; then
+    printf 'Обычная остановка не сработала; принудительно останавливаю зависшую VM...\n'
+    colima stop --force --profile "${COLIMA_PROFILE}"
+  fi
+else
+  # A VM can be marked running while its guest agent and SSH endpoint are dead.
+  # Clear that stale state before starting a new vmnet bridge.
+  colima stop --force --profile "${COLIMA_PROFILE}" >/dev/null 2>&1 || true
 fi
 
-if colima daemon status "${COLIMA_PROFILE}" >/dev/null 2>&1; then
-  colima daemon stop "${COLIMA_PROFILE}"
-fi
+# daemon status can also be stale while socket_vmnet is still alive. Stopping an
+# absent daemon is harmless and prevents `daemon start` from being ignored.
+colima daemon stop "${COLIMA_PROFILE}" >/dev/null 2>&1 || true
 
 printf 'Запускаю bridge Colima %s через iPhone USB (%s)...\n' \
   "${COLIMA_PROFILE}" "${IPHONE_INTERFACE}"
