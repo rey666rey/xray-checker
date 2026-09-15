@@ -178,7 +178,7 @@ paths:
 
   /api/v1/nodes/{nodeID}/diagnosis:
     get:
-      summary: Get recent manual diagnosis history
+      summary: Get recent manual and automatic diagnosis history
       tags:
         - Nodes
       parameters:
@@ -389,6 +389,61 @@ paths:
                       data:
                         $ref: '#/components/schemas/NetworkStatus'
 
+  /api/v1/network/reconnect:
+    get:
+      summary: Get iPhone bridge reconnect status
+      description: Returns the durable state reported by the macOS recovery supervisor
+      tags:
+        - System
+      responses:
+        '200':
+          description: Current or most recent reconnect state
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/NetworkRecoveryStatus'
+    post:
+      summary: Reconnect the iPhone bridge
+      description: Queues a host-side Colima bridge recovery and returns before the dashboard becomes temporarily unavailable
+      tags:
+        - System
+      parameters:
+        - in: header
+          name: X-Xray-Action
+          required: true
+          schema:
+            type: string
+            enum: [reconnect-iphone]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '202':
+          description: Reconnect queued
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/NetworkRecoveryStatus'
+        '409':
+          description: A reconnect is already queued or running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIErrorResponse'
+
 components:
   securitySchemes:
     basicAuth:
@@ -563,6 +618,8 @@ components:
           example:
             location: "Netherlands, Amsterdam"
             hoster: "FreeVDS"
+        diagnosis:
+          $ref: '#/components/schemas/BindingDiagnosisSummary'
 
     NodeGroupInfo:
       type: object
@@ -632,6 +689,9 @@ components:
           format: int64
         stale:
           type: boolean
+        trigger:
+          type: string
+          enum: [manual, automatic]
         control:
           $ref: '#/components/schemas/ControlDiagnosis'
         ports:
@@ -646,6 +706,34 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/BindingDiagnosis'
+
+    BindingDiagnosisSummary:
+      type: object
+      description: Fresh diagnosis state or verdict derived for one binding card
+      properties:
+        nodeId:
+          type: string
+        stableId:
+          type: string
+        state:
+          type: string
+          enum: [queued, running, completed]
+        verdict:
+          type: string
+          enum: [healthy, degraded, net_unreachable, handshake_failed, tunnel_failed, inconclusive]
+        summary:
+          type: string
+        trigger:
+          type: string
+          enum: [manual, automatic]
+        startedAt:
+          type: integer
+          format: int64
+        completedAt:
+          type: integer
+          format: int64
+        stale:
+          type: boolean
 
     ControlDiagnosis:
       type: object
@@ -955,3 +1043,34 @@ components:
           format: int64
           description: Unix timestamp of the last host monitor update
           example: 1787461200
+
+    NetworkRecoveryStatus:
+      type: object
+      required: [enabled, active, state]
+      properties:
+        enabled:
+          type: boolean
+        active:
+          type: boolean
+        requestId:
+          type: string
+        state:
+          type: string
+          enum: [idle, queued, running, succeeded, failed, unavailable]
+        trigger:
+          type: string
+          enum: [manual, automatic, supervisor]
+        message:
+          type: string
+        requestedAt:
+          type: integer
+          format: int64
+        startedAt:
+          type: integer
+          format: int64
+        completedAt:
+          type: integer
+          format: int64
+        updatedAt:
+          type: integer
+          format: int64

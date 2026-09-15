@@ -43,6 +43,10 @@ type CLI struct {
 		URLTestAttempts  int    `name:"proxy-url-test-attempts" help:"Number of independent URL-test requests; the best successful latency is retained" default:"2" env:"PROXY_URL_TEST_ATTEMPTS"`
 		RetryTimeout     int    `name:"proxy-retry-timeout" help:"Per-request timeout in seconds for the slower failed-node retry pass" default:"10" env:"PROXY_RETRY_TIMEOUT"`
 		RetryConcurrency int    `name:"proxy-retry-concurrency" help:"Concurrency for the failed-node retry pass (0 = half of normal concurrency)" default:"0" env:"PROXY_RETRY_CONCURRENCY"`
+		TCPProbeInterval int    `name:"proxy-tcp-probe-interval" help:"Seconds between lightweight direct TCP endpoint probes (0 disables)" default:"0" env:"PROXY_TCP_PROBE_INTERVAL"`
+		TCPProbeTimeout  int    `name:"proxy-tcp-probe-timeout" help:"Timeout in seconds for each lightweight TCP endpoint probe" default:"2" env:"PROXY_TCP_PROBE_TIMEOUT"`
+		TCPProbeConfirm  int    `name:"proxy-tcp-probe-confirm-delay" help:"Seconds before confirming a failed TCP endpoint probe" default:"5" env:"PROXY_TCP_PROBE_CONFIRM_DELAY"`
+		TCPProbeWorkers  int    `name:"proxy-tcp-probe-concurrency" help:"Maximum direct TCP endpoint probes in parallel" default:"30" env:"PROXY_TCP_PROBE_CONCURRENCY"`
 		StatusCheckUrl   string `name:"proxy-status-check-url" help:"Response status generator, used by check-method=status" default:"http://cp.cloudflare.com/generate_204" env:"PROXY_STATUS_CHECK_URL"`
 		DownloadUrl      string `name:"proxy-download-url" help:"URL for file download checking, used by check-method=download" default:"https://proof.ovh.net/files/1Mb.dat" env:"PROXY_DOWNLOAD_URL"`
 		DownloadTimeout  int    `name:"proxy-download-timeout" help:"Timeout for download checking in seconds" default:"60" env:"PROXY_DOWNLOAD_TIMEOUT"`
@@ -84,16 +88,18 @@ type CLI struct {
 		TelegramProxy string `name:"telegram-proxy-url" help:"HTTP or SOCKS proxy for Telegram managed through the environment" default:"" env:"TELEGRAM_PROXY_URL"`
 	} `embed:"" prefix:""`
 
-	NetworkStatusFile   string      `name:"network-status-file" help:"Path to a route-monitor status JSON file; unavailable status pauses proxy checks" default:"" env:"NETWORK_STATUS_FILE"`
-	NetworkStatusMaxAge int         `name:"network-status-max-age" help:"Maximum network status age in seconds before checks are paused" default:"15" env:"NETWORK_STATUS_MAX_AGE"`
-	ResultsFile         string      `name:"results-file" help:"Path to a persistent proxy-results snapshot" default:"" env:"RESULTS_FILE"`
-	NodeHistoryFile     string      `name:"node-history-file" help:"Path to persistent logical-node repair history" default:"" env:"NODE_HISTORY_FILE"`
-	NodeDiagnosisFile   string      `name:"node-diagnosis-file" help:"Path to persistent manual node-diagnosis history" default:"" env:"NODE_DIAGNOSIS_FILE"`
-	AccessCheckFile     string      `name:"access-check-file" help:"Path to persistent direct-vs-VPN access-check history" default:"" env:"ACCESS_CHECK_FILE"`
-	HealthMinFreeMB     int         `name:"health-min-free-mb" help:"Minimum free space required for a healthy persistent-data volume" default:"256" env:"HEALTH_MIN_FREE_MB"`
-	Version             VersionFlag `name:"version" help:"Print version information and quit"`
-	RunOnce             bool        `name:"run-once" help:"Run one check cycle and exit" default:"false" env:"RUN_ONCE"`
-	LogLevel            string      `name:"log-level" help:"Log level (debug|info|warn|error|none)" default:"info" env:"LOG_LEVEL"`
+	NetworkStatusFile          string      `name:"network-status-file" help:"Path to a route-monitor status JSON file; unavailable status pauses proxy checks" default:"" env:"NETWORK_STATUS_FILE"`
+	NetworkStatusMaxAge        int         `name:"network-status-max-age" help:"Maximum network status age in seconds before checks are paused" default:"15" env:"NETWORK_STATUS_MAX_AGE"`
+	NetworkRecoveryRequestFile string      `name:"network-recovery-request-file" help:"Host-shared request file used to queue a manual iPhone bridge reconnect" default:"" env:"NETWORK_RECOVERY_REQUEST_FILE"`
+	NetworkRecoveryStatusFile  string      `name:"network-recovery-status-file" help:"Host-shared JSON status file for manual iPhone bridge reconnects" default:"" env:"NETWORK_RECOVERY_STATUS_FILE"`
+	ResultsFile                string      `name:"results-file" help:"Path to a persistent proxy-results snapshot" default:"" env:"RESULTS_FILE"`
+	NodeHistoryFile            string      `name:"node-history-file" help:"Path to persistent logical-node repair history" default:"" env:"NODE_HISTORY_FILE"`
+	NodeDiagnosisFile          string      `name:"node-diagnosis-file" help:"Path to persistent manual node-diagnosis history" default:"" env:"NODE_DIAGNOSIS_FILE"`
+	AccessCheckFile            string      `name:"access-check-file" help:"Path to persistent direct-vs-VPN access-check history" default:"" env:"ACCESS_CHECK_FILE"`
+	HealthMinFreeMB            int         `name:"health-min-free-mb" help:"Minimum free space required for a healthy persistent-data volume" default:"256" env:"HEALTH_MIN_FREE_MB"`
+	Version                    VersionFlag `name:"version" help:"Print version information and quit"`
+	RunOnce                    bool        `name:"run-once" help:"Run one check cycle and exit" default:"false" env:"RUN_ONCE"`
+	LogLevel                   string      `name:"log-level" help:"Log level (debug|info|warn|error|none)" default:"info" env:"LOG_LEVEL"`
 }
 
 func (c *CLI) Validate() error {

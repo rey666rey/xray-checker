@@ -46,6 +46,7 @@ type EndpointInfo struct {
 	EndpointFirstSeen    int64
 	EndpointLastSeen     int64
 	EndpointMissingPolls int
+	Diagnosis            *checker.BindingDiagnosisSummary
 }
 
 func IndexHandler(version string, proxyChecker *checker.ProxyChecker) http.HandlerFunc {
@@ -194,6 +195,11 @@ func RegisterConfigEndpoints(proxies []*models.ProxyConfig, proxyChecker *checke
 		status, unstable, latency, lastCheck, _ := proxyChecker.GetProxyResultDetailsByStableID(proxy.StableID)
 		monitor, _ := proxyChecker.GetNodeMonitorByStableID(proxy.StableID)
 		observation, _ := proxyChecker.GetEndpointObservation(proxy)
+		diagnosis, diagnosed := proxyChecker.GetBindingDiagnosis(proxy.StableID)
+		var bindingDiagnosis *checker.BindingDiagnosisSummary
+		if diagnosed {
+			bindingDiagnosis = &diagnosis
+		}
 
 		endpoints = append(endpoints, EndpointInfo{
 			Name:                 proxy.Name,
@@ -223,6 +229,7 @@ func RegisterConfigEndpoints(proxies []*models.ProxyConfig, proxyChecker *checke
 			EndpointFirstSeen:    observation.FirstSeenAt,
 			EndpointLastSeen:     observation.LastSeenAt,
 			EndpointMissingPolls: observation.MissingPolls,
+			Diagnosis:            bindingDiagnosis,
 		})
 	}
 

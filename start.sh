@@ -78,6 +78,8 @@ wait_for_checker_services() {
 command -v colima >/dev/null 2>&1 || die "Colima не установлена."
 command -v docker >/dev/null 2>&1 || die "Docker CLI не установлен."
 [[ -f "${SCRIPT_DIR}/.env" ]] || die "Нет файла .env. Создайте его: cp .env.example .env"
+mkdir -p "${SCRIPT_DIR}/.runtime/control"
+chmod 0777 "${SCRIPT_DIR}/.runtime/control" 2>/dev/null || true
 ipconfig getifaddr "${IPHONE_INTERFACE}" >/dev/null 2>&1 ||
   die "iPhone USB не подключён: интерфейс ${IPHONE_INTERFACE} не получил IPv4-адрес."
 

@@ -39,6 +39,10 @@ type ProxyChecker struct {
 	urlTestAttempts     int
 	retryTimeout        int
 	retryConcurrency    int
+	endpointProbeMu     sync.Mutex
+	endpointProbeConfig endpointProbeConfig
+	endpointProbeNext   map[string]time.Time
+	endpointProbeDial   endpointProbeDialFunc
 	networkStatusFile   string
 	networkStatusMaxAge time.Duration
 	networkLogMu        sync.Mutex
@@ -60,6 +64,9 @@ type ProxyChecker struct {
 	diagnosisMu         sync.RWMutex
 	diagnosisHistory    map[string][]NodeDiagnosis
 	diagnosisRunning    bool
+	diagnosisQueue      chan string
+	diagnosisQueued     map[string]int64
+	diagnosisWorkerOnce sync.Once
 	diagnosisFile       string
 	diagnosisPersistMu  sync.Mutex
 	accessMu            sync.RWMutex
@@ -100,6 +107,8 @@ func NewProxyChecker(proxies []*models.ProxyConfig, startPort int, ipCheckURL st
 		checkMethod:         checkMethod,
 		checkConcurrency:    checkConcurrency,
 		diagnosisHistory:    make(map[string][]NodeDiagnosis),
+		diagnosisQueue:      make(chan string, automaticDiagnosisQueueSize),
+		diagnosisQueued:     make(map[string]int64),
 		accessHistory:       make([]AccessCheck, 0),
 		accessDialerFactory: defaultAccessDialerFactory,
 	}
@@ -554,8 +563,8 @@ func (pc *ProxyChecker) CheckAllProxies() {
 	defer pc.checkCycleMu.Unlock()
 	pc.runtimeMu.RLock()
 	defer pc.runtimeMu.RUnlock()
-	if pc.manualDiagnosisPending() {
-		logger.Info("Full proxy check deferred for manual node diagnosis")
+	if pc.diagnosisPending() {
+		logger.Info("Full proxy check deferred for deep node diagnosis")
 		return
 	}
 	pc.markResultsComplete(false)

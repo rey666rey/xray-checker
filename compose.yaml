@@ -28,6 +28,12 @@ services:
       PROXY_TIMEOUT: "4"
       PROXY_RETRY_TIMEOUT: "10"
       PROXY_RETRY_CONCURRENCY: "10"
+      # Cheap direct TCP liveness probes catch dead endpoints quickly. A failed
+      # probe is confirmed, then handed to the normal end-to-end Xray URL test.
+      PROXY_TCP_PROBE_INTERVAL: "90"
+      PROXY_TCP_PROBE_TIMEOUT: "2"
+      PROXY_TCP_PROBE_CONFIRM_DELAY: "5"
+      PROXY_TCP_PROBE_CONCURRENCY: "30"
       # Xray and direct diagnostics must fail closed with the iPhone route.
       XRAY_OUTBOUND_INTERFACE: "col0"
       # Host-network checker port; web-forwarder exposes the stable Mac port 2112.
@@ -35,6 +41,8 @@ services:
       METRICS_PORT: "2113"
       NETWORK_STATUS_FILE: "/app/runtime/network-status.json"
       NETWORK_STATUS_MAX_AGE: "15"
+      NETWORK_RECOVERY_REQUEST_FILE: "/app/host-control/iphone-recovery.request"
+      NETWORK_RECOVERY_STATUS_FILE: "/app/host-control/iphone-recovery-status.json"
       RESULTS_FILE: "/app/data/results.json"
       # Deliberately not cleared by start.sh: IP replacement history survives runs.
       NODE_HISTORY_FILE: "/app/data/node-history.json"
@@ -51,6 +59,7 @@ services:
       - xray-geo:/app/geo
       - xray-network-status:/app/runtime:ro
       - xray-results:/app/data
+      - ./.runtime/control:/app/host-control
     depends_on:
       - network-monitor
     healthcheck:

@@ -39,8 +39,14 @@ func TestRenderIndexIncludesSubscriptionName(t *testing.T) {
 		!strings.Contains(out.String(), `diagnosis-state-network`) ||
 		!strings.Contains(out.String(), `diagnosis-state-handshake`) ||
 		!strings.Contains(out.String(), `diagnosis-state-tunnel`) ||
-		!strings.Contains(out.String(), `nodeDiagnoses[item.proxy.nodeId]`) {
+		!strings.Contains(out.String(), `cardDiagnosis(proxy)`) ||
+		!strings.Contains(out.String(), `proxy.diagnosis`) {
 		t.Fatal("rendered private dashboard does not visually separate diagnosis causes")
+	}
+	if !strings.Contains(out.String(), `cardStatusLabel(item.proxy)`) ||
+		!strings.Contains(out.String(), `proxy-card-cause`) ||
+		!strings.Contains(out.String(), `diagnosis: updated.diagnosis || null`) {
+		t.Fatal("rendered private dashboard does not show automatic per-binding diagnosis on cards")
 	}
 	if !strings.Contains(out.String(), `@click.stop="copyHostName(item.proxy)"`) ||
 		!strings.Contains(out.String(), `Host name copied:`) {
@@ -60,6 +66,11 @@ func TestRenderIndexIncludesSubscriptionName(t *testing.T) {
 		!strings.Contains(out.String(), "./api/v1/alerts/telegram") ||
 		!strings.Contains(out.String(), "discoverTelegramChats") {
 		t.Fatal("rendered private dashboard does not include Telegram alert setup")
+	}
+	if !strings.Contains(out.String(), `@click="reconnectNetwork()"`) ||
+		!strings.Contains(out.String(), "X-Xray-Action") ||
+		!strings.Contains(out.String(), `aria-label="Reconnect iPhone bridge"`) {
+		t.Fatal("rendered private dashboard does not include the one-click iPhone reconnect control")
 	}
 	if !strings.Contains(out.String(), "Check access") ||
 		!strings.Contains(out.String(), "./api/v1/access-checks") ||
@@ -113,7 +124,7 @@ func TestAPINodesReturnsLatestDiagnosis(t *testing.T) {
 	xray.PrepareProxyConfigs(proxies)
 	proxyChecker := checker.NewProxyChecker(proxies, 10000, "", 1, "", "", 1, 1, "urltest", 1)
 	path := filepath.Join(t.TempDir(), "diagnoses.json")
-	payload := `{"version":1,"nodes":{"` + proxies[0].NodeID + `":[{"runId":"run-1","nodeId":"` + proxies[0].NodeID + `","server":"192.0.2.20","revision":"old","probeId":"local:en0","state":"completed","verdict":"healthy","startedAt":1,"completedAt":2,"control":{"online":true}}]}}`
+	payload := `{"version":1,"nodes":{"` + proxies[0].NodeID + `":[{"runId":"run-1","nodeId":"` + proxies[0].NodeID + `","server":"192.0.2.20","revision":"old","probeId":"local:en0","state":"completed","verdict":"healthy","startedAt":1,"completedAt":2,"control":{"online":true},"bindings":[{"stableId":"` + proxies[0].StableID + `","attempts":3,"successes":3}]}]}}`
 	if err := os.WriteFile(path, []byte(payload), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -135,6 +146,12 @@ func TestAPINodesReturnsLatestDiagnosis(t *testing.T) {
 	}
 	if response.Data[0].Diagnosis.Verdict != checker.DiagnosisHealthy || !response.Data[0].Diagnosis.Stale {
 		t.Fatalf("diagnosis=%#v", response.Data[0].Diagnosis)
+	}
+	if len(response.Data[0].Bindings) != 1 || response.Data[0].Bindings[0].Diagnosis == nil {
+		t.Fatalf("bindings=%#v, want per-binding diagnosis", response.Data[0].Bindings)
+	}
+	if diagnosis := response.Data[0].Bindings[0].Diagnosis; diagnosis.Verdict != checker.DiagnosisHealthy || !diagnosis.Stale {
+		t.Fatalf("binding diagnosis=%#v", diagnosis)
 	}
 }
 

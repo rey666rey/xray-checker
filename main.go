@@ -108,6 +108,12 @@ func main() {
 		config.CLIConfig.Proxy.RetryTimeout,
 		config.CLIConfig.Proxy.RetryConcurrency,
 	)
+	proxyChecker.SetEndpointProbeOptions(
+		time.Duration(config.CLIConfig.Proxy.TCPProbeInterval)*time.Second,
+		time.Duration(config.CLIConfig.Proxy.TCPProbeTimeout)*time.Second,
+		time.Duration(config.CLIConfig.Proxy.TCPProbeConfirm)*time.Second,
+		config.CLIConfig.Proxy.TCPProbeWorkers,
+	)
 	if err := proxyChecker.SetResultsFile(config.CLIConfig.ResultsFile); err != nil {
 		logger.Warn("Could not restore saved proxy results: %v", err)
 	}
@@ -117,6 +123,7 @@ func main() {
 	if err := proxyChecker.SetDiagnosisFile(config.CLIConfig.NodeDiagnosisFile); err != nil {
 		logger.Warn("Could not restore node diagnosis history: %v", err)
 	}
+	proxyChecker.StartAutomaticDiagnosisWorker()
 	if err := proxyChecker.SetAccessCheckFile(config.CLIConfig.AccessCheckFile); err != nil {
 		logger.Warn("Could not restore access-check history: %v", err)
 	}
@@ -203,6 +210,7 @@ func main() {
 	// Targeted monitoring continues even in initial-check-only mode: healthy nodes
 	// are staggered, while suspected/changed nodes follow short confirmation rounds.
 	proxyChecker.StartMonitorScheduler(10 * time.Second)
+	proxyChecker.StartEndpointProbeScheduler(5 * time.Second)
 
 	if config.CLIConfig.Subscription.Update {
 		var pendingMassFingerprint string
@@ -344,6 +352,10 @@ func main() {
 	protectedHandler.Handle("/api/v1/system/info", web.APISystemInfoHandler(version, startTime))
 	protectedHandler.Handle("/api/v1/system/ip", web.APISystemIPHandler(proxyChecker))
 	protectedHandler.Handle("/api/v1/network", web.APINetworkStatusHandler(proxyChecker))
+	protectedHandler.Handle("/api/v1/network/reconnect", web.APINetworkRecoveryHandler(
+		config.CLIConfig.NetworkRecoveryRequestFile,
+		config.CLIConfig.NetworkRecoveryStatusFile,
+	))
 	protectedHandler.Handle("/api/v1/alerts/telegram", web.TelegramAlertsHandler(alertManager))
 	protectedHandler.Handle("/api/v1/alerts/telegram/", web.TelegramAlertsHandler(alertManager))
 	protectedHandler.Handle("/api/v1/docs", web.APIDocsHandler())

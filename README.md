@@ -16,16 +16,17 @@ subscriptions:
 - discover new and changed subscription endpoints quickly;
 - distinguish one transient network failure from a repeatable problem;
 - retain the previous and current address after a replacement;
-- manually recheck one binding or deeply diagnose a physical node;
+- manually recheck one binding and automatically classify repeated failures with
+  a deep physical-node diagnosis;
 - compare access to an arbitrary public endpoint directly and through healthy
   VPN routes;
 - fail closed instead of silently moving checks to Colima's `eth0` fallback;
 - preserve results across a short iPhone disconnect or Colima recreation;
 - optionally expose the current state to Prometheus.
 
-This is not ICMP ping, a Cloudflare test, an `ipify`-based proxy check, or a
-block-list lookup. The checker makes a real HTTP request through every Xray
-configuration and answers a practical question: “can this binding open the
+The regular health check is not ICMP ping, a Cloudflare test, an `ipify`-based
+proxy check, or a block-list lookup. The checker makes a real HTTP request
+through every Xray configuration and answers a practical question: “can this binding open the
 control URL from the network used by Colima right now?” `network-monitor` uses
 `ipify` separately, at most once per minute, only to label the current direct
 iPhone public IP in the UI and reports.
@@ -300,20 +301,29 @@ targeted run is capped at 50 bindings.
 
 ## Deep Node diagnosis
 
-`Diagnose` is a separate manual procedure. It does not overwrite regular health
-and never runs automatically.
+Deep diagnosis does not overwrite regular health. The `Diagnose` button starts
+it manually, and the monitor also queues it automatically after the second
+consecutive failed regular check. The card first shows `Queued` / `Diagnosing…`,
+then replaces the generic repair state with the cause for that specific binding.
 
 Stages:
 
-1. verify the iPhone route and direct Apple control request;
+1. verify the iPhone route with a direct Cloudflare trace request;
 2. make three direct attempts to every TCP port present in the Node's active
    bindings (for example both `443` and `8443`);
 3. probe configured TLS/Reality SNI handshakes;
 4. make three real Apple GETs through each Xray binding.
 
-Only one deep diagnosis can run at a time. It takes priority over new background
-batches. The last ten runs per Node are retained; a report for an older
-configuration is marked `Stale`.
+Only one deep diagnosis can run at a time. Duplicate jobs for the same Node are
+collapsed, and the worker pauses between jobs so regular monitoring can proceed.
+A conclusive result is reused for 15 minutes unless a newer failed check or a
+configuration revision makes it stale; an inconclusive result is retried after
+one minute. The last ten manual and automatic runs per Node are retained.
+
+The stored report is Node-wide because direct port probes are shared, but the
+dashboard derives a separate verdict for every binding. A failed TLS inbound can
+therefore show `Handshake failed` while Hysteria on the same IP shows `Tunnel
+failed`, instead of copying one aggregate verdict to every card.
 
 | Verdict | Meaning |
 | --- | --- |
@@ -443,7 +453,7 @@ The named `xray-results` volume is mounted at `/app/data`.
 | --- | --- | --- |
 | `results.json` | last online/latency/error per binding and completed-sweep flag | removed to force a new full sweep |
 | `node-history.json` | repair states, revisions, and the latest 40 events | preserved |
-| `node-diagnostics.json` | latest ten manual diagnoses per Node | preserved |
+| `node-diagnostics.json` | latest ten manual or automatic diagnoses per Node | preserved |
 | `access-checks.json` | latest 20 completed direct-vs-VPN access checks | preserved |
 | `telegram-settings.json` | non-secret Telegram recipient and preferences | preserved |
 | `telegram-settings.token` | Telegram bot token, mode `0600` | preserved |

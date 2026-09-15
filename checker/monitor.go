@@ -36,6 +36,7 @@ const (
 	CheckReasonScheduled CheckReason = "scheduled"
 	CheckReasonChanged   CheckReason = "configuration_changed"
 	CheckReasonManual    CheckReason = "manual"
+	CheckReasonTCPProbe  CheckReason = "tcp_probe_failed"
 )
 
 type NodeEvent struct {
@@ -427,6 +428,7 @@ func (pc *ProxyChecker) recordMonitorResults(proxies []*models.ProxyConfig, reas
 	}
 	pc.monitorMu.Unlock()
 	pc.scheduleMonitorPersist()
+	pc.enqueueAutomaticDiagnoses(proxies)
 }
 
 func (pc *ProxyChecker) applyMonitorResult(node *NodeMonitorState, result proxyResult, reason CheckReason, now time.Time) {
@@ -583,14 +585,14 @@ func (pc *ProxyChecker) CheckUpdatedProxies(proxies []*models.ProxyConfig) error
 // WithChecksPaused prevents Xray from being restarted while requests are using
 // its local SOCKS listeners.
 func (pc *ProxyChecker) WithChecksPaused(update func() error) error {
-	if pc.manualDiagnosisPending() {
+	if pc.diagnosisPending() {
 		return ErrDiagnosisPriority
 	}
 	pc.checkCycleMu.Lock()
 	defer pc.checkCycleMu.Unlock()
 	pc.runtimeMu.Lock()
 	defer pc.runtimeMu.Unlock()
-	if pc.manualDiagnosisPending() {
+	if pc.diagnosisPending() {
 		return ErrDiagnosisPriority
 	}
 	return update()
@@ -600,7 +602,7 @@ func (pc *ProxyChecker) checkProxySet(proxies []*models.ProxyConfig, reason Chec
 	if status := pc.GetNetworkStatus(); !status.Ready {
 		return fmt.Errorf("mobile network unavailable: %s", status.Message)
 	}
-	if pc.manualDiagnosisPending() {
+	if pc.diagnosisPending() {
 		return ErrDiagnosisPriority
 	}
 	if reason != CheckReasonManual {
@@ -609,7 +611,7 @@ func (pc *ProxyChecker) checkProxySet(proxies []*models.ProxyConfig, reason Chec
 	}
 	pc.runtimeMu.RLock()
 	defer pc.runtimeMu.RUnlock()
-	if pc.manualDiagnosisPending() {
+	if pc.diagnosisPending() {
 		return ErrDiagnosisPriority
 	}
 	if pc.checkMethod == "ip" {

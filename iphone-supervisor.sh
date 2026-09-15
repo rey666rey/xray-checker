@@ -7,6 +7,10 @@ readonly COLIMA_PROFILE="${COLIMA_PROFILE:-iphone}"
 readonly IPHONE_INTERFACE="${IPHONE_INTERFACE:-en7}"
 readonly LABEL="com.xray-checker.iphone-supervisor"
 readonly RUNTIME_DIR="${SCRIPT_DIR}/.runtime"
+readonly RECOVERY_CONTROL_DIR="${IPHONE_RECOVERY_CONTROL_DIR:-${RUNTIME_DIR}/control}"
+readonly RECOVERY_REQUEST_FILE="${RECOVERY_CONTROL_DIR}/iphone-recovery.request"
+readonly RECOVERY_PROCESSING_FILE="${RECOVERY_CONTROL_DIR}/iphone-recovery.processing"
+readonly RECOVERY_STATUS_FILE="${RECOVERY_CONTROL_DIR}/iphone-recovery-status.json"
 readonly PLIST_PATH="${HOME}/Library/LaunchAgents/${LABEL}.plist"
 readonly CHECK_INTERVAL="${IPHONE_RECOVERY_CHECK_INTERVAL:-3}"
 readonly FAILURE_THRESHOLD="${IPHONE_RECOVERY_FAILURE_THRESHOLD:-3}"
@@ -17,6 +21,132 @@ readonly PROBE_TIMEOUT="${IPHONE_RECOVERY_PROBE_TIMEOUT:-3}"
 
 log() {
   printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
+}
+
+prepare_recovery_control() {
+  mkdir -p "${RECOVERY_CONTROL_DIR}"
+  # The checker runs as an unprivileged Linux user through a Colima bind mount.
+  # Directory write access lets it publish requests atomically without running
+  # the main container as root.
+  chmod 0777 "${RECOVERY_CONTROL_DIR}" 2>/dev/null || true
+}
+
+write_recovery_status() {
+  local request_id="$1"
+  local trigger="$2"
+  local state="$3"
+  local active="$4"
+  local requested_at="$5"
+  local started_at="$6"
+  local completed_at="$7"
+  local message="$8"
+  local updated_at
+  local temporary
+
+  updated_at="$(date +%s)"
+  temporary="${RECOVERY_STATUS_FILE}.tmp.$$"
+  printf '{"enabled":true,"active":%s,"requestId":"%s","state":"%s","trigger":"%s","message":"%s","requestedAt":%s,"startedAt":%s,"completedAt":%s,"updatedAt":%s}\n' \
+    "${active}" "${request_id}" "${state}" "${trigger}" "${message}" \
+    "${requested_at}" "${started_at}" "${completed_at}" "${updated_at}" >"${temporary}"
+  chmod 0666 "${temporary}" 2>/dev/null || true
+  mv -f "${temporary}" "${RECOVERY_STATUS_FILE}"
+}
+
+read_request_field() {
+  local path="$1"
+  local field="$2"
+  sed -n "s/.*\"${field}\":\"\([^\"]*\)\".*/\1/p" "${path}" 2>/dev/null | head -n 1
+}
+
+read_request_number() {
+  local path="$1"
+  local field="$2"
+  sed -n "s/.*\"${field}\":\([0-9][0-9]*\).*/\1/p" "${path}" 2>/dev/null | head -n 1
+}
+
+perform_bridge_recovery() {
+  local request_id="$1"
+  local trigger="$2"
+  local requested_at="$3"
+  local started_at
+  local completed_at
+  local pending_id
+  local pending_requested_at
+  local outcome=1
+
+  started_at="$(date +%s)"
+  write_recovery_status "${request_id}" "${trigger}" "running" true \
+    "${requested_at}" "${started_at}" 0 "Reconnecting the Colima iPhone bridge"
+  log "${trigger} iPhone bridge reconnect started (request=${request_id})"
+
+  if XRAY_RECOVERY_MODE=true "${SCRIPT_DIR}/start.sh"; then
+    outcome=0
+  fi
+
+  # A click received while an automatic recovery was already stopping Colima
+  # is satisfied by that same recovery instead of causing a second restart.
+  if [[ -f "${RECOVERY_REQUEST_FILE}" ]]; then
+    pending_id="$(read_request_field "${RECOVERY_REQUEST_FILE}" requestId)"
+    pending_requested_at="$(read_request_number "${RECOVERY_REQUEST_FILE}" requestedAt)"
+    rm -f -- "${RECOVERY_REQUEST_FILE}"
+    if [[ -n "${pending_id}" ]]; then
+      request_id="${pending_id}"
+      trigger="manual"
+      requested_at="${pending_requested_at:-${requested_at}}"
+    fi
+  fi
+  rm -f -- "${RECOVERY_PROCESSING_FILE}"
+
+  completed_at="$(date +%s)"
+  if ((outcome == 0)); then
+    write_recovery_status "${request_id}" "${trigger}" "succeeded" false \
+      "${requested_at}" "${started_at}" "${completed_at}" "iPhone bridge reconnected"
+    log "Colima bridge recovery completed"
+    return 0
+  fi
+
+  write_recovery_status "${request_id}" "${trigger}" "failed" false \
+    "${requested_at}" "${started_at}" "${completed_at}" "iPhone bridge reconnect failed"
+  log "Colima bridge recovery failed"
+  return 1
+}
+
+process_manual_recovery() {
+  local request_id
+  local requested_at
+
+  [[ -f "${RECOVERY_REQUEST_FILE}" ]] || return 1
+  if ! mv "${RECOVERY_REQUEST_FILE}" "${RECOVERY_PROCESSING_FILE}" 2>/dev/null; then
+    return 1
+  fi
+  request_id="$(read_request_field "${RECOVERY_PROCESSING_FILE}" requestId)"
+  requested_at="$(read_request_number "${RECOVERY_PROCESSING_FILE}" requestedAt)"
+  request_id="${request_id:-manual-$(date +%s)}"
+  requested_at="${requested_at:-$(date +%s)}"
+  perform_bridge_recovery "${request_id}" manual "${requested_at}" || true
+  return 0
+}
+
+request_manual_recovery() {
+  local request_id
+  local requested_at
+  local temporary
+
+  prepare_recovery_control
+  if [[ -f "${RECOVERY_REQUEST_FILE}" || -f "${RECOVERY_PROCESSING_FILE}" ]]; then
+    log "iPhone bridge reconnect is already queued or running"
+    return 1
+  fi
+  requested_at="$(date +%s)"
+  request_id="manual-${requested_at}-$$"
+  write_recovery_status "${request_id}" manual queued true \
+    "${requested_at}" 0 0 "Waiting for the macOS recovery supervisor"
+  temporary="${RECOVERY_REQUEST_FILE}.tmp.$$"
+  printf '{"requestId":"%s","trigger":"manual","requestedAt":%s}\n' \
+    "${request_id}" "${requested_at}" >"${temporary}"
+  chmod 0666 "${temporary}" 2>/dev/null || true
+  mv -f "${temporary}" "${RECOVERY_REQUEST_FILE}"
+  log "Manual iPhone bridge reconnect queued (request=${request_id})"
 }
 
 iphone_is_attached() {
@@ -49,8 +179,21 @@ run_supervisor() {
   local last_state=""
   local now=0
 
+  prepare_recovery_control
+  if [[ -f "${RECOVERY_PROCESSING_FILE}" ]]; then
+    rm -f -- "${RECOVERY_PROCESSING_FILE}"
+    write_recovery_status "interrupted-$(date +%s)" supervisor failed false 0 0 "$(date +%s)" \
+      "Previous reconnect was interrupted"
+  fi
   log "iPhone recovery supervisor started (interface=${IPHONE_INTERFACE}, profile=${COLIMA_PROFILE})"
   while true; do
+    if process_manual_recovery; then
+      last_recovery="$(date +%s)"
+      last_state="manual_recovery_completed"
+      sleep "${CHECK_INTERVAL}"
+      continue
+    fi
+
     if ! iphone_is_attached; then
       failures=0
       if [[ "${last_state}" != "detached" ]]; then
@@ -114,11 +257,10 @@ run_supervisor() {
     last_recovery="${now}"
     failures=0
     log "col0 data plane failed ${FAILURE_THRESHOLD} consecutive checks; recreating the Colima bridge"
-    if XRAY_RECOVERY_MODE=true "${SCRIPT_DIR}/start.sh"; then
-      log "Colima bridge recovery completed"
+    if perform_bridge_recovery "automatic-${now}" automatic "${now}"; then
       last_state="recovered"
     else
-      log "Colima bridge recovery failed; another attempt will be made after cooldown"
+      log "Another automatic attempt will be made after cooldown"
       last_state="recovery_failed"
     fi
     sleep "${CHECK_INTERVAL}"
@@ -126,6 +268,7 @@ run_supervisor() {
 }
 
 install_agent() {
+  prepare_recovery_control
   mkdir -p "${RUNTIME_DIR}" "$(dirname "${PLIST_PATH}")"
 
   # The repository path is fixed for this installation. XML-special characters
@@ -201,8 +344,11 @@ case "${1:-}" in
   status)
     /bin/launchctl print "gui/${UID}/${LABEL}"
     ;;
+  recover|reconnect)
+    request_manual_recovery
+    ;;
   *)
-    printf 'Usage: %s {install|uninstall|status|run}\n' "$0" >&2
+    printf 'Usage: %s {install|uninstall|status|run|recover}\n' "$0" >&2
     exit 2
     ;;
 esac

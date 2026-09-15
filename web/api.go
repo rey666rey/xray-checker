@@ -20,39 +20,40 @@ import (
 var openAPISpec []byte
 
 type ProxyInfo struct {
-	Index                int                    `json:"index"`
-	StableID             string                 `json:"stableId"`
-	Name                 string                 `json:"name"`
-	SubName              string                 `json:"subName"`
-	GroupName            string                 `json:"groupName"`
-	Server               string                 `json:"server"`
-	Port                 int                    `json:"port"`
-	Protocol             string                 `json:"protocol"`
-	ProxyPort            int                    `json:"proxyPort"`
-	Online               bool                   `json:"online"`
-	Unstable             bool                   `json:"unstable"`
-	LatencyMs            int64                  `json:"latencyMs"`
-	LastCheck            int64                  `json:"lastCheck"`
-	LogicalID            string                 `json:"logicalId"`
-	HostID               string                 `json:"hostId"`
-	NodeID               string                 `json:"nodeId"`
-	MonitorState         checker.NodeState      `json:"monitorState"`
-	PreviousAddress      string                 `json:"previousAddress,omitempty"`
-	ResolvedIPs          []string               `json:"resolvedIps,omitempty"`
-	PreviousResolvedIPs  []string               `json:"previousResolvedIps,omitempty"`
-	AddressChangedAt     int64                  `json:"addressChangedAt,omitempty"`
-	Failures             int                    `json:"consecutiveFailures"`
-	Successes            int                    `json:"consecutiveSuccesses"`
-	LastSuccess          int64                  `json:"lastSuccess,omitempty"`
-	LastError            string                 `json:"lastError,omitempty"`
-	ExitIP               string                 `json:"exitIp,omitempty"`
-	NextCheck            int64                  `json:"nextCheck,omitempty"`
-	History              []checker.NodeEvent    `json:"history,omitempty"`
-	EndpointFirstSeen    int64                  `json:"endpointFirstSeen,omitempty"`
-	EndpointLastSeen     int64                  `json:"endpointLastSeen,omitempty"`
-	EndpointMissingPolls int                    `json:"endpointMissingPolls,omitempty"`
-	MetricsLabels        map[string]string      `json:"metricsLabels,omitempty"`
-	GeneratedConfig      map[string]interface{} `json:"generatedConfig,omitempty"`
+	Index                int                              `json:"index"`
+	StableID             string                           `json:"stableId"`
+	Name                 string                           `json:"name"`
+	SubName              string                           `json:"subName"`
+	GroupName            string                           `json:"groupName"`
+	Server               string                           `json:"server"`
+	Port                 int                              `json:"port"`
+	Protocol             string                           `json:"protocol"`
+	ProxyPort            int                              `json:"proxyPort"`
+	Online               bool                             `json:"online"`
+	Unstable             bool                             `json:"unstable"`
+	LatencyMs            int64                            `json:"latencyMs"`
+	LastCheck            int64                            `json:"lastCheck"`
+	LogicalID            string                           `json:"logicalId"`
+	HostID               string                           `json:"hostId"`
+	NodeID               string                           `json:"nodeId"`
+	MonitorState         checker.NodeState                `json:"monitorState"`
+	PreviousAddress      string                           `json:"previousAddress,omitempty"`
+	ResolvedIPs          []string                         `json:"resolvedIps,omitempty"`
+	PreviousResolvedIPs  []string                         `json:"previousResolvedIps,omitempty"`
+	AddressChangedAt     int64                            `json:"addressChangedAt,omitempty"`
+	Failures             int                              `json:"consecutiveFailures"`
+	Successes            int                              `json:"consecutiveSuccesses"`
+	LastSuccess          int64                            `json:"lastSuccess,omitempty"`
+	LastError            string                           `json:"lastError,omitempty"`
+	ExitIP               string                           `json:"exitIp,omitempty"`
+	NextCheck            int64                            `json:"nextCheck,omitempty"`
+	History              []checker.NodeEvent              `json:"history,omitempty"`
+	EndpointFirstSeen    int64                            `json:"endpointFirstSeen,omitempty"`
+	EndpointLastSeen     int64                            `json:"endpointLastSeen,omitempty"`
+	EndpointMissingPolls int                              `json:"endpointMissingPolls,omitempty"`
+	MetricsLabels        map[string]string                `json:"metricsLabels,omitempty"`
+	GeneratedConfig      map[string]interface{}           `json:"generatedConfig,omitempty"`
+	Diagnosis            *checker.BindingDiagnosisSummary `json:"diagnosis,omitempty"`
 }
 
 type NodeGroupInfo struct {
@@ -180,6 +181,13 @@ func toProxyInfo(proxy *models.ProxyConfig, online, unstable bool, latency time.
 		info.History = monitor.History
 		outbound := xray.NewConfigGenerator().GenerateProxyOutbound(proxy)
 		info.GeneratedConfig = sanitizeGeneratedConfig(outbound)
+	}
+	return info
+}
+
+func attachBindingDiagnosis(info ProxyInfo, proxyChecker *checker.ProxyChecker) ProxyInfo {
+	if diagnosis, ok := proxyChecker.GetBindingDiagnosis(info.StableID); ok {
+		info.Diagnosis = &diagnosis
 	}
 	return info
 }
@@ -314,7 +322,8 @@ func APIProxiesHandler(proxyChecker *checker.ProxyChecker, startPort int) http.H
 			status, unstable, latency, lastCheck, _ := proxyChecker.GetProxyResultDetailsByStableID(proxy.StableID)
 			monitor, _ := proxyChecker.GetNodeMonitorByStableID(proxy.StableID)
 			observation, _ := proxyChecker.GetEndpointObservation(proxy)
-			result = append(result, toProxyInfo(proxy, status, unstable, latency, lastCheck, monitor, observation, startPort, includeDetails))
+			info := toProxyInfo(proxy, status, unstable, latency, lastCheck, monitor, observation, startPort, includeDetails)
+			result = append(result, attachBindingDiagnosis(info, proxyChecker))
 		}
 
 		writeJSON(w, result)
@@ -371,7 +380,8 @@ func APIProxyHandler(proxyChecker *checker.ProxyChecker, startPort int) http.Han
 			status, unstable, latency, lastCheck, _ := proxyChecker.GetProxyResultDetailsByStableID(proxy.StableID)
 			monitor, _ := proxyChecker.GetNodeMonitorByStableID(proxy.StableID)
 			observation, _ := proxyChecker.GetEndpointObservation(proxy)
-			writeJSON(w, toProxyInfo(proxy, status, unstable, latency, lastCheck, monitor, observation, startPort, shouldShowServerDetails()))
+			info := toProxyInfo(proxy, status, unstable, latency, lastCheck, monitor, observation, startPort, shouldShowServerDetails())
+			writeJSON(w, attachBindingDiagnosis(info, proxyChecker))
 			return
 		}
 		if len(parts) != 1 || r.Method != http.MethodGet {
@@ -381,7 +391,8 @@ func APIProxyHandler(proxyChecker *checker.ProxyChecker, startPort int) http.Han
 		status, unstable, latency, lastCheck, _ := proxyChecker.GetProxyResultDetailsByStableID(proxy.StableID)
 		monitor, _ := proxyChecker.GetNodeMonitorByStableID(proxy.StableID)
 		observation, _ := proxyChecker.GetEndpointObservation(proxy)
-		writeJSON(w, toProxyInfo(proxy, status, unstable, latency, lastCheck, monitor, observation, startPort, shouldShowServerDetails()))
+		info := toProxyInfo(proxy, status, unstable, latency, lastCheck, monitor, observation, startPort, shouldShowServerDetails())
+		writeJSON(w, attachBindingDiagnosis(info, proxyChecker))
 	}
 }
 
@@ -460,6 +471,7 @@ func APINodesHandler(proxyChecker *checker.ProxyChecker, startPort int) http.Han
 			monitor, _ := proxyChecker.GetNodeMonitorByStableID(proxy.StableID)
 			observation, _ := proxyChecker.GetEndpointObservation(proxy)
 			binding := toProxyInfo(proxy, status, unstable, latency, lastCheck, monitor, observation, startPort, includeDetails)
+			binding = attachBindingDiagnosis(binding, proxyChecker)
 			group := groups[proxy.NodeID]
 			if group == nil {
 				group = &NodeGroupInfo{NodeID: proxy.NodeID}

@@ -23,13 +23,23 @@ import (
 )
 
 const (
-	diagnosisSnapshotVersion = 1
-	diagnosisAttempts        = 3
-	diagnosisHistoryLimit    = 10
+	diagnosisSnapshotVersion           = 1
+	diagnosisAttempts                  = 3
+	diagnosisHistoryLimit              = 10
+	diagnosisControlURL                = "https://1.1.1.1/cdn-cgi/trace"
+	diagnosisControlExpected           = "ip="
+	automaticDiagnosisQueueSize        = 256
+	automaticDiagnosisFailureThreshold = 2
+)
+
+const (
+	diagnosisFreshDuration        = 15 * time.Minute
+	diagnosisInconclusiveFreshFor = time.Minute
+	automaticDiagnosisJobPause    = time.Second
 )
 
 var ErrDiagnosisBusy = errors.New("another node diagnosis is already running")
-var ErrDiagnosisPriority = errors.New("background checks deferred for manual diagnosis")
+var ErrDiagnosisPriority = errors.New("background checks deferred for deep diagnosis")
 
 type DiagnosisState string
 
@@ -93,7 +103,7 @@ type BindingDiagnosis struct {
 	LastError     string `json:"lastError,omitempty"`
 }
 
-// NodeDiagnosis is a manual, point-in-time report. It deliberately does not
+// NodeDiagnosis is a point-in-time report. It deliberately does not
 // overwrite the normal online/offline result: a probe uplink can fail while the
 // node remains healthy from another vantage point.
 type NodeDiagnosis struct {
@@ -111,10 +121,27 @@ type NodeDiagnosis struct {
 	StartedAt   int64               `json:"startedAt"`
 	CompletedAt int64               `json:"completedAt,omitempty"`
 	Stale       bool                `json:"stale,omitempty"`
+	Trigger     string              `json:"trigger,omitempty"`
 	Control     ControlDiagnosis    `json:"control"`
 	Ports       []PortDiagnosis     `json:"ports,omitempty"`
 	TLS         []TLSProbeDiagnosis `json:"tls,omitempty"`
 	Bindings    []BindingDiagnosis  `json:"bindings,omitempty"`
+}
+
+// BindingDiagnosisSummary is the current card-level interpretation of the
+// latest node diagnosis. A node report may contain several independently
+// working or failing inbound bindings, so the aggregate verdict is not enough
+// for an individual host card.
+type BindingDiagnosisSummary struct {
+	NodeID      string           `json:"nodeId"`
+	StableID    string           `json:"stableId"`
+	State       DiagnosisState   `json:"state"`
+	Verdict     DiagnosisVerdict `json:"verdict,omitempty"`
+	Summary     string           `json:"summary,omitempty"`
+	Trigger     string           `json:"trigger,omitempty"`
+	StartedAt   int64            `json:"startedAt,omitempty"`
+	CompletedAt int64            `json:"completedAt,omitempty"`
+	Stale       bool             `json:"stale,omitempty"`
 }
 
 type diagnosisSnapshot struct {
@@ -163,13 +190,22 @@ func (pc *ProxyChecker) SetDiagnosisFile(path string) error {
 }
 
 func (pc *ProxyChecker) StartNodeDiagnosis(nodeID string) (NodeDiagnosis, error) {
+	run, bindings, err := pc.beginNodeDiagnosis(nodeID, "manual")
+	if err != nil {
+		return NodeDiagnosis{}, err
+	}
+	go pc.executeNodeDiagnosis(run, bindings)
+	return run, nil
+}
+
+func (pc *ProxyChecker) beginNodeDiagnosis(nodeID, trigger string) (NodeDiagnosis, []*models.ProxyConfig, error) {
 	bindings := pc.nodeBindings(nodeID)
 	if len(bindings) == 0 {
-		return NodeDiagnosis{}, fmt.Errorf("node not found")
+		return NodeDiagnosis{}, nil, fmt.Errorf("node not found")
 	}
 	status := pc.GetNetworkStatus()
 	if !status.Ready {
-		return NodeDiagnosis{}, fmt.Errorf("probe network unavailable: %s", status.Message)
+		return NodeDiagnosis{}, nil, fmt.Errorf("probe network unavailable: %s", status.Message)
 	}
 
 	now := time.Now()
@@ -185,12 +221,13 @@ func (pc *ProxyChecker) StartNodeDiagnosis(nodeID string) (NodeDiagnosis, error)
 		Stage:     "queued",
 		Summary:   "Waiting for the current background check to finish",
 		StartedAt: now.Unix(),
+		Trigger:   trigger,
 	}
 
 	pc.diagnosisMu.Lock()
 	if pc.diagnosisRunning {
 		pc.diagnosisMu.Unlock()
-		return NodeDiagnosis{}, ErrDiagnosisBusy
+		return NodeDiagnosis{}, nil, ErrDiagnosisBusy
 	}
 	pc.diagnosisRunning = true
 	pc.appendDiagnosisLocked(run)
@@ -199,8 +236,7 @@ func (pc *ProxyChecker) StartNodeDiagnosis(nodeID string) (NodeDiagnosis, error)
 		logger.Warn("Could not persist queued node diagnosis: %v", err)
 	}
 
-	go pc.executeNodeDiagnosis(run, bindings)
-	return run, nil
+	return run, bindings, nil
 }
 
 func (pc *ProxyChecker) GetNodeDiagnosis(nodeID string) (NodeDiagnosis, bool) {
@@ -214,9 +250,25 @@ func (pc *ProxyChecker) GetNodeDiagnosis(nodeID string) (NodeDiagnosis, bool) {
 	result := cloneNodeDiagnosis(history[len(history)-1])
 	pc.diagnosisMu.RUnlock()
 	if len(bindings) > 0 {
-		result.Stale = result.Revision != nodeDiagnosisRevision(bindings)
+		result.Stale = diagnosisIsStale(result, nodeDiagnosisRevision(bindings), time.Now())
+		if !result.Stale && diagnosisSupersededByFailure(pc, result, bindings) {
+			result.Stale = true
+		}
 	}
 	return result, true
+}
+
+func diagnosisSupersededByFailure(pc *ProxyChecker, run NodeDiagnosis, bindings []*models.ProxyConfig) bool {
+	if run.State != DiagnosisCompleted || run.CompletedAt <= 0 {
+		return false
+	}
+	for _, binding := range bindings {
+		online, _, _, lastCheck, found := pc.GetProxyResultDetailsByStableID(binding.StableID)
+		if found && !online && lastCheck > run.CompletedAt {
+			return true
+		}
+	}
+	return false
 }
 
 func (pc *ProxyChecker) GetNodeDiagnosisHistory(nodeID string) []NodeDiagnosis {
@@ -227,11 +279,207 @@ func (pc *ProxyChecker) GetNodeDiagnosisHistory(nodeID string) []NodeDiagnosis {
 	result := make([]NodeDiagnosis, 0, len(history))
 	for i := len(history) - 1; i >= 0; i-- {
 		item := cloneNodeDiagnosis(history[i])
-		item.Stale = currentRevision != "" && item.Revision != currentRevision
+		item.Stale = currentRevision != "" && diagnosisIsStale(item, currentRevision, time.Now())
 		result = append(result, item)
 	}
 	pc.diagnosisMu.RUnlock()
 	return result
+}
+
+func diagnosisIsStale(run NodeDiagnosis, currentRevision string, now time.Time) bool {
+	if currentRevision != "" && run.Revision != currentRevision {
+		return true
+	}
+	if run.State != DiagnosisCompleted || run.CompletedAt <= 0 {
+		return false
+	}
+	freshFor := diagnosisFreshDuration
+	if run.Verdict == DiagnosisInconclusive {
+		freshFor = diagnosisInconclusiveFreshFor
+	}
+	return now.Sub(time.Unix(run.CompletedAt, 0)) > freshFor
+}
+
+// GetBindingDiagnosis maps the latest physical-node report back to one host
+// card. Queued automatic work is exposed immediately so the dashboard can show
+// Diagnosing instead of an obsolete replacement recommendation.
+func (pc *ProxyChecker) GetBindingDiagnosis(stableID string) (BindingDiagnosisSummary, bool) {
+	proxy, ok := pc.GetProxyByStableID(stableID)
+	if !ok {
+		return BindingDiagnosisSummary{}, false
+	}
+
+	pc.diagnosisMu.RLock()
+	queuedAt, queued := pc.diagnosisQueued[proxy.NodeID]
+	pc.diagnosisMu.RUnlock()
+	if queued {
+		return BindingDiagnosisSummary{
+			NodeID: proxy.NodeID, StableID: stableID, State: DiagnosisQueued,
+			Trigger: "automatic", StartedAt: queuedAt, Summary: "Waiting for automatic diagnosis",
+		}, true
+	}
+
+	run, ok := pc.GetNodeDiagnosis(proxy.NodeID)
+	if !ok {
+		return BindingDiagnosisSummary{}, false
+	}
+	result := BindingDiagnosisSummary{
+		NodeID: proxy.NodeID, StableID: stableID, State: run.State,
+		Trigger: run.Trigger, StartedAt: run.StartedAt, CompletedAt: run.CompletedAt, Stale: run.Stale,
+	}
+	if run.State != DiagnosisCompleted {
+		result.Summary = run.Summary
+		return result, true
+	}
+
+	for _, binding := range run.Bindings {
+		if binding.StableID != stableID {
+			continue
+		}
+		if binding.Attempts > 0 && binding.Successes == binding.Attempts {
+			result.Verdict = DiagnosisHealthy
+			result.Summary = "This binding carried every control request"
+			return result, true
+		}
+		if binding.Successes > 0 {
+			result.Verdict = DiagnosisDegraded
+			result.Summary = "This binding worked intermittently during diagnosis"
+			return result, true
+		}
+		break
+	}
+
+	if !isUDPBinding(proxy) {
+		for _, port := range run.Ports {
+			if port.Network == "tcp" && port.Port == proxy.Port && port.Attempts > 0 && port.Successes == 0 {
+				result.Verdict = DiagnosisNetUnreachable
+				result.Summary = "The configured TCP endpoint did not accept a connection"
+				return result, true
+			}
+		}
+		if usesTLS(proxy) && strings.TrimSpace(proxy.SNI) != "" {
+			for _, probe := range run.TLS {
+				if probe.Port == proxy.Port && probe.ServerName == strings.TrimSpace(proxy.SNI) && probe.Attempts > 0 && probe.Successes == 0 {
+					result.Verdict = DiagnosisHandshakeFailed
+					result.Summary = "TCP connected, but the configured TLS/SNI handshake did not complete"
+					return result, true
+				}
+			}
+		}
+	}
+
+	if run.Verdict == DiagnosisInconclusive {
+		result.Verdict = DiagnosisInconclusive
+		result.Summary = run.Summary
+		return result, true
+	}
+	result.Verdict = DiagnosisTunnelFailed
+	if isUDPBinding(proxy) {
+		result.Summary = "The configured UDP/QUIC binding did not carry the control request"
+	} else {
+		result.Summary = "The endpoint responded, but the configured Xray binding did not carry the control request"
+	}
+	return result, true
+}
+
+// StartAutomaticDiagnosisWorker starts one deliberately serial worker. It only
+// takes the global check lock after an active sweep has finished, and pauses
+// between jobs so scheduled checks and subscription refreshes are not starved.
+func (pc *ProxyChecker) StartAutomaticDiagnosisWorker() {
+	pc.diagnosisWorkerOnce.Do(func() {
+		go pc.runAutomaticDiagnosisWorker()
+	})
+}
+
+func (pc *ProxyChecker) enqueueAutomaticDiagnoses(proxies []*models.ProxyConfig) {
+	seen := make(map[string]bool)
+	for _, proxy := range proxies {
+		if proxy == nil || proxy.NodeID == "" || seen[proxy.NodeID] {
+			continue
+		}
+		seen[proxy.NodeID] = true
+		if pc.automaticDiagnosisNeeded(proxy.NodeID) {
+			pc.enqueueAutomaticDiagnosis(proxy.NodeID)
+		}
+	}
+}
+
+func (pc *ProxyChecker) enqueueAutomaticDiagnosis(nodeID string) {
+	pc.diagnosisMu.Lock()
+	if _, exists := pc.diagnosisQueued[nodeID]; exists {
+		pc.diagnosisMu.Unlock()
+		return
+	}
+	pc.diagnosisQueued[nodeID] = time.Now().Unix()
+	pc.diagnosisMu.Unlock()
+
+	select {
+	case pc.diagnosisQueue <- nodeID:
+		logger.Info("Queued automatic node diagnosis: node=%s", nodeID)
+	default:
+		pc.diagnosisMu.Lock()
+		delete(pc.diagnosisQueued, nodeID)
+		pc.diagnosisMu.Unlock()
+		logger.Warn("Automatic diagnosis queue is full; node=%s will be retried after its next check", nodeID)
+	}
+}
+
+func (pc *ProxyChecker) automaticDiagnosisNeeded(nodeID string) bool {
+	bindings := pc.nodeBindings(nodeID)
+	latestFailedCheck := int64(0)
+	eligible := false
+	for _, binding := range bindings {
+		monitor, ok := pc.GetNodeMonitorByStableID(binding.StableID)
+		if !ok || monitor.ConsecutiveFailures < automaticDiagnosisFailureThreshold {
+			continue
+		}
+		eligible = true
+		if monitor.LastCheck > latestFailedCheck {
+			latestFailedCheck = monitor.LastCheck
+		}
+	}
+	if !eligible {
+		return false
+	}
+	if latest, ok := pc.GetNodeDiagnosis(nodeID); ok {
+		if latest.State != DiagnosisCompleted {
+			return false
+		}
+		if !latest.Stale && latest.CompletedAt >= latestFailedCheck {
+			return false
+		}
+	}
+	return true
+}
+
+func (pc *ProxyChecker) runAutomaticDiagnosisWorker() {
+	for nodeID := range pc.diagnosisQueue {
+		for {
+			if !pc.automaticDiagnosisNeeded(nodeID) {
+				pc.finishQueuedAutomaticDiagnosis(nodeID)
+				break
+			}
+			run, bindings, err := pc.beginNodeDiagnosis(nodeID, "automatic")
+			if errors.Is(err, ErrDiagnosisBusy) {
+				time.Sleep(500 * time.Millisecond)
+				continue
+			}
+			pc.finishQueuedAutomaticDiagnosis(nodeID)
+			if err != nil {
+				logger.Warn("Automatic node diagnosis skipped: node=%s error=%v", nodeID, err)
+				break
+			}
+			pc.executeNodeDiagnosis(run, bindings)
+			time.Sleep(automaticDiagnosisJobPause)
+			break
+		}
+	}
+}
+
+func (pc *ProxyChecker) finishQueuedAutomaticDiagnosis(nodeID string) {
+	pc.diagnosisMu.Lock()
+	delete(pc.diagnosisQueued, nodeID)
+	pc.diagnosisMu.Unlock()
 }
 
 func (pc *ProxyChecker) executeNodeDiagnosis(run NodeDiagnosis, bindings []*models.ProxyConfig) {
@@ -294,7 +542,7 @@ func (pc *ProxyChecker) executeNodeDiagnosis(run NodeDiagnosis, bindings []*mode
 	run.Summary = "Testing endpoint ports and configured TLS/Reality handshakes"
 	pc.replaceDiagnosis(run)
 	run.Ports, run.TLS = runDirectDiagnostics(bindings, probeTimeout, status.Interface)
-	if allTCPPortsUnreachable(run.Ports) {
+	if allTCPPortsUnreachable(run.Ports) && !hasUDPBindings(bindings) {
 		run.Verdict = DiagnosisNetUnreachable
 		run.Summary = "Control network works, but every TCP endpoint attempt failed"
 		pc.completeDiagnosis(run)
@@ -329,8 +577,17 @@ func allTCPPortsUnreachable(ports []PortDiagnosis) bool {
 	return tcpPorts > 0
 }
 
+func hasUDPBindings(bindings []*models.ProxyConfig) bool {
+	for _, binding := range bindings {
+		if isUDPBinding(binding) {
+			return true
+		}
+	}
+	return false
+}
+
 func (pc *ProxyChecker) runDiagnosisControl(timeout time.Duration, interfaceName string) ControlDiagnosis {
-	target := pc.urlTestURL
+	target := diagnosisControlURL
 	result := ControlDiagnosis{URL: target}
 	if target == "" {
 		result.Error = "no control URL configured"
@@ -352,8 +609,8 @@ func (pc *ProxyChecker) runDiagnosisControl(timeout time.Duration, interfaceName
 		return result
 	}
 	result.Online = status >= 200 && status < 300
-	if pc.urlTestExpected != "" {
-		result.Online = result.Online && strings.Contains(body, pc.urlTestExpected)
+	if diagnosisControlExpected != "" {
+		result.Online = result.Online && strings.Contains(body, diagnosisControlExpected)
 	}
 	if !result.Online {
 		result.Error = fmt.Sprintf("unexpected control response (status %d)", status)
@@ -621,7 +878,7 @@ func (pc *ProxyChecker) completeDiagnosis(run NodeDiagnosis) {
 	logger.Info("Node diagnosis completed: node=%s verdict=%s", run.NodeID, run.Verdict)
 }
 
-func (pc *ProxyChecker) manualDiagnosisPending() bool {
+func (pc *ProxyChecker) diagnosisPending() bool {
 	pc.diagnosisMu.RLock()
 	pending := pc.diagnosisRunning
 	pc.diagnosisMu.RUnlock()
