@@ -995,6 +995,7 @@
 		gap: 1rem;
 		padding: .72rem 0;
 		border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+		text-align: left;
 	}
 	.alerts-notification-row:first-child { padding-top: 0; }
 	.alerts-notification-row:last-child { padding-bottom: 0; border-bottom: 0; }
@@ -1056,6 +1057,243 @@
 		transform: translateX(0.95rem);
 		background: #2aabee;
 	}
+	/* Telegram alerts redesign */
+	.alerts-backdrop {
+		position: fixed;
+		inset: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 2rem;
+		background: rgba(2, 5, 10, .78);
+		backdrop-filter: blur(7px);
+	}
+	.alerts-card {
+		position: relative !important;
+		inset: auto !important;
+		width: min(84rem, calc(100vw - 4rem));
+		max-height: calc(100dvh - 4rem);
+		border-radius: 1.15rem;
+		background: #171b20;
+		box-shadow: 0 34px 110px rgba(0, 0, 0, .68), 0 0 0 1px rgba(42, 171, 238, .08);
+		transform-origin: center;
+	}
+	.alerts-card,
+	.alerts-card button,
+	.alerts-card input,
+	.alerts-card summary {
+		font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Twemoji Country Flags", system-ui, sans-serif;
+		font-feature-settings: "kern" 1, "liga" 1;
+		letter-spacing: -0.006em;
+	}
+	.alerts-card::before { display: none; }
+	.alerts-card .diagnosis-scroll {
+		max-height: calc(100dvh - 4rem);
+		overflow-y: auto;
+		border-radius: inherit;
+		background: #171b20;
+	}
+	.alerts-card .diagnosis-header {
+		position: sticky;
+		top: 0;
+		z-index: 8;
+		border: 0;
+		border-bottom: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+		border-radius: 0;
+		padding: 1.4rem 1.65rem;
+		background: rgba(23, 27, 32, .94);
+		backdrop-filter: blur(18px);
+	}
+	.alerts-card .alerts-icon { width: 3rem; height: 3rem; border-radius: .95rem; }
+	.alerts-card .alerts-icon svg { width: 1.35rem; height: 1.35rem; }
+	.alerts-card .alerts-kicker { font-size: .67rem; letter-spacing: .14em; }
+	.alerts-card .alerts-modal-title,
+	.alerts-card .alerts-section-title,
+	.alerts-account-name h3 { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", system-ui, sans-serif; }
+	.alerts-card .alerts-modal-title { font-size: 1.15rem; line-height: 1.35; letter-spacing: -.018em; }
+	.alerts-card .alerts-modal-subtitle { margin-top: .2rem; font-size: .78rem; line-height: 1.4; }
+	.alerts-header-status { display: flex; align-items: center; gap: .6rem; margin-left: auto; }
+	.alerts-step-badge {
+		display: inline-flex;
+		align-items: center;
+		padding: .35rem .7rem;
+		border: 1px solid var(--border);
+		border-radius: 999px;
+		background: color-mix(in srgb, var(--bg-primary) 46%, transparent);
+		color: var(--text-secondary);
+		font-size: .67rem;
+		font-weight: 650;
+		white-space: nowrap;
+	}
+	.alerts-content { padding: 1.25rem 1.4rem 0; }
+	.alerts-success-strip,
+	.alerts-managed-banner,
+	.alerts-paused-banner {
+		display: flex;
+		align-items: center;
+		gap: .75rem;
+		padding: .8rem .9rem;
+		border: 1px solid color-mix(in srgb, var(--color-green) 45%, var(--border));
+		border-radius: .85rem;
+		background: color-mix(in srgb, var(--color-green) 8%, var(--bg-tertiary));
+	}
+	.alerts-success-strip > a,
+	.alerts-paused-banner > button { margin-left: auto; }
+	.alerts-managed-banner { border-color: color-mix(in srgb, #2aabee 42%, var(--border)); background: color-mix(in srgb, #2aabee 8%, var(--bg-tertiary)); }
+	.alerts-paused-banner { border-color: color-mix(in srgb, var(--color-yellow) 48%, var(--border)); background: color-mix(in srgb, var(--color-yellow) 8%, var(--bg-tertiary)); color: var(--color-yellow); }
+	.alerts-info-icon {
+		display: grid;
+		place-items: center;
+		width: 1.5rem;
+		height: 1.5rem;
+		flex: 0 0 auto;
+		border-radius: 999px;
+		background: color-mix(in srgb, #2aabee 20%, var(--bg-primary));
+		color: #2aabee;
+	}
+	.alerts-iphone-row { margin-top: .7rem; padding: .85rem .9rem !important; border: 1px solid var(--border) !important; border-radius: .78rem; background: color-mix(in srgb, var(--bg-primary) 42%, transparent); }
+	.alerts-empty { padding: 1.35rem .8rem; text-align: center; border: 1px dashed color-mix(in srgb, #2aabee 36%, var(--border)); border-radius: .8rem; background: color-mix(in srgb, #2aabee 4%, var(--bg-primary)); }
+	.alerts-empty .alerts-icon { width: 2.25rem; height: 2.25rem; margin-left: auto; margin-right: auto; border-radius: 999px; }
+	.alerts-field-error { display: flex; align-items: flex-start; gap: .45rem; margin-top: .45rem; color: var(--color-red); font-size: .62rem; line-height: 1.4; }
+	.alerts-input.invalid { border-color: color-mix(in srgb, var(--color-red) 72%, var(--border)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-red) 8%, transparent); }
+	.alerts-footer-meta { margin-right: auto; font-size: .72rem; color: var(--text-muted); }
+	.alerts-unsaved { display: inline-flex; align-items: center; gap: .4rem; color: var(--color-yellow); font-size: .61rem; }
+	.alerts-unsaved::before { content: ""; width: .4rem; height: .4rem; border-radius: 999px; background: currentColor; }
+	.alerts-action-button { min-width: 9.4rem; min-height: 2.55rem; padding: .65rem .95rem; border-radius: .72rem; font-size: .7rem; font-weight: 680; display: inline-flex; align-items: center; justify-content: center; gap: .5rem; }
+	.alerts-danger-button { border: 1px solid color-mix(in srgb, var(--color-red) 62%, var(--border)); color: var(--color-red); background: color-mix(in srgb, var(--color-red) 4%, transparent); }
+	.alerts-confirm-backdrop { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; padding: 1rem; border-radius: inherit; background: rgba(4,7,12,.76); backdrop-filter: blur(3px); }
+	.alerts-confirm { width: min(25rem, 100%); padding: 1.1rem; border: 1px solid color-mix(in srgb, var(--color-yellow) 35%, var(--border)); border-radius: 1rem; background: var(--bg-secondary); box-shadow: 0 24px 60px rgba(0,0,0,.5); text-align: center; }
+	.alerts-confirm-icon { display: grid; place-items: center; width: 2.4rem; height: 2.4rem; margin: 0 auto .75rem; border-radius: 999px; background: var(--color-yellow); color: #241800; }
+	.alerts-confirm-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem; margin-top: 1rem; }
+	.alerts-busy-row,
+	.alerts-test-success { display: flex; align-items: center; gap: .65rem; margin-top: .75rem; padding: .68rem .75rem; border: 1px solid var(--border); border-radius: .72rem; background: color-mix(in srgb, var(--bg-primary) 45%, transparent); font-size: .66rem; color: var(--text-secondary); }
+	.alerts-test-success { border-color: color-mix(in srgb, var(--color-green) 40%, var(--border)); color: var(--color-green); }
+	.alerts-setup-layout,
+	.alerts-configured-layout { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); gap: 1rem; }
+	.alerts-setup-layout > .alerts-setup-hero,
+	.alerts-configured-layout > .alerts-account,
+	.alerts-configured-layout > .alerts-error-banner,
+	.alerts-configured-layout > .alerts-managed-banner,
+	.alerts-configured-layout > .alerts-paused-banner,
+	.alerts-configured-layout > .alerts-busy-row,
+	.alerts-configured-layout > .alerts-test-success,
+	.alerts-configured-layout > .alerts-advanced,
+	.alerts-configured-layout > .alerts-actions { grid-column: 1 / -1; }
+	.alerts-setup-layout > .alerts-step:nth-of-type(3),
+	.alerts-setup-layout > button,
+	.alerts-setup-layout > .alerts-onboarding-actions { grid-column: 1 / -1; }
+	.alerts-setup-layout > .alerts-step { align-self: start; }
+	.alerts-configured-layout .alerts-panel { align-self: start; padding: 1.25rem; }
+	.alerts-configured-layout .alerts-account { display: flex; align-items: center; }
+	.alerts-configured-layout .alerts-account > .flex { width: 100%; align-items: center; }
+	.alerts-configured-layout .alerts-actions {
+		position: sticky;
+		bottom: 0;
+		display: flex;
+		justify-content: flex-end;
+		align-items: center;
+		margin: .25rem -1.4rem 0;
+		padding: 1rem 1.4rem;
+		background: rgba(23, 27, 32, .96);
+	}
+	.alerts-configured-layout .alerts-actions::before {
+		content: "Last delivery";
+		margin-right: auto;
+		color: var(--text-muted);
+		font-size: .62rem;
+	}
+	.alerts-configured-layout .alerts-actions.has-meta::before { display: none; }
+	.alerts-configured-layout .alerts-actions > button { min-width: 9.5rem; }
+	.alerts-account {
+		padding: 1.2rem 1.25rem;
+		border-radius: 1rem;
+		background: linear-gradient(115deg, rgba(42,171,238,.12), rgba(35,38,43,.92) 58%);
+	}
+	.alerts-account-grid {
+		display: grid;
+		grid-template-columns: minmax(18rem, 1.35fr) minmax(9rem, .65fr) minmax(15rem, .9fr);
+		align-items: center;
+		gap: 1.25rem;
+		width: 100%;
+	}
+	.alerts-account-identity { display: flex; align-items: center; gap: .9rem; min-width: 0; }
+	.alerts-account-name { display: flex; align-items: center; gap: .55rem; min-width: 0; }
+	.alerts-account-name h3 { font-size: .95rem; line-height: 1.35; }
+	.alerts-account-copy { margin-top: .25rem; font-size: .75rem; color: var(--text-muted); }
+	.alerts-account-control {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: .7rem;
+		min-height: 3.2rem;
+		padding: 0 1.2rem;
+		border-left: 1px solid var(--border);
+		border-right: 1px solid var(--border);
+	}
+	.alerts-account-control-copy { min-width: 6rem; }
+	.alerts-account-control-copy strong { display: block; color: var(--text-primary); font-size: .77rem; font-weight: 600; }
+	.alerts-account-control-copy span { display: block; margin-top: .15rem; color: var(--text-muted); font-size: .67rem; }
+	.alerts-account-meta { display: grid; grid-template-columns: 1fr; gap: .65rem; }
+	.alerts-account-meta-label { font-size: .62rem; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); }
+	.alerts-account-meta-value { margin-top: .35rem; color: var(--text-secondary); font-size: .73rem; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.alerts-panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+	.alerts-card .alerts-section-title { font-size: .9rem; line-height: 1.4; }
+	.alerts-card .alerts-section-copy { font-size: .73rem; }
+	.alerts-route-grid {
+		gap: .35rem;
+		padding: .3rem;
+		border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
+		border-radius: .9rem;
+		background: rgba(10, 13, 17, .5);
+	}
+	.alerts-route-option {
+		display: grid;
+		grid-template-columns: 2.15rem minmax(0, 1fr);
+		grid-template-rows: auto auto;
+		align-items: center;
+		column-gap: .7rem;
+		min-height: 4.6rem;
+		padding: .7rem .75rem;
+		border-color: transparent;
+		border-radius: .68rem;
+		background: transparent;
+		box-shadow: none;
+	}
+	.alerts-route-option .alerts-route-icon { grid-row: 1 / 3; margin: 0; width: 2.15rem; height: 2.15rem; border-radius: .65rem; border: 1px solid rgba(255,255,255,.035); }
+	.alerts-route-icon.is-auto { color: #55c2ff; background: rgba(42,171,238,.13); border-color: rgba(42,171,238,.16); }
+	.alerts-route-icon.is-direct { color: #a9b2c1; background: rgba(148,163,184,.08); border-color: rgba(148,163,184,.1); }
+	.alerts-route-icon.is-custom { color: #b69cff; background: rgba(155,125,255,.11); border-color: rgba(155,125,255,.14); }
+	.alerts-route-option .alerts-route-name { align-self: end; font-size: .76rem; font-weight: 650; color: var(--text-primary); }
+	.alerts-route-option .alerts-route-hint { align-self: start; margin-top: .1rem; font-size: .64rem; color: var(--text-muted); }
+	.alerts-route-option.selected { border-color: rgba(42,171,238,.48); background: rgba(42,171,238,.12); }
+	.alerts-delivery-note { display: flex; align-items: flex-start; gap: .6rem; margin-top: 1rem; padding: .8rem .9rem; border-radius: .75rem; background: rgba(10,13,17,.34); color: var(--text-muted); font-size: .7rem; line-height: 1.55; }
+	.alerts-notifications-list { display: flex; flex-direction: column; }
+	.alerts-notification-row { min-height: 4rem; padding: .7rem .15rem; justify-content: flex-start; gap: .8rem; }
+	.alerts-notification-copy { min-width: 0; flex: 1; }
+	.alerts-notification-title { display: block; color: var(--text-primary); font-size: .78rem; font-weight: 560; line-height: 1.35; }
+	.alerts-notification-description { display: block; margin-top: .22rem; color: var(--text-muted); font-size: .67rem; line-height: 1.4; }
+	.alerts-notification-icon { display: grid; place-items: center; width: 2rem; height: 2rem; flex: 0 0 auto; border-radius: .62rem; color: var(--text-muted); background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.035); transition: color .15s ease, background .15s ease, border-color .15s ease; }
+	.alerts-notification-icon svg { width: .95rem; height: .95rem; }
+	.alerts-notification-icon.is-criticalFailures { color: #ffb547; background: rgba(255,181,71,.1); border-color: rgba(255,181,71,.13); }
+	.alerts-notification-icon.is-ipChanges { color: #55c2ff; background: rgba(42,171,238,.1); border-color: rgba(42,171,238,.14); }
+	.alerts-notification-icon.is-recoveries { color: #4de28b; background: rgba(58,255,130,.09); border-color: rgba(58,255,130,.12); }
+	.alerts-notification-icon.is-newIpFailures { color: #ff7474; background: rgba(255,50,50,.09); border-color: rgba(255,50,50,.12); }
+	.alerts-notification-icon.is-unstable { color: #c59cff; background: rgba(155,125,255,.1); border-color: rgba(155,125,255,.13); }
+	.alerts-notification-icon.is-networkStatus { color: #6da8ff; background: rgba(79,140,255,.1); border-color: rgba(79,140,255,.14); }
+	.alerts-notification-row:hover .alerts-notification-icon { filter: brightness(1.18); }
+	.alerts-card .alerts-toggle { width: 2.55rem; height: 1.42rem; }
+	.alerts-card .alerts-toggle::after { width: 1rem; height: 1rem; left: .18rem; top: .15rem; }
+	.alerts-card .alerts-toggle.on::after { transform: translateX(1.08rem); }
+	.alerts-advanced { padding: 1rem 1.15rem; }
+	.alerts-advanced summary { min-height: 1.5rem; font-size: .76rem; }
+	.light .alerts-card,
+	.light .alerts-card .diagnosis-scroll { background: var(--bg-secondary); }
+	.light .alerts-card .diagnosis-header,
+	.light .alerts-configured-layout .alerts-actions { background: color-mix(in srgb, var(--bg-secondary) 94%, transparent); }
+	.light .alerts-account { background: linear-gradient(115deg, color-mix(in srgb, #2aabee 11%, var(--bg-tertiary)), var(--bg-tertiary) 62%); }
+	.light .alerts-route-grid,
+	.light .alerts-delivery-note { background: color-mix(in srgb, var(--bg-primary) 62%, transparent); }
+	.light .alerts-notification-icon { background: rgba(0,0,0,.025); border-color: rgba(0,0,0,.04); }
 	@keyframes diagnosis-popover-in {
 		from { opacity: 0; transform: translateY(-5px) scale(0.985); }
 		to { opacity: 1; transform: translateY(0) scale(1); }
@@ -1063,6 +1301,19 @@
 	@keyframes access-modal-in {
 		from { opacity: 0; transform: translateY(9px) scale(.985); }
 		to { opacity: 1; transform: translateY(0) scale(1); }
+	}
+	@media (max-width: 860px) {
+		.alerts-setup-layout,
+		.alerts-configured-layout { grid-template-columns: 1fr; }
+		.alerts-setup-layout > *,
+		.alerts-configured-layout > * { grid-column: 1 !important; }
+		.alerts-configured-layout .alerts-actions { flex-wrap: wrap; }
+		.alerts-footer-meta { width: 100%; }
+	}
+	@media (max-width: 1100px) {
+		.alerts-account-grid { grid-template-columns: minmax(0, 1fr) auto; }
+		.alerts-account-control { justify-content: flex-end; padding-right: 0; border-right: 0; }
+		.alerts-account-meta { grid-column: 1 / -1; grid-template-columns: 1fr 1fr; padding-top: 1rem; border-top: 1px solid var(--border); }
 	}
 	@media (max-width: 640px) {
 		.diagnosis-stage-map { grid-template-columns: 1fr; }
@@ -1086,6 +1337,27 @@
 			margin: 0 -.8rem -.8rem;
 			padding: .7rem .8rem calc(.8rem + env(safe-area-inset-bottom));
 		}
+		.alerts-backdrop { align-items: flex-end; padding: .65rem; }
+		.alerts-card { width: 100%; max-height: calc(100dvh - 1.3rem); }
+		.alerts-card .diagnosis-scroll { max-height: calc(100dvh - 1.3rem); }
+		.alerts-setup-layout,
+		.alerts-configured-layout { grid-template-columns: 1fr; }
+		.alerts-setup-layout > *,
+		.alerts-configured-layout > * { grid-column: 1 !important; }
+		.alerts-card .diagnosis-header { padding: .9rem 1rem; }
+		.alerts-header-status .alerts-status-pill { display: none; }
+		.alerts-step-badge { padding: .3rem .5rem; font-size: .6rem; }
+		.alerts-content { padding: .8rem .8rem 0; }
+		.alerts-configured-layout .alerts-actions { margin-left: -.8rem; margin-right: -.8rem; padding-left: .8rem; padding-right: .8rem; }
+		.alerts-account-grid { grid-template-columns: 1fr; gap: .85rem; }
+		.alerts-account-control { justify-content: flex-start; padding: .85rem 0 0; border-left: 0; border-top: 1px solid var(--border); }
+		.alerts-account-meta { grid-column: 1; padding-top: .85rem; }
+		.alerts-route-option { grid-template-columns: 1fr; grid-template-rows: auto auto auto; gap: .2rem; }
+		.alerts-route-option .alerts-route-icon { grid-row: auto; margin-bottom: .15rem; }
+		.alerts-footer-meta,
+		.alerts-configured-layout .alerts-actions::before { display: none; }
+		.alerts-action-button,
+		.alerts-configured-layout .alerts-actions > button { min-width: 0; flex: 1; }
 		.access-content { padding: .85rem; }
 		.access-methods { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 		.access-method { min-height: 4rem; }
@@ -2519,37 +2791,43 @@
     <div
       x-show="alertsModalOpen"
       x-transition.opacity
-      @keydown.escape.window="closeAlerts()"
+      @keydown.escape.window="telegramDisconnectOpen ? telegramDisconnectOpen = false : (telegramDiscardOpen ? telegramDiscardOpen = false : requestCloseAlerts())"
       @resize.window="scheduleAlertsReposition()"
-      @click.self="closeAlerts()"
-      class="diagnosis-backdrop fixed inset-0 z-50"
+      @click.self="requestCloseAlerts()"
+      class="diagnosis-backdrop alerts-backdrop fixed inset-0 z-50"
       style="display: none"
     >
       <div
         x-ref="alertsPopover"
-        class="diagnosis-card alerts-card popover-below"
-        :style="alertsPopoverStyle"
+        class="diagnosis-card alerts-card"
         @click.stop
       >
         <div class="diagnosis-scroll">
           <div class="diagnosis-header flex items-center justify-between gap-4">
             <div class="flex items-center gap-3 min-w-0">
               <div class="alerts-icon flex-shrink-0">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 3L3.8 10.1c-.9.37-.86 1.67.06 1.98l4.37 1.48 1.48 4.37c.31.92 1.61.96 1.98.06L21 3Zm0 0L8.23 13.56" />
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="m9.78 18.65.33-4.74 8.62-7.78c.38-.34-.08-.5-.58-.2L7.5 12.65 2.9 11.2c-.99-.3-1-1 .21-1.48L21.03 2.8c.82-.3 1.54.2 1.27 1.48l-3.05 14.37c-.21 1.02-.82 1.27-1.67.8l-4.65-3.43-2.24 2.16c-.25.25-.46.46-.91.46Z" />
                 </svg>
               </div>
               <div class="min-w-0">
                 <div class="alerts-kicker">Alert center</div>
                 <div class="flex items-center gap-2">
-                  <h2 class="text-base font-semibold text-primary">Telegram alerts</h2>
+                  <h2 class="alerts-modal-title font-semibold text-primary" x-text="(!telegramStatus.configured || telegramReplacing) ? 'Connect Telegram alerts' : 'Telegram alerts'"></h2>
                 </div>
-                <p class="text-[10px] text-muted mt-0.5 truncate" x-text="telegramStatus.configured ? alertsStatusLabel + ' · ' + (telegramStatus.recipient || 'Configured chat') : 'Private alerts for nodes that need attention'"></p>
+                <p class="alerts-modal-subtitle text-muted truncate" x-text="telegramStatus.configured ? alertsStatusLabel + ' · ' + (telegramStatus.recipient || 'Configured chat') : 'Private alerts for nodes that need attention'"></p>
               </div>
             </div>
-            <button type="button" @click="closeAlerts()" class="diagnosis-close flex-shrink-0" title="Close" aria-label="Close Telegram settings">
+            <div class="alerts-header-status">
+              <span x-show="!alertsLoading && (!telegramStatus.configured || telegramReplacing)" class="alerts-step-badge" x-text="telegramBot ? 'Step 2 of 2' : 'Step 1 of 2'"></span>
+              <span x-show="!alertsLoading && telegramStatus.configured && !telegramReplacing" class="alerts-status-pill" :class="telegramStatus.state === 'error' ? 'latency-bad' : (telegramStatus.enabled ? 'latency-good' : 'latency-medium')">
+                <span class="w-1.5 h-1.5 rounded-full" :class="alertsStatusDotClass"></span>
+                <span x-text="alertsStatusLabel"></span>
+              </span>
+            <button type="button" @click="requestCloseAlerts()" class="diagnosis-close flex-shrink-0" title="Close" aria-label="Close Telegram settings">
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
+            </div>
           </div>
 
           <div class="alerts-content">
@@ -2557,14 +2835,14 @@
             <span class="alerts-spinner"></span>
             <span>Loading alert settings…</span>
           </div>
-          <div x-show="telegramError && !alertsLoading" class="alerts-error-banner mb-3">
+          <div x-show="telegramError && !alertsLoading && (telegramStatus.configured || telegramBot)" class="alerts-error-banner mb-3">
             <svg class="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v4m0 4h.01M10.3 3.7 2.7 17a2 2 0 0 0 1.73 3h15.14A2 2 0 0 0 21.3 17L13.7 3.7a2 2 0 0 0-3.4 0Z"/></svg>
             <span x-text="telegramError"></span>
           </div>
 
           <template x-if="!alertsLoading && (!telegramStatus.configured || telegramReplacing)">
-            <div class="space-y-3">
-              <div class="alerts-setup-hero">
+            <div class="alerts-setup-layout">
+              <div x-show="!telegramBot" class="alerts-setup-hero">
                 <div class="relative z-10 flex items-start justify-between gap-4">
                   <div>
                     <div class="alerts-kicker">Quick setup</div>
@@ -2579,7 +2857,7 @@
                 </div>
               </div>
 
-              <section class="alerts-step">
+              <section x-show="!telegramBot" class="alerts-step">
                 <div class="flex items-start gap-3">
                   <span class="alerts-step-index">1</span>
                   <div class="min-w-0 flex-1 flex items-center justify-between gap-3">
@@ -2599,21 +2877,25 @@
                 <div class="flex items-start gap-3">
                   <span class="alerts-step-index" :class="telegramBot && 'complete'" x-text="telegramBot ? '✓' : '2'"></span>
                   <div class="min-w-0 flex-1">
-                    <h3 class="alerts-section-title">Connect securely</h3>
-                    <p class="alerts-section-copy mt-0.5">We verify the bot before anything is saved.</p>
+                    <h3 class="alerts-section-title" x-text="telegramBot ? 'Bot verified' : 'Connect securely'"></h3>
+                    <p class="alerts-section-copy mt-0.5" x-text="telegramBot ? 'The token is valid and ready to use.' : 'We verify the bot before anything is saved.'"></p>
 
-                    <label class="block mt-3">
+                    <label x-show="!telegramBot" class="block mt-3">
                       <span class="alerts-label"><span>Bot API token</span><span class="font-normal text-muted">Encrypted field</span></span>
                       <span class="alerts-field block">
                         <svg class="alerts-field-icon w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 7a4 4 0 1 1-7.9 1H2v3h3v3h3v3h3l1.4-1.4"/></svg>
-                        <input class="alerts-input with-icon pr-10" :type="telegramTokenVisible ? 'text' : 'password'" x-model="telegramToken" autocomplete="new-password" spellcheck="false" placeholder="123456789:AA…" :disabled="telegramStatus.managedByEnvironment" />
+                        <input class="alerts-input with-icon pr-10" :class="telegramError && !telegramBot && 'invalid'" :type="telegramTokenVisible ? 'text' : 'password'" x-model="telegramToken" autocomplete="new-password" spellcheck="false" placeholder="123456789:AA…" :disabled="telegramStatus.managedByEnvironment" />
                         <button type="button" @click="telegramTokenVisible = !telegramTokenVisible" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-secondary p-1" title="Show or hide token" aria-label="Show or hide token">
                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
                         </button>
                       </span>
+                      <span x-show="telegramError && !telegramBot" class="alerts-field-error">
+                        <svg class="w-3.5 h-3.5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="1.8" d="M12 9v4m0 4h.01"/><circle cx="12" cy="12" r="9" stroke-width="1.8"/></svg>
+                        <span x-text="telegramError"></span>
+                      </span>
                     </label>
 
-                    <div class="alerts-route-summary mt-3">
+                    <div x-show="!telegramBot" class="alerts-route-summary mt-3">
                       <span class="alerts-route-icon flex-shrink-0 !mb-0">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 12h14M12 5l7 7-7 7"/></svg>
                       </span>
@@ -2624,11 +2906,11 @@
                       <button type="button" @click="telegramRouteExpanded = !telegramRouteExpanded" class="text-[10px] font-semibold text-secondary hover:text-primary" x-text="telegramRouteExpanded ? 'Done' : 'Change'"></button>
                     </div>
 
-					<div x-show="telegramRouteExpanded" x-transition.opacity class="mt-3">
+					<div x-show="!telegramBot && telegramRouteExpanded" x-transition.opacity class="mt-3">
                       <div class="alerts-route-grid">
                         <template x-for="route in telegramDeliveryOptions" :key="route.key">
-                          <button type="button" @click="telegramDeliveryMode = route.key" class="alerts-choice alerts-route-option" :class="telegramDeliveryMode === route.key && 'selected'">
-                            <span class="alerts-route-icon">
+                          <button type="button" @click="telegramDeliveryMode = route.key; telegramSettingsDirty = telegramStatus.configured" class="alerts-choice alerts-route-option" :class="telegramDeliveryMode === route.key && 'selected'">
+                            <span class="alerts-route-icon" :class="'is-' + route.key">
                               <svg x-show="route.key === 'auto'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3v5m0 8v5M5.6 6.2l3.5 3.5m5.8 5.8 3.5 3.5M3 12h5m8 0h5M5.6 17.8l3.5-3.5m5.8-5.8 3.5-3.5"/></svg>
                               <svg x-show="route.key === 'direct'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2" stroke-width="1.8"/><path stroke-linecap="round" stroke-width="1.8" d="M10.5 5h3M11 18.5h2"/></svg>
                               <svg x-show="route.key === 'custom'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 7h16M4 17h16M8 4v6m8 4v6"/></svg>
@@ -2646,13 +2928,13 @@
                       </div>
                     </div>
 
-                    <button type="button" @click="verifyTelegramToken()" :disabled="telegramBusy || (!telegramToken && !telegramStatus.managedByEnvironment)" class="alerts-primary w-full mt-3 px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2">
+                    <button x-show="!telegramBot" type="button" @click="verifyTelegramToken()" :disabled="telegramBusy || (!telegramToken && !telegramStatus.managedByEnvironment)" class="alerts-primary w-full mt-3 px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2">
                       <span x-show="telegramBusy" class="alerts-spinner !w-3.5 !h-3.5 !border-white/30 !border-t-white"></span>
                       <span x-text="telegramBusy ? 'Verifying securely…' : 'Verify and continue'"></span>
                       <svg x-show="!telegramBusy" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m9 18 6-6-6-6"/></svg>
                     </button>
 
-                    <div x-show="telegramBot" class="mt-3 alerts-choice selected p-3 flex items-center gap-3">
+                    <div x-show="telegramBot" class="mt-3 alerts-success-strip">
                       <span class="w-8 h-8 rounded-xl grid place-items-center flex-shrink-0 text-white" style="background:linear-gradient(145deg,#39b8ef,#168dcc)">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m5 12 4 4L19 6"/></svg>
                       </span>
@@ -2660,7 +2942,7 @@
                         <div class="text-[9px] uppercase tracking-wide latency-good">Verified bot</div>
                         <div class="text-xs font-semibold text-primary truncate" x-text="telegramBot ? '@' + telegramBot.username : ''"></div>
                       </div>
-                      <a :href="telegramBot ? 'https://t.me/' + telegramBot.username : '#'" target="_blank" rel="noreferrer" class="text-[10px] font-semibold text-secondary">Open ↗</a>
+                      <a :href="telegramBot ? 'https://t.me/' + telegramBot.username : '#'" target="_blank" rel="noreferrer" class="text-[10px] font-semibold text-secondary ml-auto">Open bot ↗</a>
                     </div>
                   </div>
                 </div>
@@ -2693,11 +2975,22 @@
                         </button>
                       </template>
                     </div>
-                    <p x-show="telegramChatsSearched && !telegramChats.length" class="alerts-error-banner mt-3">No /start message yet. Send /start to the bot and try once more.</p>
+                    <div x-show="telegramChatsSearched && !telegramChats.length" class="alerts-empty mt-3">
+                      <div class="alerts-icon !w-9 !h-9 !rounded-full mx-auto">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="m9.78 18.65.33-4.74 8.62-7.78c.38-.34-.08-.5-.58-.2L7.5 12.65 2.9 11.2c-.99-.3-1-1 .21-1.48L21.03 2.8c.82-.3 1.54.2 1.27 1.48l-3.05 14.37c-.21 1.02-.82 1.27-1.67.8l-4.65-3.43-2.24 2.16c-.25.25-.46.46-.91.46Z"/></svg>
+                      </div>
+                      <div class="text-xs font-semibold text-primary mt-2">No chats found</div>
+                      <p class="text-[10px] text-muted mt-1">Send /start to the bot, then try again.</p>
+                      <div class="flex justify-center gap-2 mt-3">
+                        <a :href="telegramBot ? 'https://t.me/' + telegramBot.username : '#'" target="_blank" rel="noreferrer" class="btn px-3 py-2 rounded-lg text-[10px] font-semibold">Open bot ↗</a>
+                        <button type="button" @click="discoverTelegramChats()" :disabled="telegramBusy" class="btn px-3 py-2 rounded-lg text-[10px] font-semibold">Search again</button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </section>
 
+              <button x-show="telegramBot" type="button" @click="backToTelegramToken()" :disabled="telegramBusy" class="btn px-4 py-2.5 rounded-xl text-xs">Back to token</button>
               <button
                 x-show="telegramSelectedChatId"
                 type="button"
@@ -2712,46 +3005,65 @@
           </template>
 
           <template x-if="!alertsLoading && telegramStatus.configured && !telegramReplacing">
-            <div class="space-y-3">
+            <div class="alerts-configured-layout">
               <section class="alerts-account">
-                <div class="flex items-start gap-3">
-                  <span class="alerts-account-avatar flex-shrink-0">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.7" d="M21 3 3.8 10.1c-.9.37-.86 1.67.06 1.98l4.37 1.48 1.48 4.37c.31.92 1.61.96 1.98.06L21 3Zm0 0L8.23 13.56"/></svg>
-                  </span>
-                  <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-2">
-                      <h3 class="text-sm font-semibold text-primary truncate" x-text="telegramStatus.botUsername ? '@' + telegramStatus.botUsername : 'Telegram bot'"></h3>
-                      <span class="alerts-status-pill" :class="telegramStatus.connected ? 'latency-good' : (telegramStatus.state === 'error' ? 'latency-bad' : 'text-muted')">
-                        <span class="w-1.5 h-1.5 rounded-full" :class="alertsStatusDotClass"></span>
-                        <span x-text="alertsStatusLabel"></span>
-                      </span>
+                <div class="alerts-account-grid">
+                  <div class="alerts-account-identity">
+                    <span class="alerts-account-avatar flex-shrink-0">
+                      <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="m9.78 18.65.33-4.74 8.62-7.78c.38-.34-.08-.5-.58-.2L7.5 12.65 2.9 11.2c-.99-.3-1-1 .21-1.48L21.03 2.8c.82-.3 1.54.2 1.27 1.48l-3.05 14.37c-.21 1.02-.82 1.27-1.67.8l-4.65-3.43-2.24 2.16c-.25.25-.46.46-.91.46Z"/></svg>
+                    </span>
+                    <div class="min-w-0">
+                      <div class="alerts-account-name">
+                        <h3 class="font-semibold text-primary truncate" x-text="telegramStatus.botUsername ? '@' + telegramStatus.botUsername : 'Telegram bot'"></h3>
+                        <span class="alerts-status-pill" :class="telegramStatus.connected ? 'latency-good' : (telegramStatus.state === 'error' ? 'latency-bad' : 'text-muted')">
+                          <span class="w-1.5 h-1.5 rounded-full" :class="alertsStatusDotClass"></span>
+                          <span x-text="alertsStatusLabel"></span>
+                        </span>
+                      </div>
+                      <p class="alerts-account-copy truncate" x-text="'Recipient · ' + (telegramStatus.recipient || 'Configured chat')"></p>
                     </div>
-                    <p class="text-[10px] text-muted mt-1 truncate" x-text="'Recipient · ' + (telegramStatus.recipient || 'Configured chat')"></p>
                   </div>
-                  <div class="flex flex-col items-end gap-1.5">
+                  <div class="alerts-account-control">
                     <button type="button" @click="toggleTelegramEnabled()" class="alerts-toggle flex-shrink-0" :class="telegramStatus.enabled && 'on'" :aria-label="telegramStatus.enabled ? 'Disable alerts' : 'Enable alerts'"></button>
-                    <span class="text-[8px] uppercase tracking-wide text-muted" x-text="telegramStatus.enabled ? 'On' : 'Paused'"></span>
+                    <span class="alerts-account-control-copy">
+                      <strong x-text="telegramStatus.enabled ? 'Alerts enabled' : 'Alerts paused'"></strong>
+                      <span x-text="telegramStatus.enabled ? 'Sending normally' : 'Delivery stopped'"></span>
+                    </span>
                   </div>
-                </div>
-                <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-default">
-                  <div class="min-w-0">
-                    <div class="text-[9px] uppercase tracking-wide text-muted">Last delivery</div>
-                    <div class="text-[10px] text-primary mt-1 truncate" x-text="telegramStatus.lastDeliveryAt ? formatTimestamp(telegramStatus.lastDeliveryAt) : 'Not sent yet'"></div>
-                  </div>
-                  <div class="min-w-0">
-                    <div class="text-[9px] uppercase tracking-wide text-muted">Last route</div>
-                    <div class="text-[10px] text-primary mt-1 truncate" :title="telegramStatus.lastRoute || telegramDeliveryLabel" x-text="telegramStatus.lastRoute || telegramDeliveryLabel"></div>
+                  <div class="alerts-account-meta">
+                    <div class="min-w-0">
+                      <div class="alerts-account-meta-label">Last delivery</div>
+                      <div class="alerts-account-meta-value" x-text="telegramStatus.lastDeliveryAt ? formatTimestamp(telegramStatus.lastDeliveryAt) : 'Not sent yet'"></div>
+                    </div>
+                    <div class="min-w-0">
+                      <div class="alerts-account-meta-label">Last route</div>
+                      <div class="alerts-account-meta-value" :title="telegramStatus.lastRoute || telegramDeliveryLabel" x-text="telegramStatus.lastRoute || telegramDeliveryLabel"></div>
+                    </div>
                   </div>
                 </div>
               </section>
 
+              <div x-show="telegramStatus.managedByEnvironment || telegramStatus.proxyManagedByEnvironment" class="alerts-managed-banner">
+                <span class="alerts-info-icon">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="1.8" d="M12 11v5m0-9h.01"/><circle cx="12" cy="12" r="9" stroke-width="1.8"/></svg>
+                </span>
+                <span class="min-w-0"><span class="text-[11px] font-semibold text-primary block">Credentials managed by environment</span><span class="text-[9px] text-muted block mt-0.5">Bot and proxy credentials are locked here; notification preferences remain editable.</span></span>
+              </div>
+
+              <div x-show="!telegramStatus.enabled" class="alerts-paused-banner">
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10 9v6m4-6v6M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z"/></svg>
+                <span class="text-[10px] font-medium">No messages will be sent until alerts are resumed.</span>
+                <button type="button" @click="toggleTelegramEnabled()" :disabled="telegramBusy" class="btn ml-auto px-3 py-2 rounded-lg text-[10px] font-semibold">Resume alerts</button>
+              </div>
+
               <div x-show="telegramStatus.lastError && !telegramError" class="alerts-error-banner">
                 <svg class="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v4m0 4h.01M10.3 3.7 2.7 17a2 2 0 0 0 1.73 3h15.14A2 2 0 0 0 21.3 17L13.7 3.7a2 2 0 0 0-3.4 0Z"/></svg>
-                <span class="break-words" x-text="telegramStatus.lastError"></span>
+                <span class="min-w-0 flex-1"><span class="font-semibold block">Telegram could not be reached through the selected route.</span><span class="break-words opacity-80 block mt-0.5" x-text="telegramStatus.lastError"></span></span>
+                <button type="button" @click="sendTelegramTest()" :disabled="telegramBusy || !telegramStatus.enabled" class="btn flex-shrink-0 px-3 py-2 rounded-lg text-[10px] font-semibold">Try again</button>
               </div>
 
               <section class="alerts-panel p-4">
-                <div class="flex items-start justify-between gap-3 mb-3">
+                <div class="alerts-panel-head">
                   <div>
                     <div class="alerts-kicker">Delivery</div>
                     <h3 class="alerts-section-title mt-1">How alerts reach Telegram</h3>
@@ -2760,42 +3072,63 @@
                 </div>
                 <div class="alerts-route-grid">
                   <template x-for="route in telegramDeliveryOptions" :key="route.key">
-                    <button type="button" @click="telegramDeliveryMode = route.key" class="alerts-choice alerts-route-option" :class="telegramDeliveryMode === route.key && 'selected'">
-                      <span class="alerts-route-icon">
+                    <button type="button" @click="telegramDeliveryMode = route.key; telegramSettingsDirty = true" class="alerts-choice alerts-route-option" :class="telegramDeliveryMode === route.key && 'selected'">
+                      <span class="alerts-route-icon" :class="'is-' + route.key">
                         <svg x-show="route.key === 'auto'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3v5m0 8v5M5.6 6.2l3.5 3.5m5.8 5.8 3.5 3.5M3 12h5m8 0h5M5.6 17.8l3.5-3.5m5.8-5.8 3.5-3.5"/></svg>
                         <svg x-show="route.key === 'direct'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2" stroke-width="1.8"/><path stroke-linecap="round" stroke-width="1.8" d="M10.5 5h3M11 18.5h2"/></svg>
                         <svg x-show="route.key === 'custom'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 7h16M4 17h16M8 4v6m8 4v6"/></svg>
                       </span>
-                      <span class="text-[10px] font-semibold text-primary block" x-text="route.shortLabel"></span>
-                      <span class="text-[8px] text-muted block mt-0.5" x-text="route.key === 'auto' ? 'Recommended' : (route.key === 'direct' ? 'No proxy' : 'Your proxy')"></span>
+                      <span class="alerts-route-name" x-text="route.shortLabel"></span>
+                      <span class="alerts-route-hint" x-text="route.key === 'auto' ? 'Recommended' : (route.key === 'direct' ? 'No proxy' : 'Your proxy')"></span>
                     </button>
                   </template>
                 </div>
-                <div class="flex items-start gap-2 mt-3 text-[10px] text-muted leading-relaxed">
+                <div class="alerts-delivery-note">
                   <svg class="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
                   <span x-text="telegramDeliveryDescription"></span>
                 </div>
                 <div x-show="telegramDeliveryMode === 'custom'" class="mt-3">
                   <label class="alerts-label"><span>Proxy URL</span><span class="font-normal text-muted">Secret</span></label>
-                  <input class="alerts-input" type="password" x-model="telegramCustomProxy" autocomplete="new-password" spellcheck="false" placeholder="socks5h://user:password@host:1080" :disabled="telegramStatus.proxyManagedByEnvironment" />
+                  <input class="alerts-input" type="password" x-model="telegramCustomProxy" @input="telegramSettingsDirty = true" autocomplete="new-password" spellcheck="false" placeholder="socks5h://user:password@host:1080" :disabled="telegramStatus.proxyManagedByEnvironment" />
                   <p class="text-[9px] text-muted mt-1.5" x-show="telegramStatus.customProxyConfigured && !telegramCustomProxy">Leave blank to keep the saved proxy.</p>
                   <p class="text-[9px] text-muted mt-1.5" x-show="telegramStatus.proxyManagedByEnvironment">Managed through TELEGRAM_PROXY_URL.</p>
                 </div>
               </section>
 
               <section class="alerts-panel p-4">
-                <div class="alerts-kicker">Notifications</div>
-                <h3 class="alerts-section-title mt-1 mb-3">What deserves a message</h3>
-                <div>
-                  <template x-for="option in telegramPreferenceOptions" :key="option.key">
-                    <button type="button" @click="telegramPreferences[option.key] = !telegramPreferences[option.key]" class="alerts-notification-row w-full text-left">
-                      <span class="min-w-0">
-                        <span class="text-[11px] font-medium text-primary block" x-text="option.label"></span>
-                        <span class="text-[9px] text-muted block mt-0.5" x-text="option.description"></span>
+                <div class="alerts-panel-head">
+                  <div>
+                    <div class="alerts-kicker">Notifications</div>
+                    <h3 class="alerts-section-title mt-1">What deserves a message</h3>
+                  </div>
+                </div>
+                <div class="alerts-notifications-list">
+                  <template x-for="option in telegramPreferenceOptions.filter(option => option.key !== 'networkStatus')" :key="option.key">
+                    <button type="button" @click="telegramPreferences[option.key] = !telegramPreferences[option.key]; telegramSettingsDirty = true" class="alerts-notification-row w-full text-left">
+                      <span class="alerts-notification-icon" :class="'is-' + option.key" aria-hidden="true">
+                        <svg x-show="option.key === 'criticalFailures'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4m0 4h.01M10.3 3.7 2.7 17a2 2 0 0 0 1.73 3h15.14A2 2 0 0 0 21.3 17L13.7 3.7a2 2 0 0 0-3.4 0Z"/></svg>
+                        <svg x-show="option.key === 'ipChanges'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 7h11l-3-3m2 13H6l3 3M18 7l-3 3M6 17l3-3"/></svg>
+                        <svg x-show="option.key === 'recoveries'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 6 9 17l-5-5"/></svg>
+                        <svg x-show="option.key === 'newIpFailures'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="1.8"/><path stroke-linecap="round" stroke-width="1.8" d="m9 9 6 6m0-6-6 6"/></svg>
+                        <svg x-show="option.key === 'unstable'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 12h3l2-6 4 12 3-9 2 3h4"/></svg>
+                      </span>
+                      <span class="alerts-notification-copy">
+                        <span class="alerts-notification-title" x-text="option.label"></span>
+                        <span class="alerts-notification-description" x-text="option.description"></span>
                       </span>
                       <span class="alerts-toggle flex-shrink-0" :class="telegramPreferences[option.key] && 'on'"></span>
                     </button>
                   </template>
+                  <button type="button" @click="telegramPreferences.networkStatus = !telegramPreferences.networkStatus; telegramSettingsDirty = true" class="alerts-notification-row alerts-iphone-row w-full text-left">
+                    <span class="alerts-notification-icon is-networkStatus" aria-hidden="true">
+                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2" stroke-width="1.8"/><path stroke-linecap="round" stroke-width="1.8" d="M10.5 5h3M11 18.5h2"/></svg>
+                    </span>
+                    <span class="alerts-notification-copy">
+                      <span class="alerts-notification-title">iPhone connection status</span>
+                      <span class="alerts-notification-description">Delivery resumes after the probe reconnects</span>
+                    </span>
+                    <span class="alerts-toggle flex-shrink-0" :class="telegramPreferences.networkStatus && 'on'"></span>
+                  </button>
                 </div>
               </section>
 
@@ -2809,31 +3142,73 @@
                 </summary>
                 <div class="grid grid-cols-2 gap-3 mt-4">
                   <label class="alerts-label !block">Batch window, sec
-                    <input type="number" min="5" max="300" x-model.number="telegramPreferences.batchWindowSec" class="alerts-input mt-1.5" />
+                    <input type="number" min="5" max="300" x-model.number="telegramPreferences.batchWindowSec" @input="telegramSettingsDirty = true" class="alerts-input mt-1.5" />
                   </label>
                   <label class="alerts-label !block">Repeat unresolved, hours
-                    <input type="number" min="0" max="168" x-model.number="telegramPreferences.repeatHours" class="alerts-input mt-1.5" />
+                    <input type="number" min="0" max="168" x-model.number="telegramPreferences.repeatHours" @input="telegramSettingsDirty = true" class="alerts-input mt-1.5" />
                   </label>
                 </div>
                 <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-default">
                   <button type="button" @click="beginTelegramReplacement()" :disabled="telegramStatus.managedByEnvironment" class="btn px-3 py-2.5 rounded-lg text-[10px] font-semibold">Replace bot token</button>
-                  <button type="button" @click="disconnectTelegram()" :disabled="telegramBusy || telegramStatus.managedByEnvironment" class="btn px-3 py-2.5 rounded-lg text-[10px] font-semibold latency-bad">Disconnect</button>
+                  <button type="button" @click="telegramDisconnectOpen = true" :disabled="telegramBusy || telegramStatus.managedByEnvironment" class="btn px-3 py-2.5 rounded-lg text-[10px] font-semibold alerts-danger-button">Disconnect</button>
                 </div>
                 <p x-show="telegramStatus.managedByEnvironment" class="text-[9px] text-muted mt-3">The token is managed through environment variables.</p>
               </details>
 
-              <div class="alerts-actions">
+              <div x-show="telegramTestState === 'sending'" class="alerts-busy-row">
+                <span class="alerts-spinner flex-shrink-0"></span>
+                <span><span class="font-semibold text-primary block">Sending test message…</span><span class="text-[9px] text-muted block mt-0.5" x-text="telegramStatus.lastRoute ? 'Using ' + telegramStatus.lastRoute : telegramDeliveryLabel"></span></span>
+              </div>
+              <div x-show="telegramTestState === 'success'" class="alerts-test-success">
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m5 12 4 4L19 6"/></svg>
+                <span><span class="font-semibold block">Test message delivered</span><span class="text-[9px] opacity-80 block mt-0.5">Telegram accepted the message successfully.</span></span>
+              </div>
+
+              <div class="alerts-actions has-meta">
+                <span class="alerts-footer-meta" x-text="telegramStatus.lastDeliveryAt ? 'Last delivery · ' + formatTimestamp(telegramStatus.lastDeliveryAt) : 'No messages sent yet'"></span>
+                <span x-show="telegramSettingsDirty" class="alerts-unsaved">Unsaved changes</span>
+                <button x-show="telegramSettingsDirty" type="button" @click="loadTelegramStatus()" :disabled="telegramBusy" class="btn px-3 py-2.5 rounded-xl text-[11px] font-semibold">Discard</button>
                 <button type="button" @click="sendTelegramTest()" :disabled="telegramBusy || !telegramStatus.enabled" class="btn px-3 py-2.5 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-2">
                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m3 11 18-8-8 18-2-8-8-2Z"/></svg>
-                  <span x-text="telegramBusy ? 'Sending…' : 'Send test'"></span>
+                  <span x-text="telegramTestState === 'sending' ? 'Sending…' : 'Send test'"></span>
                 </button>
-                <button type="button" @click="saveTelegramPreferences()" :disabled="telegramBusy" class="alerts-primary px-3 py-2.5 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-2">
+                <button type="button" @click="saveTelegramPreferences()" :disabled="telegramBusy || !telegramSettingsDirty" class="alerts-primary px-3 py-2.5 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-2">
                   <svg x-show="!telegramBusy" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m5 12 4 4L19 6"/></svg>
-                  <span x-text="telegramBusy ? 'Saving…' : 'Save changes'"></span>
+                  <span x-text="telegramBusy && telegramTestState !== 'sending' ? 'Saving…' : (telegramSettingsDirty ? 'Save changes' : 'Saved')"></span>
                 </button>
               </div>
             </div>
           </template>
+          </div>
+        </div>
+        <div x-show="telegramDisconnectOpen" x-transition.opacity class="alerts-confirm-backdrop" @click.self="telegramDisconnectOpen = false" style="display:none">
+          <div class="alerts-confirm" role="alertdialog" aria-modal="true" aria-labelledby="telegram-disconnect-title">
+            <span class="alerts-confirm-icon">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M12 7v6m0 4h.01"/></svg>
+            </span>
+            <h3 id="telegram-disconnect-title" class="text-sm font-semibold text-primary">Disconnect Telegram?</h3>
+            <p class="text-[11px] leading-relaxed text-muted mt-2">Alerts will stop and the saved bot token and recipient will be removed.</p>
+            <p class="text-[10px] text-secondary mt-2">Notification preferences will be kept.</p>
+            <div class="alerts-confirm-actions">
+              <button type="button" @click="telegramDisconnectOpen = false" :disabled="telegramBusy" class="btn alerts-action-button">Cancel</button>
+              <button type="button" @click="disconnectTelegram()" :disabled="telegramBusy" class="alerts-danger-button alerts-action-button">
+                <span x-show="telegramBusy" class="alerts-spinner !w-3.5 !h-3.5"></span>
+                <span x-text="telegramBusy ? 'Disconnecting…' : 'Disconnect'"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div x-show="telegramDiscardOpen" x-transition.opacity class="alerts-confirm-backdrop" @click.self="telegramDiscardOpen = false" style="display:none">
+          <div class="alerts-confirm" role="alertdialog" aria-modal="true" aria-labelledby="telegram-discard-title">
+            <span class="alerts-confirm-icon">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M12 7v6m0 4h.01"/></svg>
+            </span>
+            <h3 id="telegram-discard-title" class="text-sm font-semibold text-primary">Discard unsaved changes?</h3>
+            <p class="text-[11px] leading-relaxed text-muted mt-2">Your Telegram connection will stay active, but the changes made in this window will be lost.</p>
+            <div class="alerts-confirm-actions">
+              <button type="button" @click="telegramDiscardOpen = false" class="btn alerts-action-button">Keep editing</button>
+              <button type="button" @click="telegramSettingsDirty = false; closeAlerts()" class="alerts-danger-button alerts-action-button">Discard</button>
+            </div>
           </div>
         </div>
       </div>
@@ -2918,6 +3293,10 @@
 		  alertsAnchor: null,
 		  telegramBusy: false,
 		  telegramError: '',
+		  telegramSettingsDirty: false,
+		  telegramTestState: 'idle',
+		  telegramDisconnectOpen: false,
+		  telegramDiscardOpen: false,
 		  telegramToken: '',
 		  telegramTokenVisible: false,
 		  telegramBot: null,
@@ -4003,10 +4382,22 @@
 			await this.loadTelegramStatus();
 		  },
 
+		  requestCloseAlerts() {
+			if (this.telegramSettingsDirty && this.telegramStatus.configured && !this.telegramReplacing) {
+			  this.telegramDiscardOpen = true;
+			  return;
+			}
+			this.closeAlerts();
+		  },
+
 		  closeAlerts() {
 			this.alertsModalOpen = false;
 			this.alertsAnchor = null;
 			this.telegramError = '';
+			this.telegramSettingsDirty = false;
+			this.telegramTestState = 'idle';
+			this.telegramDisconnectOpen = false;
+			this.telegramDiscardOpen = false;
 			this.telegramToken = '';
 			this.telegramTokenVisible = false;
 			this.telegramBot = null;
@@ -4043,8 +4434,13 @@
 			  const json = await res.json();
 			  if (!res.ok || !json.success) throw new Error(json.error || 'Could not load Telegram settings');
 			  this.telegramStatus = { ...this.telegramStatus, ...(json.data || {}) };
-			  if (json.data && json.data.deliveryMode) this.telegramDeliveryMode = json.data.deliveryMode;
-			  if (json.data && json.data.preferences) this.telegramPreferences = { ...this.telegramPreferences, ...json.data.preferences };
+			  if (json.data && json.data.deliveryMode && (!quiet || !this.telegramSettingsDirty)) this.telegramDeliveryMode = json.data.deliveryMode;
+			  if (json.data && json.data.preferences && (!quiet || !this.telegramSettingsDirty)) this.telegramPreferences = { ...this.telegramPreferences, ...json.data.preferences };
+			  if (!quiet) {
+				this.telegramCustomProxy = '';
+				this.telegramSettingsDirty = false;
+				this.telegramTestState = 'idle';
+			  }
 			} catch (e) {
 			  if (!quiet) this.telegramError = e.message || 'Could not load Telegram settings';
 			} finally {
@@ -4114,6 +4510,16 @@
 			this.telegramSelectedChatLabel = chat.label;
 		  },
 
+		  backToTelegramToken() {
+			if (this.telegramBusy) return;
+			this.telegramBot = null;
+			this.telegramChats = [];
+			this.telegramChatsSearched = false;
+			this.telegramSelectedChatId = '';
+			this.telegramSelectedChatLabel = '';
+			this.telegramError = '';
+		  },
+
 		  telegramSettingsPayload(overrides = {}) {
 			return {
 			  token: overrides.token !== undefined ? overrides.token : this.telegramToken,
@@ -4139,6 +4545,7 @@
 			  if (status && status.deliveryMode) this.telegramDeliveryMode = status.deliveryMode;
 			  if (status && status.preferences) this.telegramPreferences = { ...this.telegramPreferences, ...status.preferences };
 			  this.telegramCustomProxy = '';
+			  this.telegramSettingsDirty = false;
 			  if (successMessage) this.showToast(successMessage);
 			  return true;
 			} catch (e) {
@@ -4178,13 +4585,16 @@
 		  async sendTelegramTest() {
 			this.telegramBusy = true;
 			this.telegramError = '';
+			this.telegramTestState = 'sending';
 			try {
 			  const status = await this.telegramRequest('/test', {
 				method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
 			  });
 			  this.telegramStatus = { ...this.telegramStatus, ...(status || {}) };
+			  this.telegramTestState = 'success';
 			  this.showToast('Test message sent');
 			} catch (e) {
+			  this.telegramTestState = 'error';
 			  this.telegramError = e.message || 'Could not send the test message';
 			} finally {
 			  this.telegramBusy = false;
@@ -4199,6 +4609,8 @@
 			this.telegramChats = [];
 			this.telegramSelectedChatId = '';
 			this.telegramSelectedChatLabel = '';
+			this.telegramSettingsDirty = false;
+			this.telegramTestState = 'idle';
 			this.scheduleAlertsReposition();
 		  },
 
@@ -4209,23 +4621,22 @@
 			this.telegramBot = null;
 			this.telegramChats = [];
 			this.telegramError = '';
+			this.telegramSettingsDirty = false;
 		  },
 
 		  async disconnectTelegram() {
-			if (!window.confirm('Disconnect Telegram and remove the saved token?')) return;
 			this.telegramBusy = true;
 			this.telegramError = '';
 			try {
 			  const status = await this.telegramRequest('', { method: 'DELETE' });
 			  this.telegramStatus = { ...this.telegramStatus, ...(status || {}) };
-			  this.telegramPreferences = {
-				criticalFailures: true, ipChanges: true, recoveries: true,
-				newIpFailures: true, unstable: false, networkStatus: true,
-				batchWindowSec: 30, repeatHours: 12,
-			  };
+			  if (status && status.preferences) this.telegramPreferences = { ...this.telegramPreferences, ...status.preferences };
 			  this.telegramDeliveryMode = 'auto';
 			  this.telegramCustomProxy = '';
 			  this.telegramRouteExpanded = false;
+			  this.telegramDisconnectOpen = false;
+			  this.telegramSettingsDirty = false;
+			  this.telegramTestState = 'idle';
 			  this.showToast('Telegram disconnected');
 			} catch (e) {
 			  this.telegramError = e.message || 'Could not disconnect Telegram';

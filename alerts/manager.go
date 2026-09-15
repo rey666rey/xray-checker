@@ -414,16 +414,23 @@ func (m *Manager) Disconnect() error {
 	if m.envToken != "" {
 		return errors.New("Telegram is managed through environment variables")
 	}
-	m.settings = Settings{Version: settingsVersion, DeliveryMode: DeliveryAuto, Preferences: DefaultPreferences()}
+	preferences := m.settings.Preferences
+	normalizePreferences(&preferences)
+	m.settings = Settings{Version: settingsVersion, DeliveryMode: DeliveryAuto, Preferences: preferences}
 	m.token = ""
 	m.customProxy = ""
 	m.state = managerState{Version: stateVersion, Nodes: make(map[string]observedNode), RouteFailures: make(map[string]int64)}
-	for _, path := range []string{m.settingsFile, m.tokenFile, m.proxyFile, m.stateFile} {
+	for _, path := range []string{m.tokenFile, m.proxyFile, m.stateFile} {
 		if path == "" {
 			continue
 		}
 		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
+		}
+	}
+	if m.settingsFile != "" {
+		if err := writeJSONAtomic(m.settingsFile, m.settings); err != nil {
+			return fmt.Errorf("save Telegram preferences: %w", err)
 		}
 	}
 	return nil

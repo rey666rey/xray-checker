@@ -139,6 +139,9 @@ func TestManagerStoresTokenSeparatelyAndKeepsItPrivate(t *testing.T) {
 	if manager.Status().Configured {
 		t.Fatal("manager remains configured after disconnect")
 	}
+	if manager.Status().Preferences.IPChanges {
+		t.Fatal("notification preferences were reset after disconnect")
+	}
 	if _, err := os.Stat(manager.tokenFile); !os.IsNotExist(err) {
 		t.Fatalf("token file remains after disconnect: %v", err)
 	}
