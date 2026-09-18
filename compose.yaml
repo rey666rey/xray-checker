@@ -1,3 +1,12 @@
+x-logging: &default-logging
+  # Docker's default json-file log has no size limit. The checker is chatty
+  # during large runs, so an unlimited log can fill the Colima disk and make
+  # the persistent-storage healthcheck fail.
+  driver: local
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   xray-checker:
     build:
@@ -68,6 +77,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
+    logging: *default-logging
     restart: unless-stopped
 
   web-forwarder:
@@ -81,6 +91,7 @@ services:
     depends_on:
       xray-checker:
         condition: service_healthy
+    logging: *default-logging
     restart: unless-stopped
 
   network-monitor:
@@ -101,6 +112,7 @@ services:
     volumes:
       - ./network-watch.sh:/app/network-watch.sh:ro
       - xray-network-status:/app/runtime
+    logging: *default-logging
     restart: unless-stopped
 
 volumes:

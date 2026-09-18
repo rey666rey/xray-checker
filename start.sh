@@ -7,32 +7,58 @@ readonly COLIMA_PROFILE="${COLIMA_PROFILE:-iphone}"
 readonly IPHONE_INTERFACE="${IPHONE_INTERFACE:-en7}"
 readonly DOCKER_CONTEXT="colima-${COLIMA_PROFILE}"
 readonly RECOVERY_MODE="${XRAY_RECOVERY_MODE:-false}"
+readonly PRESERVE_RESULTS="${XRAY_PRESERVE_RESULTS:-false}"
 readonly BRIDGE_READY_TIMEOUT="${IPHONE_BRIDGE_READY_TIMEOUT:-90}"
 readonly BRIDGE_READY_SUCCESSES="${IPHONE_BRIDGE_READY_SUCCESSES:-3}"
 readonly BRIDGE_PROBE_URL="https://1.1.1.1/cdn-cgi/trace"
 readonly CHECKER_START_ATTEMPTS=3
 readonly CHECKER_START_TIMEOUT=120
+readonly DOCKER_BUILD_CACHE_LIMIT="${DOCKER_BUILD_CACHE_LIMIT:-1GB}"
+readonly START_LOCK_DIR="${SCRIPT_DIR}/.runtime/start.lock"
 
 supervisor_needs_restore=false
+start_lock_acquired=false
 
 die() {
   printf 'Ошибка: %s\n' "$*" >&2
   exit 1
 }
 
-restore_supervisor() {
+cleanup_on_exit() {
   local exit_code=$?
 
-  # Avoid recursively running this handler if installation itself fails.
+  # Avoid recursively running this handler if cleanup itself fails.
   trap - EXIT
   if [[ "${supervisor_needs_restore}" == "true" ]]; then
     if ! "${SCRIPT_DIR}/iphone-supervisor.sh" install; then
       printf 'Ошибка: не удалось вернуть supervisor автовосстановления.\n' >&2
-      exit 1
+      exit_code=1
     fi
+  fi
+  if [[ "${start_lock_acquired}" == "true" ]]; then
+    rm -f -- "${START_LOCK_DIR}/pid"
+    rmdir "${START_LOCK_DIR}" 2>/dev/null || true
   fi
 
   exit "${exit_code}"
+}
+
+acquire_start_lock() {
+  local owner_pid=""
+
+  if ! mkdir "${START_LOCK_DIR}" 2>/dev/null; then
+    owner_pid="$(sed -n '1p' "${START_LOCK_DIR}/pid" 2>/dev/null || true)"
+    if [[ "${owner_pid}" =~ ^[0-9]+$ ]] && kill -0 "${owner_pid}" 2>/dev/null; then
+      die "Другой запуск или восстановление уже выполняется (PID ${owner_pid})."
+    fi
+    rm -f -- "${START_LOCK_DIR}/pid"
+    rmdir "${START_LOCK_DIR}" 2>/dev/null ||
+      die "Не удалось удалить устаревшую блокировку ${START_LOCK_DIR}."
+    mkdir "${START_LOCK_DIR}" || die "Не удалось создать блокировку запуска."
+  fi
+  printf '%s\n' "$$" >"${START_LOCK_DIR}/pid"
+  start_lock_acquired=true
+  trap cleanup_on_exit EXIT
 }
 
 wait_for_bridge_data_plane() {
@@ -75,11 +101,26 @@ wait_for_checker_services() {
   return 1
 }
 
+reclaim_docker_space() {
+  printf 'Очищаю неиспользуемые Docker-образы и ограничиваю build-кеш...\n'
+
+  # A regular build leaves dangling layers behind. Neither command removes
+  # containers, named volumes, or the checker result/history files.
+  if ! docker --context "${DOCKER_CONTEXT}" image prune --force >/dev/null; then
+    printf 'Предупреждение: не удалось удалить dangling Docker-образы.\n' >&2
+  fi
+  if ! docker --context "${DOCKER_CONTEXT}" builder prune --force \
+    --keep-storage "${DOCKER_BUILD_CACHE_LIMIT}" >/dev/null; then
+    printf 'Предупреждение: не удалось ограничить Docker build-кеш.\n' >&2
+  fi
+}
+
 command -v colima >/dev/null 2>&1 || die "Colima не установлена."
 command -v docker >/dev/null 2>&1 || die "Docker CLI не установлен."
 [[ -f "${SCRIPT_DIR}/.env" ]] || die "Нет файла .env. Создайте его: cp .env.example .env"
 mkdir -p "${SCRIPT_DIR}/.runtime/control"
 chmod 0777 "${SCRIPT_DIR}/.runtime/control" 2>/dev/null || true
+acquire_start_lock
 ipconfig getifaddr "${IPHONE_INTERFACE}" >/dev/null 2>&1 ||
   die "iPhone USB не подключён: интерфейс ${IPHONE_INTERFACE} не получил IPv4-адрес."
 
@@ -93,7 +134,6 @@ fi
 
 if [[ "${RECOVERY_MODE}" != "true" ]] && [[ -x "${SCRIPT_DIR}/iphone-supervisor.sh" ]]; then
   supervisor_needs_restore=true
-  trap restore_supervisor EXIT
   "${SCRIPT_DIR}/iphone-supervisor.sh" uninstall
 fi
 
@@ -135,6 +175,8 @@ if ! wait_for_bridge_data_plane; then
   die "Маршрут col0 получен, но не стал стабильно пропускать трафик за ${BRIDGE_READY_TIMEOUT} секунд."
 fi
 
+reclaim_docker_space
+
 printf 'Запускаю Xray Checker с монитором сети...\n'
 (
   cd "${SCRIPT_DIR}"
@@ -145,9 +187,13 @@ printf 'Запускаю Xray Checker с монитором сети...\n'
   else
     printf 'Собираю образ...\n'
     "${compose[@]}" build
-    printf 'Удаляю результаты прошлого запуска для новой полной проверки...\n'
-    "${compose[@]}" run --rm --no-deps --entrypoint /bin/rm \
-      xray-checker -f /app/data/results.json /app/data/results.json.tmp
+    if [[ "${PRESERVE_RESULTS}" == "true" ]]; then
+      printf 'Сохраняю результаты прошлого запуска...\n'
+    else
+      printf 'Удаляю результаты прошлого запуска для новой полной проверки...\n'
+      "${compose[@]}" run --rm --no-deps --entrypoint /bin/rm \
+        xray-checker -f /app/data/results.json /app/data/results.json.tmp
+    fi
     "${compose[@]}" up -d --force-recreate network-monitor xray-checker
     wait_for_checker_services
     "${compose[@]}" up -d --force-recreate --no-deps web-forwarder

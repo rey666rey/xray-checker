@@ -289,9 +289,20 @@ credential, Reality/TLS option, or transport even when the IP stays the same.
 
 ## Manual Re-check
 
-`Re-check now` starts a real check immediately and does not wait behind a bulk
-sweep. The API returns only after the result is ready, so `Rechecking…` describes
-actual work instead of a queued job.
+The card's Re-check action is primarily a replacement verification workflow. It
+immediately refreshes subscription samples, finds the new active configuration
+for the same host/inbound, and checks that configuration instead of blindly
+retesting a retained old endpoint. If the panel has not returned the replacement
+yet, the dashboard reports `Replacement not received` without recording a false
+result for the old server.
+
+A manual action waits for an already-running diagnosis, but takes priority over
+the next automatic diagnosis. Manual actions are serialized to avoid saturating
+the mobile route. A partial success is reported as `Unstable`, not plain
+`Online`.
+
+The legacy `POST /api/v1/proxies/{stableID}/recheck` remains available for a
+direct check of the currently loaded binding.
 
 Concurrent requests for the same binding are serialized. A background check and
 a manual check cannot race and overwrite each other's result.
@@ -629,6 +640,7 @@ Values are defined in [`compose.yaml`](compose.yaml).
 | `GET /api/v1/public/proxies` | reduced public snapshot |
 | `GET /api/v1/proxies/{stableID}` | one binding |
 | `POST /api/v1/proxies/{stableID}/recheck` | synchronous priority recheck |
+| `POST /api/v1/replacements/{stableID}/verify` | refresh subscriptions and verify a server replacement |
 | `GET /api/v1/nodes` | nodes and attached bindings |
 | `POST /api/v1/nodes/{nodeID}/recheck` | recheck every binding on a node |
 | `POST /api/v1/nodes/{nodeID}/diagnose` | begin deep diagnosis |

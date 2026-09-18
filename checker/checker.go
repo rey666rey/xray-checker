@@ -55,6 +55,7 @@ type ProxyChecker struct {
 	persistMu           sync.Mutex
 	checkCycleMu        sync.Mutex
 	runtimeMu           sync.RWMutex
+	manualPriorityMu    sync.RWMutex
 	proxyCheckLocks     sync.Map // stable ID -> *sync.Mutex
 	monitorMu           sync.RWMutex
 	monitorFile         string

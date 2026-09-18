@@ -367,7 +367,9 @@ func APIProxyHandler(proxyChecker *checker.ProxyChecker, startPort int) http.Han
 				writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
-			if err := proxyChecker.RecheckProxy(stableID); err != nil {
+			if err := proxyChecker.WithManualPriority(func() error {
+				return proxyChecker.RecheckProxy(stableID)
+			}); err != nil {
 				logger.Warn("Manual proxy recheck failed: %v", err)
 				writeError(w, err.Error(), http.StatusServiceUnavailable)
 				return
@@ -425,7 +427,9 @@ func APINodesHandler(proxyChecker *checker.ProxyChecker, startPort int) http.Han
 					writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
 					return
 				}
-				if err := proxyChecker.RecheckNode(nodeID); err != nil {
+				if err := proxyChecker.WithManualPriority(func() error {
+					return proxyChecker.RecheckNode(nodeID)
+				}); err != nil {
 					logger.Warn("Manual node recheck failed: %v", err)
 					writeError(w, err.Error(), http.StatusServiceUnavailable)
 					return

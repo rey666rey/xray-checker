@@ -190,11 +190,16 @@ func (pc *ProxyChecker) SetDiagnosisFile(path string) error {
 }
 
 func (pc *ProxyChecker) StartNodeDiagnosis(nodeID string) (NodeDiagnosis, error) {
+	pc.manualPriorityMu.RLock()
 	run, bindings, err := pc.beginNodeDiagnosis(nodeID, "manual")
 	if err != nil {
+		pc.manualPriorityMu.RUnlock()
 		return NodeDiagnosis{}, err
 	}
-	go pc.executeNodeDiagnosis(run, bindings)
+	go func() {
+		defer pc.manualPriorityMu.RUnlock()
+		pc.executeNodeDiagnosis(run, bindings)
+	}()
 	return run, nil
 }
 
@@ -459,17 +464,21 @@ func (pc *ProxyChecker) runAutomaticDiagnosisWorker() {
 				pc.finishQueuedAutomaticDiagnosis(nodeID)
 				break
 			}
+			pc.manualPriorityMu.RLock()
 			run, bindings, err := pc.beginNodeDiagnosis(nodeID, "automatic")
 			if errors.Is(err, ErrDiagnosisBusy) {
+				pc.manualPriorityMu.RUnlock()
 				time.Sleep(500 * time.Millisecond)
 				continue
 			}
 			pc.finishQueuedAutomaticDiagnosis(nodeID)
 			if err != nil {
+				pc.manualPriorityMu.RUnlock()
 				logger.Warn("Automatic node diagnosis skipped: node=%s error=%v", nodeID, err)
 				break
 			}
 			pc.executeNodeDiagnosis(run, bindings)
+			pc.manualPriorityMu.RUnlock()
 			time.Sleep(automaticDiagnosisJobPause)
 			break
 		}

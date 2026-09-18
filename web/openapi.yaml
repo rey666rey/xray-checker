@@ -104,6 +104,38 @@ paths:
               schema:
                 $ref: '#/components/schemas/APIResponse'
 
+  /api/v1/replacements/{stableID}/verify:
+    post:
+      summary: Synchronize and verify a server replacement
+      description: Immediately refreshes subscription samples, follows the binding to a replacement configuration, and verifies the active replacement instead of rechecking a stale endpoint.
+      tags:
+        - Proxies
+      parameters:
+        - name: stableID
+          in: path
+          required: true
+          description: Stable ID shown on the card before verification
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Replacement synchronization and verification outcome
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ReplacementVerification'
+        '503':
+          description: Subscription refresh or verification could not run
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIErrorResponse'
+
   /api/v1/nodes:
     get:
       summary: List physical endpoint nodes
@@ -620,6 +652,39 @@ components:
             hoster: "FreeVDS"
         diagnosis:
           $ref: '#/components/schemas/BindingDiagnosisSummary'
+
+    ReplacementVerification:
+      type: object
+      required:
+        - state
+        - replacementDetected
+        - online
+        - unstable
+        - message
+      properties:
+        state:
+          type: string
+          enum: [verified, current_verified, unstable, failed, not_received, ambiguous]
+        previousStableId:
+          type: string
+        stableId:
+          type: string
+        previousAddress:
+          type: string
+        currentAddress:
+          type: string
+        replacementDetected:
+          type: boolean
+        online:
+          type: boolean
+        unstable:
+          type: boolean
+        monitorState:
+          type: string
+        candidates:
+          type: integer
+        message:
+          type: string
 
     NodeGroupInfo:
       type: object

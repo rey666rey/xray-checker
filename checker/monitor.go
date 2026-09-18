@@ -570,6 +570,16 @@ func (pc *ProxyChecker) RecheckNode(nodeID string) error {
 	return pc.checkProxySet(bindings, CheckReasonManual)
 }
 
+// WithManualPriority lets an explicit user action finish after the currently
+// running diagnosis, while preventing the automatic diagnosis worker from
+// starting another job ahead of it. Calls are serialized deliberately so a
+// burst of dashboard clicks cannot overload the mobile route.
+func (pc *ProxyChecker) WithManualPriority(action func() error) error {
+	pc.manualPriorityMu.Lock()
+	defer pc.manualPriorityMu.Unlock()
+	return action()
+}
+
 func (pc *ProxyChecker) CheckUpdatedProxies(proxies []*models.ProxyConfig) error {
 	if len(proxies) == 0 {
 		return nil

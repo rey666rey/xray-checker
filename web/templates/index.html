@@ -2340,7 +2340,7 @@
 					<button type="button" @click.stop="diagnoseNode(item.proxy.nodeId, $event)" class="p-1 rounded btn-icon diagnose-icon-button transition-all" title="Run deep diagnosis" aria-label="Run deep diagnosis">
 					  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12h3l2-6 4 12 2-6h7" /></svg>
 					</button>
-                    <button @click="recheckProxy(item.proxy)" :disabled="item.proxy.rechecking" class="p-1 rounded text-muted btn-icon transition-all" :class="item.proxy.rechecking && 'opacity-50 cursor-wait'" :title="item.proxy.rechecking ? 'Rechecking now…' : 'Recheck now'">
+                    <button @click="recheckProxy(item.proxy)" :disabled="item.proxy.rechecking" class="p-1 rounded text-muted btn-icon transition-all" :class="item.proxy.rechecking && 'opacity-50 cursor-wait'" :title="item.proxy.rechecking ? 'Syncing and verifying…' : 'Sync subscription and verify replacement'">
                       <svg class="w-3.5 h-3.5" :class="item.proxy.rechecking && 'animate-spin'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M5.5 15a7 7 0 0011.5 2M18.5 9A7 7 0 007 7" /></svg>
                     </button>
                     <button @click="copyIp(item.proxy)" class="hidden sm:block p-1 rounded text-muted btn-icon transition-all" title="Copy IP" aria-label="Copy IP without port">
@@ -4650,15 +4650,26 @@
 			const stableId = proxy.stableId;
 			proxy.rechecking = true;
             try {
-			  const res = await fetch('./api/v1/proxies/' + encodeURIComponent(stableId) + '/recheck', { method: 'POST' });
+			  const res = await fetch('./api/v1/replacements/' + encodeURIComponent(stableId) + '/verify', { method: 'POST' });
 			  const json = await res.json();
 			  if (!res.ok || !json.success || !json.data) throw new Error(json.error || 'request failed');
-			  const updated = json.data;
-			  const current = this.proxies.find(p => p.stableId === stableId) || proxy;
-			  this.applyProxyResult(current, updated);
-			  this.showToast(updated.online ? 'Recheck complete · Online' : 'Recheck complete · Offline');
+			  const result = json.data;
+			  await this.refreshData();
+			  if (result.state === 'verified') {
+				this.showToast('Replacement verified · ' + result.currentAddress);
+			  } else if (result.state === 'current_verified') {
+				this.showToast('Recheck complete · Online');
+			  } else if (result.state === 'unstable') {
+				this.showToast('Replacement is unstable · retry recommended');
+			  } else if (result.state === 'failed') {
+				this.showToast('Replacement verification failed');
+			  } else if (result.state === 'ambiguous') {
+				this.showToast('Several new servers found · choose the new card');
+			  } else {
+				this.showToast('Replacement not received from the panel yet');
+			  }
             } catch (e) {
-			  this.showToast(e.message || 'Could not recheck');
+			  this.showToast(e.message || 'Could not verify replacement');
 			} finally {
 			  const current = this.proxies.find(p => p.stableId === stableId);
 			  if (current) current.rechecking = false;

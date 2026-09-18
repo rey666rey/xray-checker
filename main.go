@@ -212,112 +212,18 @@ func main() {
 	proxyChecker.StartMonitorScheduler(10 * time.Second)
 	proxyChecker.StartEndpointProbeScheduler(5 * time.Second)
 
+	var subscriptionUpdaterInstance *subscriptionUpdater
 	if config.CLIConfig.Subscription.Update {
-		var pendingMassFingerprint string
-		var pendingMassConfirmations int
+		subscriptionUpdaterInstance = &subscriptionUpdater{
+			configs:      proxyConfigs,
+			endpointPool: endpointPool,
+			xrayRunner:   xrayRunner,
+			proxyChecker: proxyChecker,
+		}
 		updateScheduler := gocron.NewScheduler(time.UTC)
 		updateScheduler.Every(config.CLIConfig.Subscription.UpdateInterval).Seconds().WaitForSchedule().SingletonMode().Do(func() {
-			logger.Info("Checking subscriptions for updates...")
-			newConfigs, err := subscription.ReadFromMultipleSources(config.CLIConfig.Subscription.URLs)
-			if err != nil {
-				logger.Error("Error fetching subscriptions: %v", err)
-				return
-			}
-
-			if config.CLIConfig.Proxy.ResolveDomains {
-				resolved, err := subscription.ResolveDomainsForConfigs(newConfigs)
-				if err != nil {
-					logger.Error("Error resolving domains: %v", err)
-				} else {
-					newConfigs = resolved
-				}
-			}
-
-			// A panel response is a sample of a many-to-many topology: one host may
-			// select a different node on every request. Merge several immediate samples
-			// into the long-lived endpoint pool instead of waiting for one Server to
-			// repeat five times and discarding the other legitimate members.
-			reads := [][]*models.ProxyConfig{newConfigs}
-			sampleCount := config.CLIConfig.Subscription.PoolSamples
-			if sampleCount < 1 {
-				sampleCount = 1
-			}
-			for sample := 1; sample < sampleCount; sample++ {
-				nextSample, sampleErr := subscription.ReadFromMultipleSources(config.CLIConfig.Subscription.URLs)
-				if sampleErr != nil {
-					logger.Warn("Subscription pool sample %d/%d failed; continuing: %v", sample+1, sampleCount, sampleErr)
-					continue
-				}
-				if config.CLIConfig.Proxy.ResolveDomains {
-					resolved, err := subscription.ResolveDomainsForConfigs(nextSample)
-					if err != nil {
-						logger.Warn("Subscription pool sample %d/%d DNS resolution failed; continuing: %v", sample+1, sampleCount, err)
-						continue
-					}
-					nextSample = resolved
-				}
-				reads = append(reads, nextSample)
-			}
-			poolStats := checker.EndpointPoolStats{}
-			newConfigs, poolStats = endpointPool.Observe(reads...)
-			if poolStats.Added > 0 || poolStats.Updated > 0 || poolStats.Detached > 0 {
-				logger.Info("Endpoint pool: %d bindings, %d added, %d updated, %d detached, %d temporarily missing",
-					poolStats.Bindings, poolStats.Added, poolStats.Updated, poolStats.Detached, poolStats.Missing)
-			}
-
-			if !xray.IsConfigsEqual(*proxyConfigs, newConfigs) {
-				preflight := checker.PlanProxyUpdate(*proxyConfigs, newConfigs)
-				changedCount := preflight.Count(checker.ProxyChanged)
-				for _, change := range preflight.Changes {
-					if change.Kind == checker.ProxyChanged {
-						logger.Info("Subscription change sample fields: %s", strings.Join(change.ChangedFields, ", "))
-						break
-					}
-				}
-				massChange := changedCount >= 100 &&
-					preflight.Count(checker.ProxyAdded) == 0 && preflight.Count(checker.ProxyRemoved) == 0
-				if massChange {
-					fingerprint := checker.ProxySetRevisionFingerprint(newConfigs)
-					if fingerprint == pendingMassFingerprint {
-						pendingMassConfirmations++
-					} else {
-						pendingMassFingerprint = fingerprint
-						pendingMassConfirmations = 1
-					}
-					for _, change := range preflight.Changes {
-						if change.Kind == checker.ProxyChanged {
-							logger.Warn("Large subscription diff sample changed fields: %s", strings.Join(change.ChangedFields, ", "))
-							break
-						}
-					}
-					if pendingMassConfirmations < 2 {
-						logger.Warn("Deferring large subscription diff (%d changed nodes) until the same revision is returned twice", changedCount)
-						return
-					}
-					logger.Warn("Large subscription diff confirmed twice; applying %d changed nodes in bounded batches", changedCount)
-				} else {
-					pendingMassFingerprint = ""
-					pendingMassConfirmations = 0
-				}
-				plan, err := updateConfiguration(newConfigs, proxyConfigs, xrayRunner, proxyChecker)
-				if err != nil {
-					logger.Error("Error updating configuration: %v", err)
-				} else {
-					logger.Info("Subscription diff: %d added, %d changed, %d renamed, %d removed",
-						plan.Count(checker.ProxyAdded), plan.Count(checker.ProxyChanged),
-						plan.Count(checker.ProxyRenamed), plan.Count(checker.ProxyRemoved))
-					if err := proxyChecker.CheckUpdatedProxies(plan.ProxiesToCheck()); err != nil {
-						logger.Warn("Could not verify updated nodes immediately: %v", err)
-					}
-					proxyChecker.PruneStaleResults()
-				}
-			} else {
-				logger.Info("Subscriptions checked, no changes")
-			}
-			if changed := proxyChecker.RefreshResolvedIPs(); len(changed) > 0 {
-				if err := proxyChecker.CheckUpdatedProxies(changed); err != nil {
-					logger.Warn("Could not verify nodes after DNS change: %v", err)
-				}
+			if _, err := subscriptionUpdaterInstance.Refresh(); err != nil {
+				logger.Error("Error updating configuration: %v", err)
 			}
 		})
 		updateScheduler.StartAsync()
@@ -345,6 +251,12 @@ func main() {
 	protectedHandler.Handle("/api/v1/proxies", web.APIProxiesHandler(proxyChecker, config.CLIConfig.Xray.StartPort))
 	protectedHandler.Handle("/api/v1/nodes/", web.APINodesHandler(proxyChecker, config.CLIConfig.Xray.StartPort))
 	protectedHandler.Handle("/api/v1/nodes", web.APINodesHandler(proxyChecker, config.CLIConfig.Xray.StartPort))
+	var verifyReplacement web.ReplacementVerifier
+	if subscriptionUpdaterInstance != nil {
+		verifier := &replacementVerifier{proxyChecker: proxyChecker, updater: subscriptionUpdaterInstance}
+		verifyReplacement = verifier.Verify
+	}
+	protectedHandler.Handle("/api/v1/replacements/", web.APIReplacementVerificationHandler(verifyReplacement))
 	protectedHandler.Handle("/api/v1/access-checks", web.APIAccessChecksHandler(proxyChecker))
 	protectedHandler.Handle("/api/v1/access-checks/", web.APIAccessChecksHandler(proxyChecker))
 	protectedHandler.Handle("/api/v1/config", web.APIConfigHandler(proxyChecker))
