@@ -607,6 +607,7 @@ Values are defined in [`compose.yaml`](compose.yaml).
 | `SUBSCRIPTION_POOL_SAMPLES` | `4` | independent snapshots per cycle |
 | `SUBSCRIPTION_JSON_FORMAT` | `true` | request full JSON configs |
 | `PROXY_INITIAL_CHECK_ONLY` | `true` | one full sweep, then targeted scheduling |
+| `PROXY_EXCLUDE_NAME_PREFIXES` | `LTE` | case-insensitive host-name prefixes omitted from Xray and all monitoring |
 | `PROXY_CHECK_CONCURRENCY` | `30` | first-pass concurrency |
 | `PROXY_RETRY_CONCURRENCY` | `10` | retry/targeted concurrency |
 | `PROXY_TIMEOUT` | `4` | seconds per fast attempt |

@@ -30,6 +30,7 @@ services:
       PROXY_CHECK_CONCURRENCY: "30"
       PROXY_CHECK_INTERVAL: "600"
       PROXY_INITIAL_CHECK_ONLY: "true"
+      PROXY_EXCLUDE_NAME_PREFIXES: "${PROXY_EXCLUDE_NAME_PREFIXES:-LTE}"
       PROXY_CHECK_METHOD: "urltest"
       PROXY_URL_TEST_URL: "http://captive.apple.com/hotspot-detect.html"
       PROXY_URL_TEST_EXPECTED: "Success"

@@ -624,6 +624,7 @@ docker --context colima-iphone compose ps
 | `SUBSCRIPTION_POOL_SAMPLES` | `4` | независимых снимка в цикле |
 | `SUBSCRIPTION_JSON_FORMAT` | `true` | запрос полного JSON |
 | `PROXY_INITIAL_CHECK_ONLY` | `true` | одна полная проходка, затем адресный scheduler |
+| `PROXY_EXCLUDE_NAME_PREFIXES` | `LTE` | префиксы имён hosts без учёта регистра, полностью исключаемые из Xray и мониторинга |
 | `PROXY_CHECK_CONCURRENCY` | `30` | параллельность первой проходки |
 | `PROXY_RETRY_CONCURRENCY` | `10` | параллельность retry/адресных проверок |
 | `PROXY_TIMEOUT` | `4` | секунд на быструю попытку |

@@ -109,6 +109,27 @@ func TestRenderIndexSeparatesCheckingFromConfirmedOffline(t *testing.T) {
 	}
 }
 
+func TestAPIConfigReturnsExcludedNamePrefixes(t *testing.T) {
+	previousConfig := config.CLIConfig
+	t.Cleanup(func() { config.CLIConfig = previousConfig })
+	config.CLIConfig.Proxy.ExcludeNamePrefixes = []string{"LTE", "TEST"}
+
+	proxyChecker := checker.NewProxyChecker(nil, 10000, "", 1, "", "", 1, 1, "urltest", 1)
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest("GET", "/api/v1/config", nil)
+	APIConfigHandler(proxyChecker).ServeHTTP(recorder, request)
+
+	var response struct {
+		Data ConfigResponse `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Data.ExcludedNamePrefixes) != 2 || response.Data.ExcludedNamePrefixes[0] != "LTE" || response.Data.ExcludedNamePrefixes[1] != "TEST" {
+		t.Fatalf("excluded prefixes = %#v", response.Data.ExcludedNamePrefixes)
+	}
+}
+
 func TestAPINodesGroupsSeveralHostsOnOneEndpoint(t *testing.T) {
 	proxies := []*models.ProxyConfig{
 		{Protocol: "vless", Security: "reality", Name: "Germany (s1)", Server: "192.0.2.10", Port: 443, UUID: "00000000-0000-4000-8000-000000000001"},

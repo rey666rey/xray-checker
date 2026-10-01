@@ -95,6 +95,14 @@ Time in seconds between proxy availability checks. Each check verifies all confi
 
 When enabled, runs one full proxy check after startup and disables scheduled bulk rechecks. The targeted repair monitor may still recheck due, unstable, or changed nodes. Restarting the process starts a new full check.
 
+### PROXY_EXCLUDE_NAME_PREFIXES
+
+- CLI: `--proxy-exclude-name-prefix` (repeatable)
+- Required: No
+- Default: empty
+
+Comma-separated, case-insensitive host-name prefixes to exclude completely. Leading whitespace and decorative characters such as country-flag emoji or brackets are ignored, so `LTE` also matches `🇷🇺 LTE 12`. Matching happens before domain expansion and Xray generation. Excluded hosts are not checked and do not appear in metrics, alerts, APIs, or the dashboard. If the prefixes match every subscription host, startup or subscription refresh fails safely instead of replacing the active set with an empty configuration.
+
 ### PROXY_CHECK_CONCURRENCY
 
 - CLI: `--proxy-check-concurrency`

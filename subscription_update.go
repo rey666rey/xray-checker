@@ -35,6 +35,10 @@ func (updater *subscriptionUpdater) Refresh() (checker.ProxyUpdatePlan, error) {
 	if err != nil {
 		return checker.ProxyUpdatePlan{}, fmt.Errorf("fetch subscriptions: %w", err)
 	}
+	newConfigs, err = updater.filterExcludedHosts(newConfigs, 1)
+	if err != nil {
+		return checker.ProxyUpdatePlan{}, err
+	}
 
 	newConfigs, _ = updater.resolveDomains(newConfigs, 1)
 	reads := [][]*models.ProxyConfig{newConfigs}
@@ -46,6 +50,11 @@ func (updater *subscriptionUpdater) Refresh() (checker.ProxyUpdatePlan, error) {
 		nextSample, sampleErr := subscription.ReadFromMultipleSources(config.CLIConfig.Subscription.URLs)
 		if sampleErr != nil {
 			logger.Warn("Subscription pool sample %d/%d failed; continuing: %v", sample+1, sampleCount, sampleErr)
+			continue
+		}
+		nextSample, sampleErr = updater.filterExcludedHosts(nextSample, sample+1)
+		if sampleErr != nil {
+			logger.Warn("Subscription pool sample %d/%d exclusions failed; continuing: %v", sample+1, sampleCount, sampleErr)
 			continue
 		}
 		var resolved bool
@@ -120,6 +129,17 @@ func (updater *subscriptionUpdater) Refresh() (checker.ProxyUpdatePlan, error) {
 		}
 	}
 	return plan, nil
+}
+
+func (updater *subscriptionUpdater) filterExcludedHosts(proxies []*models.ProxyConfig, sample int) ([]*models.ProxyConfig, error) {
+	filtered, excluded, err := subscription.FilterExcludedHosts(proxies, config.CLIConfig.Proxy.ExcludeNamePrefixes)
+	if err != nil {
+		return nil, fmt.Errorf("filter subscription sample %d: %w", sample, err)
+	}
+	if excluded > 0 {
+		logger.Debug("Subscription pool sample %d excluded %d host(s) by name prefix", sample, excluded)
+	}
+	return filtered, nil
 }
 
 func (updater *subscriptionUpdater) resolveDomains(proxies []*models.ProxyConfig, sample int) ([]*models.ProxyConfig, bool) {

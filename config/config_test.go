@@ -1,6 +1,10 @@
 package config
 
-import "testing"
+import (
+	"os"
+	"reflect"
+	"testing"
+)
 
 func TestValidateRequiresLoopbackXrayInboundHost(t *testing.T) {
 	valid := CLI{}
@@ -15,5 +19,24 @@ func TestValidateRequiresLoopbackXrayInboundHost(t *testing.T) {
 		if err := invalid.Validate(); err == nil {
 			t.Errorf("inbound host %q unexpectedly accepted", host)
 		}
+	}
+}
+
+func TestParseExcludeNamePrefixesFromEnvironment(t *testing.T) {
+	previousArgs := os.Args
+	previousConfig := CLIConfig
+	t.Cleanup(func() {
+		os.Args = previousArgs
+		CLIConfig = previousConfig
+	})
+
+	os.Args = []string{"xray-checker"}
+	CLIConfig = CLI{}
+	t.Setenv("SUBSCRIPTION_URL", "https://example.com/subscription")
+	t.Setenv("PROXY_EXCLUDE_NAME_PREFIXES", "LTE,TEST")
+	Parse("test")
+
+	if want := []string{"LTE", "TEST"}; !reflect.DeepEqual(CLIConfig.Proxy.ExcludeNamePrefixes, want) {
+		t.Fatalf("exclude prefixes = %#v, want %#v", CLIConfig.Proxy.ExcludeNamePrefixes, want)
 	}
 }

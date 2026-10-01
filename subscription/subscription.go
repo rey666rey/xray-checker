@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"net"
 	"sort"
+	"strings"
 	"sync"
+	"unicode"
 	"xray-checker/config"
 	"xray-checker/logger"
 	"xray-checker/models"
@@ -41,10 +43,16 @@ func InitializeConfiguration(configFile string, version string) (*[]*models.Prox
 		return nil, err
 	}
 
-	proxyConfigs := configs
+	proxyConfigs, excluded, err := FilterExcludedHosts(configs, config.CLIConfig.Proxy.ExcludeNamePrefixes)
+	if err != nil {
+		return nil, err
+	}
+	if excluded > 0 {
+		logger.Info("Excluded %d host(s) by configured name prefix before Xray generation", excluded)
+	}
 
 	if config.CLIConfig.Proxy.ResolveDomains {
-		proxyConfigs, err = ResolveDomainsForConfigs(configs)
+		proxyConfigs, err = ResolveDomainsForConfigs(proxyConfigs)
 		if err != nil {
 			return nil, err
 		}
@@ -67,6 +75,51 @@ func InitializeConfiguration(configFile string, version string) (*[]*models.Prox
 	proxyConfigs = validProxies
 
 	return &proxyConfigs, nil
+}
+
+// FilterExcludedHosts removes subscription entries whose trimmed display name
+// starts with any configured prefix. Matching is case-insensitive and happens
+// before domain expansion, Xray generation and checker initialization, so an
+// excluded host cannot leak into checks, metrics, alerts, APIs or the dashboard.
+func FilterExcludedHosts(configs []*models.ProxyConfig, prefixes []string) ([]*models.ProxyConfig, int, error) {
+	normalized := make([]string, 0, len(prefixes))
+	for _, prefix := range prefixes {
+		prefix = strings.ToLower(strings.TrimSpace(prefix))
+		if prefix != "" {
+			normalized = append(normalized, prefix)
+		}
+	}
+	if len(normalized) == 0 {
+		return configs, 0, nil
+	}
+
+	kept := make([]*models.ProxyConfig, 0, len(configs))
+	excluded := 0
+	for _, proxy := range configs {
+		name := ""
+		if proxy != nil {
+			name = strings.ToLower(strings.TrimSpace(proxy.Name))
+		}
+		nameWithoutDecoration := strings.TrimLeftFunc(name, func(r rune) bool {
+			return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+		})
+		matched := false
+		for _, prefix := range normalized {
+			if strings.HasPrefix(name, prefix) || strings.HasPrefix(nameWithoutDecoration, prefix) {
+				matched = true
+				break
+			}
+		}
+		if matched {
+			excluded++
+			continue
+		}
+		kept = append(kept, proxy)
+	}
+	if len(configs) > 0 && len(kept) == 0 {
+		return nil, excluded, fmt.Errorf("proxy name exclusions matched all %d subscription hosts", len(configs))
+	}
+	return kept, excluded, nil
 }
 
 func ReadFromMultipleSources(urls []string) ([]*models.ProxyConfig, error) {

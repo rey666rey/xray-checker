@@ -1024,6 +1024,12 @@ components:
           type: boolean
           description: Run one full check after startup without scheduled bulk rechecks; targeted repair checks continue
           example: false
+        excludedNamePrefixes:
+          type: array
+          description: Case-insensitive host-name prefixes excluded before Xray generation and monitoring
+          items:
+            type: string
+          example: ["LTE", "TEST"]
         checkMethod:
           type: string
           enum: [urltest, ip, status, download]
