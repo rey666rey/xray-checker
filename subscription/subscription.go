@@ -54,6 +54,7 @@ func InitializeConfiguration(configFile string, version string) (*[]*models.Prox
 
 	configGenerator := xray.NewConfigGenerator()
 	configGenerator.SetOutboundInterface(config.CLIConfig.Xray.OutboundInterface)
+	configGenerator.SetInboundHost(config.CLIConfig.Xray.InboundHost)
 	validProxies, err := configGenerator.GenerateValidatedConfig(
 		proxyConfigs,
 		config.CLIConfig.Xray.StartPort,

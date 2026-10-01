@@ -630,6 +630,7 @@ docker --context colima-iphone compose ps
 | `PROXY_RETRY_TIMEOUT` | `10` | секунд на retry-попытку |
 | `PROXY_CHECK_METHOD` | `urltest` | Apple URL Test через Xray |
 | `PROXY_URL_TEST_ATTEMPTS` | `2` | запросов на одну health-проверку |
+| `XRAY_INBOUND_HOST` | `127.0.0.2` | не отдавать внутренние SOCKS-порты в автопроброс Lima с `127.0.0.1` |
 | `XRAY_OUTBOUND_INTERFACE` | `col0` | привязать сокеты Xray и прямой диагностики к маршруту iPhone (fail closed) |
 | `METRICS_HOST` | `172.17.0.1` | слушать только Docker bridge Colima, а не интерфейс iPhone/LAN |
 | `METRICS_PORT` | `2113` | порт checker внутри host namespace Colima; на Mac пробрасывается как `127.0.0.1:2112` |

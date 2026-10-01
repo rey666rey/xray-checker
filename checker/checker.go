@@ -21,6 +21,7 @@ import (
 type ProxyChecker struct {
 	proxies             []*models.ProxyConfig
 	startPort           int
+	inboundHost         string
 	ipCheck             string
 	currentIP           string
 	httpClient          *http.Client
@@ -94,9 +95,10 @@ type proxyResult struct {
 
 func NewProxyChecker(proxies []*models.ProxyConfig, startPort int, ipCheckURL string, ipCheckTimeout int, genMethodURL string, downloadURL string, downloadTimeout int, downloadMinSize int64, checkMethod string, checkConcurrency int) *ProxyChecker {
 	return &ProxyChecker{
-		proxies:   proxies,
-		startPort: startPort,
-		ipCheck:   ipCheckURL,
+		proxies:     proxies,
+		startPort:   startPort,
+		inboundHost: "127.0.0.1",
+		ipCheck:     ipCheckURL,
 		httpClient: &http.Client{
 			Timeout: time.Second * time.Duration(ipCheckTimeout),
 		},
@@ -113,6 +115,16 @@ func NewProxyChecker(proxies []*models.ProxyConfig, startPort int, ipCheckURL st
 		accessHistory:       make([]AccessCheck, 0),
 		accessDialerFactory: defaultAccessDialerFactory,
 	}
+}
+
+// SetInboundHost selects the loopback address of the generated Xray SOCKS
+// listeners. The default remains 127.0.0.1 for non-container deployments.
+func (pc *ProxyChecker) SetInboundHost(host string) {
+	host = strings.TrimSpace(host)
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	pc.inboundHost = host
 }
 
 // SetURLTestOptions configures the fast app-style URL test and the slower retry
@@ -236,7 +248,7 @@ func (pc *ProxyChecker) checkProxyAttempt(proxy *models.ProxyConfig, timeout int
 		storeResult(false, false, 0, message, "")
 	}
 
-	proxyURL := fmt.Sprintf("socks5://127.0.0.1:%d", pc.startPort+proxy.Index)
+	proxyURL := "socks5://" + net.JoinHostPort(pc.inboundHost, fmt.Sprintf("%d", pc.startPort+proxy.Index))
 	proxyURLParsed, err := url.Parse(proxyURL)
 	if err != nil {
 		logger.Error("Error parsing proxy URL %s: %v", proxyURL, err)

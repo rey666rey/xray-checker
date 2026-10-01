@@ -96,6 +96,7 @@ func main() {
 		config.CLIConfig.Proxy.CheckMethod,
 		config.CLIConfig.Proxy.CheckConcurrency,
 	)
+	proxyChecker.SetInboundHost(config.CLIConfig.Xray.InboundHost)
 	proxyChecker.SetEndpointPool(endpointPool)
 	proxyChecker.SetNetworkStatusFile(
 		config.CLIConfig.NetworkStatusFile,
@@ -138,6 +139,7 @@ func main() {
 	if err != nil {
 		logger.Fatal("Could not initialize Telegram alerts: %v", err)
 	}
+	alertManager.SetInboundHost(config.CLIConfig.Xray.InboundHost)
 	alertManager.Start(context.Background())
 
 	// The collector renders metrics from the checker's current proxy snapshot on
@@ -272,6 +274,7 @@ func main() {
 	protectedHandler.Handle("/api/v1/alerts/telegram/", web.TelegramAlertsHandler(alertManager))
 	protectedHandler.Handle("/api/v1/docs", web.APIDocsHandler())
 	protectedHandler.Handle("/api/v1/openapi.yaml", web.APIOpenAPIHandler())
+	protectedRoutes := web.SameOriginMutationMiddleware(protectedHandler)
 
 	if config.CLIConfig.Web.Public {
 		mux.Handle("/", web.IndexHandler(version, proxyChecker))
@@ -279,7 +282,7 @@ func main() {
 		middlewareHandler := web.BasicAuthMiddleware(
 			config.CLIConfig.Metrics.Username,
 			config.CLIConfig.Metrics.Password,
-		)(protectedHandler)
+		)(protectedRoutes)
 		mux.Handle("/metrics", middlewareHandler)
 		mux.Handle("/api/", middlewareHandler)
 	} else if config.CLIConfig.Metrics.Protected {
@@ -287,11 +290,11 @@ func main() {
 		middlewareHandler := web.BasicAuthMiddleware(
 			config.CLIConfig.Metrics.Username,
 			config.CLIConfig.Metrics.Password,
-		)(protectedHandler)
+		)(protectedRoutes)
 		mux.Handle("/", middlewareHandler)
 	} else {
 		protectedHandler.Handle("/", web.IndexHandler(version, proxyChecker))
-		mux.Handle("/", protectedHandler)
+		mux.Handle("/", protectedRoutes)
 	}
 
 	if !config.CLIConfig.RunOnce {
@@ -300,7 +303,15 @@ func main() {
 			config.CLIConfig.Metrics.Port,
 			config.CLIConfig.Metrics.BasePath,
 		)
-		if err := http.ListenAndServe(config.CLIConfig.Metrics.Host+":"+config.CLIConfig.Metrics.Port, mux); err != nil {
+		server := &http.Server{
+			Addr:              config.CLIConfig.Metrics.Host + ":" + config.CLIConfig.Metrics.Port,
+			Handler:           mux,
+			ReadHeaderTimeout: 10 * time.Second,
+			ReadTimeout:       30 * time.Second,
+			WriteTimeout:      2 * time.Minute,
+			IdleTimeout:       2 * time.Minute,
+		}
+		if err := server.ListenAndServe(); err != nil {
 			logger.Fatal("Error starting server: %v", err)
 		}
 	}
@@ -319,6 +330,7 @@ func updateConfiguration(newConfigs []*models.ProxyConfig, currentConfigs *[]*mo
 	configFile := "xray_config.json"
 	configGenerator := xray.NewConfigGenerator()
 	configGenerator.SetOutboundInterface(config.CLIConfig.Xray.OutboundInterface)
+	configGenerator.SetInboundHost(config.CLIConfig.Xray.InboundHost)
 	validProxies, err := configGenerator.GenerateValidatedConfig(
 		newConfigs,
 		config.CLIConfig.Xray.StartPort,

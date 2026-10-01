@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"sort"
@@ -201,7 +202,7 @@ func (m *Manager) automaticCandidates(excludedNodeIDs map[string]bool) ([]delive
 
 	result := make([]deliveryCandidate, 0, len(routes))
 	for _, route := range routes {
-		proxyURL := fmt.Sprintf("socks5h://127.0.0.1:%d", route.port)
+		proxyURL := "socks5h://" + net.JoinHostPort(m.inboundHost, fmt.Sprintf("%d", route.port))
 		httpClient, err := telegramProxyClient(proxyURL)
 		if err != nil {
 			return nil, err

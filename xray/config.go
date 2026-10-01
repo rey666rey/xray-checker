@@ -14,10 +14,11 @@ import (
 
 type ConfigGenerator struct {
 	outboundInterface string
+	inboundHost       string
 }
 
 func NewConfigGenerator() *ConfigGenerator {
-	return &ConfigGenerator{}
+	return &ConfigGenerator{inboundHost: "127.0.0.1"}
 }
 
 // SetOutboundInterface makes generated Xray sockets fail closed when the
@@ -25,6 +26,17 @@ func NewConfigGenerator() *ConfigGenerator {
 // default route. An empty value preserves the portable default behavior.
 func (g *ConfigGenerator) SetOutboundInterface(name string) {
 	g.outboundInterface = strings.TrimSpace(name)
+}
+
+// SetInboundHost selects the loopback address used by the internal SOCKS
+// listeners. Keeping this configurable lets Colima deployments use a loopback
+// alias that Lima does not automatically forward to the macOS host.
+func (g *ConfigGenerator) SetInboundHost(host string) {
+	host = strings.TrimSpace(host)
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	g.inboundHost = host
 }
 
 func (g *ConfigGenerator) GenerateConfig(proxies []*models.ProxyConfig, startPort int, xrayLogLevel string) ([]byte, error) {
@@ -93,7 +105,7 @@ func (g *ConfigGenerator) GenerateValidatedConfig(proxies []*models.ProxyConfig,
 
 		buildErr := validateConfigBuild(configBytes)
 		if buildErr == nil {
-			if err := os.WriteFile(filename, configBytes, 0644); err != nil {
+			if err := writeConfigFile(filename, configBytes); err != nil {
 				return current, fmt.Errorf("error saving config: %v", err)
 			}
 			if len(current) != len(proxies) {
@@ -117,7 +129,7 @@ func (g *ConfigGenerator) GenerateValidatedConfig(proxies []*models.ProxyConfig,
 			// Failure can't be attributed to a single proxy — keep the config so the
 			// error surfaces at startup instead of silently dropping everything.
 			logger.Error("Xray config build failed and no offending proxy could be identified; keeping config as-is: %v", buildErr)
-			if werr := os.WriteFile(filename, configBytes, 0644); werr != nil {
+			if werr := writeConfigFile(filename, configBytes); werr != nil {
 				return current, werr
 			}
 			return current, nil
@@ -130,12 +142,39 @@ func (g *ConfigGenerator) GenerateValidatedConfig(proxies []*models.ProxyConfig,
 	}
 }
 
+// writeConfigFile keeps connection credentials private even when an existing
+// config was previously created with broader permissions.
+func writeConfigFile(filename string, data []byte) error {
+	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+	if err != nil {
+		return err
+	}
+	if err := file.Chmod(0o600); err != nil {
+		_ = file.Close()
+		return err
+	}
+	written, err := file.Write(data)
+	if err != nil {
+		_ = file.Close()
+		return err
+	}
+	if written != len(data) {
+		_ = file.Close()
+		return fmt.Errorf("short config write: wrote %d of %d bytes", written, len(data))
+	}
+	if err := file.Sync(); err != nil {
+		_ = file.Close()
+		return err
+	}
+	return file.Close()
+}
+
 func (g *ConfigGenerator) generateInbounds(proxies []*models.ProxyConfig, startPort int) []map[string]interface{} {
 	var inbounds []map[string]interface{}
 
 	for _, proxy := range proxies {
 		inbound := map[string]interface{}{
-			"listen":   "127.0.0.1",
+			"listen":   g.inboundHost,
 			"port":     startPort + proxy.Index,
 			"protocol": "socks",
 			"tag":      fmt.Sprintf("%s_%s_%d_Inbound", proxy.Name, proxy.Protocol, proxy.Index),

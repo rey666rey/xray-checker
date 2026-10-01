@@ -157,6 +157,7 @@ type Manager struct {
 	envChatID    int64
 	envProxy     string
 	startPort    int
+	inboundHost  string
 
 	mu          sync.RWMutex
 	deliveryMu  sync.Mutex
@@ -189,6 +190,7 @@ func NewManager(proxyChecker *checker.ProxyChecker, startPort int, settingsFile,
 		envChatID:    envChatID,
 		envProxy:     strings.TrimSpace(envProxy),
 		startPort:    startPort,
+		inboundHost:  "127.0.0.1",
 		settings: Settings{
 			Version:      settingsVersion,
 			DeliveryMode: DeliveryAuto,
@@ -220,6 +222,16 @@ func NewManager(proxyChecker *checker.ProxyChecker, startPort int, settingsFile,
 	manager.settings.DeliveryMode = normalizeDeliveryMode(manager.settings.DeliveryMode)
 	manager.normalizePreferences()
 	return manager, nil
+}
+
+// SetInboundHost selects the loopback address of the internal Xray SOCKS
+// listeners used for automatic Telegram delivery.
+func (m *Manager) SetInboundHost(host string) {
+	host = strings.TrimSpace(host)
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	m.inboundHost = host
 }
 
 func (m *Manager) Start(ctx context.Context) {

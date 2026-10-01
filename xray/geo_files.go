@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"xray-checker/logger"
 )
@@ -15,6 +16,8 @@ const (
 	geoIPURL    = "https://github.com/v2fly/geoip/releases/latest/download/geoip.dat"
 	geoSiteFile = "geo/geosite.dat"
 	geoIPFile   = "geo/geoip.dat"
+	maxGeoSize  = 128 * 1024 * 1024
+	geoTimeout  = 60 * time.Second
 )
 
 type GeoFileManager struct {
@@ -70,7 +73,8 @@ func (gfm *GeoFileManager) ensureFile(filename, url string) error {
 }
 
 func (gfm *GeoFileManager) downloadFile(url, filePath string) error {
-	resp, err := http.Get(url)
+	client := &http.Client{Timeout: geoTimeout}
+	resp, err := client.Get(url)
 	if err != nil {
 		return fmt.Errorf("HTTP request failed: %v", err)
 	}
@@ -80,16 +84,31 @@ func (gfm *GeoFileManager) downloadFile(url, filePath string) error {
 		return fmt.Errorf("HTTP request failed with status: %d", resp.StatusCode)
 	}
 
-	file, err := os.Create(filePath)
+	file, err := os.CreateTemp(filepath.Dir(filePath), ".geo-download-*")
 	if err != nil {
 		return fmt.Errorf("failed to create file: %v", err)
 	}
-	defer file.Close()
+	temporary := file.Name()
+	defer os.Remove(temporary)
 
-	_, err = io.Copy(file, resp.Body)
+	written, err := io.Copy(file, io.LimitReader(resp.Body, maxGeoSize+1))
 	if err != nil {
+		_ = file.Close()
 		return fmt.Errorf("failed to write file: %v", err)
 	}
-
+	if written == 0 || written > maxGeoSize {
+		_ = file.Close()
+		return fmt.Errorf("downloaded file has invalid size: %d bytes", written)
+	}
+	if err := file.Sync(); err != nil {
+		_ = file.Close()
+		return fmt.Errorf("failed to sync file: %v", err)
+	}
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("failed to close file: %v", err)
+	}
+	if err := os.Rename(temporary, filePath); err != nil {
+		return fmt.Errorf("failed to install file: %v", err)
+	}
 	return nil
 }

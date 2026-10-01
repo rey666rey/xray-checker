@@ -126,6 +126,7 @@ type accessRoute struct {
 	nodeID        string
 	name          string
 	exitIP        string
+	proxyHost     string
 	proxyPort     int
 	interfaceName string
 	latency       time.Duration
@@ -158,7 +159,7 @@ func defaultAccessDialerFactory(route accessRoute) (accessDialer, error) {
 	if route.proxyPort <= 0 {
 		return nil, errors.New("VPN route has no SOCKS port")
 	}
-	dialer, err := xproxy.SOCKS5("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(route.proxyPort)), nil, base)
+	dialer, err := xproxy.SOCKS5("tcp", net.JoinHostPort(route.proxyHost, strconv.Itoa(route.proxyPort)), nil, base)
 	if err != nil {
 		return nil, fmt.Errorf("create SOCKS route: %w", err)
 	}
@@ -656,7 +657,8 @@ func (pc *ProxyChecker) healthyAccessRoutes(limit int) []accessRoute {
 		seenNodes[nodeID] = true
 		routes = append(routes, accessRoute{
 			kind: "vpn", nodeID: nodeID, name: proxy.Name, exitIP: result.exitIP,
-			proxyPort: pc.startPort + proxy.Index, latency: result.latency, lastCheck: result.lastCheck,
+			proxyHost: pc.inboundHost, proxyPort: pc.startPort + proxy.Index,
+			latency: result.latency, lastCheck: result.lastCheck,
 		})
 	}
 	sort.SliceStable(routes, func(i, j int) bool {

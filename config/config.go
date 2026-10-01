@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+	"net"
+	"strings"
 
 	"github.com/alecthomas/kong"
 )
@@ -58,6 +60,7 @@ type CLI struct {
 
 	Xray struct {
 		StartPort         int    `name:"xray-start-port" help:"Start port for proxy configuration" default:"10000" env:"XRAY_START_PORT"`
+		InboundHost       string `name:"xray-inbound-host" help:"Loopback address for internal Xray SOCKS listeners" default:"127.0.0.1" env:"XRAY_INBOUND_HOST"`
 		LogLevel          string `name:"xray-log-level" help:"Xray log level (debug|info|warning|error|none)" default:"none" env:"XRAY_LOG_LEVEL"`
 		OutboundInterface string `name:"xray-outbound-interface" help:"Bind Xray outbound sockets to this network interface (Linux only)" default:"" env:"XRAY_OUTBOUND_INTERFACE"`
 	} `embed:"" prefix:""`
@@ -108,6 +111,10 @@ func (c *CLI) Validate() error {
 	}
 	if c.HealthMinFreeMB < 0 {
 		return fmt.Errorf("--health-min-free-mb must not be negative")
+	}
+	inboundIP := net.ParseIP(strings.TrimSpace(c.Xray.InboundHost))
+	if inboundIP == nil || !inboundIP.IsLoopback() {
+		return fmt.Errorf("--xray-inbound-host must be a loopback IP address")
 	}
 	return nil
 }

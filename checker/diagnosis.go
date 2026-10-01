@@ -791,7 +791,7 @@ func (pc *ProxyChecker) probeBinding(binding *models.ProxyConfig, timeout time.D
 		Protocol: binding.Protocol, Security: binding.Security, Port: binding.Port,
 		ServerName: binding.SNI, Attempts: diagnosisAttempts,
 	}
-	proxyURL, _ := url.Parse(fmt.Sprintf("socks5://127.0.0.1:%d", pc.startPort+binding.Index))
+	proxyURL, _ := url.Parse("socks5://" + net.JoinHostPort(pc.inboundHost, fmt.Sprintf("%d", pc.startPort+binding.Index)))
 	client := &http.Client{
 		Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL), DisableKeepAlives: true},
 		Timeout:   timeout,

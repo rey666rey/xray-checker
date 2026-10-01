@@ -201,6 +201,13 @@ func TestSanitizeGeneratedConfigMasksSecretsKeepsPublic(t *testing.T) {
 				},
 			},
 		},
+		"proxyCredentials": map[string]interface{}{
+			"pass":         "plain-proxy-password",
+			"secretKey":    "wireguard-private-key",
+			"preSharedKey": "wireguard-preshared-key",
+			"privateKey":   "another-private-key",
+			"token":        "service-access-token",
+		},
 		"streamSettings": map[string]interface{}{
 			"realitySettings": map[string]interface{}{
 				"publicKey": "Vft7...PuBLiCkeYmaterialShouldStay",
@@ -234,6 +241,13 @@ func TestSanitizeGeneratedConfigMasksSecretsKeepsPublic(t *testing.T) {
 	}
 	if stream["kcpSettings"].(map[string]interface{})["seed"] != "my-k...alue" {
 		t.Errorf("kcp seed not masked: %v", stream["kcpSettings"].(map[string]interface{})["seed"])
+	}
+	credentials := got["proxyCredentials"].(map[string]interface{})
+	for _, key := range []string{"pass", "secretKey", "preSharedKey", "privateKey", "token"} {
+		value, _ := credentials[key].(string)
+		if value == "" || value == outbound["proxyCredentials"].(map[string]interface{})[key] {
+			t.Errorf("%s not masked: %v", key, credentials[key])
+		}
 	}
 	// Non-secret fields are preserved untouched.
 	if got["tag"] != "node_0" || got["protocol"] != "vless" {

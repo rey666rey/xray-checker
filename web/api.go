@@ -218,7 +218,7 @@ func sanitizeGeneratedConfig(value interface{}) map[string]interface{} {
 }
 
 // sanitizeGeneratedValue recursively walks a generated config value and masks
-// the middle of any secret field. Only low-entropy/credential keys are masked;
+// the middle of any secret field. Credential and private-key fields are masked;
 // public material such as reality publicKey/shortId is left intact so the config
 // stays useful for debugging.
 func sanitizeGeneratedValue(value interface{}) interface{} {
@@ -227,7 +227,8 @@ func sanitizeGeneratedValue(value interface{}) interface{} {
 		result := make(map[string]interface{}, len(typed))
 		for key, nested := range typed {
 			switch strings.ToLower(key) {
-			case "id", "password", "auth", "seed":
+			case "id", "password", "pass", "auth", "seed", "secretkey", "presharedkey",
+				"privatekey", "token", "apikey", "api_key", "clientsecret", "client_secret":
 				if text, ok := nested.(string); ok {
 					result[key] = maskMiddle(text)
 					continue

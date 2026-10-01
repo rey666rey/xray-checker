@@ -45,6 +45,10 @@ services:
       PROXY_TCP_PROBE_CONCURRENCY: "30"
       # Xray and direct diagnostics must fail closed with the iPhone route.
       XRAY_OUTBOUND_INTERFACE: "col0"
+      # Lima auto-forwards listeners on 127.0.0.1. With one SOCKS listener per
+      # node that exhausts its SSH forwarder, taking down the Docker socket and
+      # localhost dashboard. 127.0.0.2 remains container-local and avoids that.
+      XRAY_INBOUND_HOST: "127.0.0.2"
       # Host-network checker port; web-forwarder exposes the stable Mac port 2112.
       METRICS_HOST: "172.17.0.1"
       METRICS_PORT: "2113"

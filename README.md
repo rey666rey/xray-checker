@@ -613,6 +613,7 @@ Values are defined in [`compose.yaml`](compose.yaml).
 | `PROXY_RETRY_TIMEOUT` | `10` | seconds per retry attempt |
 | `PROXY_CHECK_METHOD` | `urltest` | Apple URL Test through Xray |
 | `PROXY_URL_TEST_ATTEMPTS` | `2` | requests per health check |
+| `XRAY_INBOUND_HOST` | `127.0.0.2` | keep per-node SOCKS listeners off Lima's `127.0.0.1` auto-forwarder |
 | `XRAY_OUTBOUND_INTERFACE` | `col0` | bind Xray and direct diagnostic sockets to the iPhone route (fail closed) |
 | `METRICS_HOST` | `172.17.0.1` | listen only on Colima's Docker bridge, not on the iPhone/LAN interface |
 | `METRICS_PORT` | `2113` | checker port inside the Colima host namespace; forwarded to Mac `127.0.0.1:2112` |

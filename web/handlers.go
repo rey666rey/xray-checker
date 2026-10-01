@@ -1,8 +1,11 @@
 package web
 
 import (
+	"crypto/sha256"
+	"crypto/subtle"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -136,10 +139,17 @@ func IndexHandler(version string, proxyChecker *checker.ProxyChecker) http.Handl
 }
 
 func BasicAuthMiddleware(username, password string) func(http.Handler) http.Handler {
+	expectedUser := sha256.Sum256([]byte(username))
+	expectedPassword := sha256.Sum256([]byte(password))
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			user, pass, ok := r.BasicAuth()
-			if !ok || user != username || pass != password {
+			actualUser := sha256.Sum256([]byte(user))
+			actualPassword := sha256.Sum256([]byte(pass))
+			userMatches := subtle.ConstantTimeCompare(actualUser[:], expectedUser[:])
+			passwordMatches := subtle.ConstantTimeCompare(actualPassword[:], expectedPassword[:])
+			credentialsMatch := (userMatches & passwordMatches) == 1
+			if !ok || !credentialsMatch {
 				w.Header().Set("WWW-Authenticate", `Basic realm="metrics"`)
 				http.Error(w, "Unauthorized.", http.StatusUnauthorized)
 				return
@@ -147,6 +157,32 @@ func BasicAuthMiddleware(username, password string) func(http.Handler) http.Hand
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// SameOriginMutationMiddleware blocks browser-initiated cross-origin writes
+// while preserving non-browser clients such as curl, which normally omit
+// Origin and Sec-Fetch-Site. Read-only requests remain unaffected.
+func SameOriginMutationMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet, http.MethodHead, http.MethodOptions:
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		if strings.EqualFold(strings.TrimSpace(r.Header.Get("Sec-Fetch-Site")), "cross-site") {
+			http.Error(w, "Cross-origin request rejected.", http.StatusForbidden)
+			return
+		}
+		if origin := strings.TrimSpace(r.Header.Get("Origin")); origin != "" {
+			parsed, err := url.Parse(origin)
+			if err != nil || parsed.Scheme == "" || !strings.EqualFold(parsed.Host, r.Host) {
+				http.Error(w, "Cross-origin request rejected.", http.StatusForbidden)
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func ConfigStatusHandler(proxyChecker *checker.ProxyChecker) http.HandlerFunc {

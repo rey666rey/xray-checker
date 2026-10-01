@@ -300,6 +300,14 @@ See [Web Customization](/configuration/web-customization) for details.
 
 Starting port number for SOCKS5 proxies. Each proxy will use sequential ports starting from this number.
 
+### XRAY_INBOUND_HOST
+
+- CLI: `--xray-inbound-host`
+- Required: No
+- Default: `127.0.0.1`
+
+Loopback IP address used by the internal per-proxy SOCKS5 listeners. A dedicated loopback alias such as `127.0.0.2` prevents VM port forwarders from exporting a large proxy pool to the host.
+
 ### XRAY_LOG_LEVEL
 
 - CLI: `--xray-log-level`

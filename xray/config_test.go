@@ -26,6 +26,28 @@ func TestExtractFailingOutboundTag(t *testing.T) {
 	}
 }
 
+func TestGenerateConfigUsesConfiguredInboundHost(t *testing.T) {
+	g := NewConfigGenerator()
+	g.SetInboundHost("127.0.0.2")
+	configBytes, err := g.GenerateConfig([]*models.ProxyConfig{{
+		Protocol: "socks", Server: "192.0.2.1", Port: 1080, Name: "proxy", Index: 0,
+	}}, 10000, "none")
+	if err != nil {
+		t.Fatalf("GenerateConfig failed: %v", err)
+	}
+	var parsed struct {
+		Inbounds []struct {
+			Listen string `json:"listen"`
+		} `json:"inbounds"`
+	}
+	if err := json.Unmarshal(configBytes, &parsed); err != nil {
+		t.Fatalf("failed to parse generated config: %v", err)
+	}
+	if len(parsed.Inbounds) != 1 || parsed.Inbounds[0].Listen != "127.0.0.2" {
+		t.Fatalf("unexpected inbound listeners: %+v", parsed.Inbounds)
+	}
+}
+
 // A single unbuildable proxy must be excluded (with the rest kept) rather than
 // aborting the whole config.
 func TestGenerateValidatedConfigPrunesUnbuildable(t *testing.T) {
@@ -51,6 +73,26 @@ func TestGenerateValidatedConfigPrunesUnbuildable(t *testing.T) {
 	data, _ := os.ReadFile(f)
 	if err := validateConfigBuild(data); err != nil {
 		t.Fatalf("written config must be buildable, got: %v", err)
+	}
+	info, err := os.Stat(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Fatalf("config permissions=%#o, want 0600", info.Mode().Perm())
+	}
+	if err := os.Chmod(f, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeConfigFile(f, data); err != nil {
+		t.Fatal(err)
+	}
+	info, err = os.Stat(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Fatalf("rewritten config permissions=%#o, want 0600", info.Mode().Perm())
 	}
 }
 
