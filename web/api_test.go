@@ -89,6 +89,26 @@ func TestRenderIndexIncludesSubscriptionName(t *testing.T) {
 	}
 }
 
+func TestRenderIndexSeparatesCheckingFromConfirmedOffline(t *testing.T) {
+	var out bytes.Buffer
+	err := RenderIndex(&out, PageData{Endpoints: []EndpointInfo{{Name: "node-1"}}})
+	if err != nil {
+		t.Fatalf("RenderIndex() error = %v", err)
+	}
+	rendered := out.String()
+	for _, expected := range []string{
+		"isEffectivelyOnline(proxy)",
+		"isChecking(proxy)",
+		"isConfirmedOffline(proxy)",
+		"this.filter === 'offline') r = r.filter(p => this.isConfirmedOffline(p))",
+		"this.filter === 'checking') r = r.filter(p => this.isChecking(p))",
+	} {
+		if !strings.Contains(rendered, expected) {
+			t.Fatalf("rendered dashboard is missing %q", expected)
+		}
+	}
+}
+
 func TestAPINodesGroupsSeveralHostsOnOneEndpoint(t *testing.T) {
 	proxies := []*models.ProxyConfig{
 		{Protocol: "vless", Security: "reality", Name: "Germany (s1)", Server: "192.0.2.10", Port: 443, UUID: "00000000-0000-4000-8000-000000000001"},

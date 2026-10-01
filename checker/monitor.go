@@ -37,6 +37,7 @@ const (
 	CheckReasonChanged   CheckReason = "configuration_changed"
 	CheckReasonManual    CheckReason = "manual"
 	CheckReasonTCPProbe  CheckReason = "tcp_probe_failed"
+	CheckReasonDiagnosis CheckReason = "deep_diagnosis"
 )
 
 type NodeEvent struct {
@@ -487,7 +488,11 @@ func (pc *ProxyChecker) applyMonitorResult(node *NodeMonitorState, result proxyR
 			node.NextCheck = now.Add(failedRecheckDelay(node.ConsecutiveFailures)).Unix()
 		}
 	}
-	appendNodeEvent(node, NodeEvent{At: now.Unix(), Type: "check", State: node.State,
+	eventType := "check"
+	if reason == CheckReasonDiagnosis {
+		eventType = "diagnosis"
+	}
+	appendNodeEvent(node, NodeEvent{At: now.Unix(), Type: eventType, State: node.State,
 		Online: result.status, Unstable: result.unstable, Message: result.lastError})
 }
 

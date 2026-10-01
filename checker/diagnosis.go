@@ -103,9 +103,10 @@ type BindingDiagnosis struct {
 	LastError     string `json:"lastError,omitempty"`
 }
 
-// NodeDiagnosis is a point-in-time report. It deliberately does not
-// overwrite the normal online/offline result: a probe uplink can fail while the
-// node remains healthy from another vantage point.
+// NodeDiagnosis is a point-in-time report. Positive end-to-end tunnel evidence
+// is allowed to refresh the normal online/offline result; lower-level failures
+// remain diagnostic-only because a probe uplink can fail while the node stays
+// healthy from another vantage point.
 type NodeDiagnosis struct {
 	RunID       string              `json:"runId"`
 	NodeID      string              `json:"nodeId"`
@@ -169,7 +170,6 @@ func (pc *ProxyChecker) SetDiagnosisFile(path string) error {
 		return fmt.Errorf("unsupported diagnosis snapshot version %d", snapshot.Version)
 	}
 	pc.diagnosisMu.Lock()
-	defer pc.diagnosisMu.Unlock()
 	pc.diagnosisHistory = snapshot.Nodes
 	if pc.diagnosisHistory == nil {
 		pc.diagnosisHistory = make(map[string][]NodeDiagnosis)
@@ -185,6 +185,20 @@ func (pc *ProxyChecker) SetDiagnosisFile(path string) error {
 			}
 		}
 		pc.diagnosisHistory[nodeID] = history
+	}
+	latest := make([]NodeDiagnosis, 0, len(pc.diagnosisHistory))
+	for _, history := range pc.diagnosisHistory {
+		if len(history) > 0 {
+			latest = append(latest, cloneNodeDiagnosis(history[len(history)-1]))
+		}
+	}
+	pc.diagnosisMu.Unlock()
+
+	// Results and monitor snapshots are restored before diagnosis history. This
+	// lets a fresh saved 3/3 result immediately repair an older offline snapshot
+	// after an upgrade or restart, without waiting for another scheduled check.
+	for _, run := range latest {
+		pc.applyDiagnosisEvidence(run, time.Unix(run.CompletedAt, 0))
 	}
 	return nil
 }
@@ -880,11 +894,78 @@ func classifyNodeDiagnosis(run NodeDiagnosis) (DiagnosisVerdict, string) {
 }
 
 func (pc *ProxyChecker) completeDiagnosis(run NodeDiagnosis) {
+	completedAt := time.Now()
 	run.State = DiagnosisCompleted
 	run.Stage = "completed"
-	run.CompletedAt = time.Now().Unix()
+	run.CompletedAt = completedAt.Unix()
 	pc.replaceDiagnosis(run)
+	pc.applyDiagnosisEvidence(run, completedAt)
 	logger.Info("Node diagnosis completed: node=%s verdict=%s", run.NodeID, run.Verdict)
+}
+
+// applyDiagnosisEvidence promotes only positive end-to-end tunnel evidence to
+// the canonical result store. Direct TCP/TLS failures are deliberately not
+// applied: those probes can fail from this vantage point while the configured
+// Xray tunnel remains usable. A newer regular check always wins.
+func (pc *ProxyChecker) applyDiagnosisEvidence(run NodeDiagnosis, evidenceAt time.Time) {
+	if run.State != DiagnosisCompleted || run.CompletedAt <= 0 || evidenceAt.IsZero() {
+		return
+	}
+	bindings := pc.nodeBindings(run.NodeID)
+	currentRevision := nodeDiagnosisRevision(bindings)
+	if len(bindings) == 0 || diagnosisIsStale(run, currentRevision, time.Now()) {
+		return
+	}
+
+	byStableID := make(map[string]*models.ProxyConfig, len(bindings))
+	for _, binding := range bindings {
+		byStableID[binding.StableID] = binding
+	}
+	promoted := make([]*models.ProxyConfig, 0, len(run.Bindings))
+	for _, diagnosed := range run.Bindings {
+		binding := byStableID[diagnosed.StableID]
+		if binding == nil || diagnosed.Attempts <= 0 || diagnosed.Successes <= 0 {
+			continue
+		}
+
+		lockKey := binding.StableID
+		if lockKey == "" {
+			lockKey = binding.GenerateStableID()
+		}
+		value, _ := pc.proxyCheckLocks.LoadOrStore(lockKey, &sync.Mutex{})
+		proxyLock := value.(*sync.Mutex)
+		proxyLock.Lock()
+
+		key := proxyMetricKey(binding)
+		exitIP := ""
+		if current, ok := pc.results.Load(key); ok {
+			previous := current.(proxyResult)
+			if previous.lastCheck.After(evidenceAt) {
+				proxyLock.Unlock()
+				continue
+			}
+			exitIP = previous.exitIP
+		}
+
+		unstable := diagnosed.Successes < diagnosed.Attempts
+		lastError := ""
+		if unstable {
+			lastError = fmt.Sprintf("deep diagnosis passed %d/%d tunnel attempts", diagnosed.Successes, diagnosed.Attempts)
+		}
+		pc.storeResult(key, proxyResult{
+			status:    true,
+			unstable:  unstable,
+			latency:   time.Duration(diagnosed.BestLatencyMs) * time.Millisecond,
+			lastCheck: evidenceAt,
+			lastError: lastError,
+			exitIP:    exitIP,
+		})
+		proxyLock.Unlock()
+		promoted = append(promoted, binding)
+	}
+	if len(promoted) > 0 {
+		pc.recordMonitorResults(promoted, CheckReasonDiagnosis)
+	}
 }
 
 func (pc *ProxyChecker) diagnosisPending() bool {

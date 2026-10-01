@@ -1,6 +1,7 @@
 package checker
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -147,6 +148,147 @@ func TestNodeDiagnosisBecomesStaleAfterNewFailedCheck(t *testing.T) {
 	if !ok || !run.Stale {
 		t.Fatalf("diagnosis=%#v, found=%v; want stale after newer failed check", run, ok)
 	}
+}
+
+func TestApplyDiagnosisEvidencePromotesOnlyWorkingBindings(t *testing.T) {
+	now := time.Now().Truncate(time.Second)
+	working := &models.ProxyConfig{
+		StableID: "working", LogicalID: "working-logical", HostID: "working-host", NodeID: "shared-node",
+		Name: "Working", Protocol: "vless", Server: "192.0.2.10", Port: 443,
+	}
+	failing := &models.ProxyConfig{
+		StableID: "failing", LogicalID: "failing-logical", HostID: "failing-host", NodeID: "shared-node",
+		Name: "Failing", Protocol: "trojan", Server: "192.0.2.10", Port: 8443,
+	}
+	bindings := []*models.ProxyConfig{working, failing}
+	pc := NewProxyChecker(bindings, 10000, "", 1, "", "", 1, 1, "urltest", 1)
+	pc.results.Store(proxyMetricKey(working), proxyResult{status: false, lastCheck: now.Add(-time.Minute), exitIP: "198.51.100.7"})
+	pc.results.Store(proxyMetricKey(failing), proxyResult{status: false, lastCheck: now.Add(-time.Minute)})
+
+	pc.applyDiagnosisEvidence(NodeDiagnosis{
+		NodeID: "shared-node", Revision: nodeDiagnosisRevision(bindings), State: DiagnosisCompleted,
+		CompletedAt: now.Unix(), Bindings: []BindingDiagnosis{
+			{StableID: "working", Attempts: 3, Successes: 3, BestLatencyMs: 42},
+			{StableID: "failing", Attempts: 3, Successes: 0},
+		},
+	}, now)
+
+	workingResult := pc.resultsForKey(proxyMetricKey(working))
+	if !workingResult.status || workingResult.unstable || workingResult.latency != 42*time.Millisecond {
+		t.Fatalf("working result = %#v, want stable online at 42ms", workingResult)
+	}
+	if workingResult.exitIP != "198.51.100.7" {
+		t.Fatalf("working exit IP = %q, want preserved value", workingResult.exitIP)
+	}
+	failingResult := pc.resultsForKey(proxyMetricKey(failing))
+	if failingResult.status {
+		t.Fatalf("failing result = %#v, want existing offline result unchanged", failingResult)
+	}
+	monitor, ok := pc.GetNodeMonitorByStableID("working")
+	if !ok || monitor.State != NodeHealthy || monitor.ConsecutiveFailures != 0 {
+		t.Fatalf("working monitor = %#v, found=%v", monitor, ok)
+	}
+	if len(monitor.History) == 0 || monitor.History[len(monitor.History)-1].Type != "diagnosis" {
+		t.Fatalf("working monitor history = %#v, want diagnosis event", monitor.History)
+	}
+	metrics := pc.MetricsSnapshot()
+	if len(metrics) != 2 || !metrics[0].Online || metrics[1].Online {
+		t.Fatalf("metrics snapshot = %#v, want only working binding online", metrics)
+	}
+}
+
+func TestApplyDiagnosisEvidenceMarksPartialSuccessUnstable(t *testing.T) {
+	now := time.Now().Truncate(time.Second)
+	proxy := &models.ProxyConfig{
+		StableID: "binding-1", LogicalID: "logical-1", HostID: "host-1", NodeID: "node-1",
+		Name: "Node", Protocol: "vless", Server: "192.0.2.10", Port: 443,
+	}
+	pc := NewProxyChecker([]*models.ProxyConfig{proxy}, 10000, "", 1, "", "", 1, 1, "urltest", 1)
+	pc.results.Store(proxyMetricKey(proxy), proxyResult{status: false, lastCheck: now.Add(-time.Minute)})
+
+	pc.applyDiagnosisEvidence(NodeDiagnosis{
+		NodeID: "node-1", Revision: nodeDiagnosisRevision([]*models.ProxyConfig{proxy}),
+		State: DiagnosisCompleted, CompletedAt: now.Unix(),
+		Bindings: []BindingDiagnosis{{StableID: "binding-1", Attempts: 3, Successes: 1, BestLatencyMs: 125}},
+	}, now)
+
+	result := pc.resultsForKey(proxyMetricKey(proxy))
+	if !result.status || !result.unstable || result.latency != 125*time.Millisecond {
+		t.Fatalf("partial result = %#v, want unstable online at 125ms", result)
+	}
+	if result.lastError != "deep diagnosis passed 1/3 tunnel attempts" {
+		t.Fatalf("partial error = %q", result.lastError)
+	}
+	monitor, _ := pc.GetNodeMonitorByStableID("binding-1")
+	if monitor.State != NodeUnstable {
+		t.Fatalf("partial monitor state = %s, want %s", monitor.State, NodeUnstable)
+	}
+}
+
+func TestApplyDiagnosisEvidenceDoesNotOverwriteNewerOrChangedResult(t *testing.T) {
+	now := time.Now().Truncate(time.Second)
+	proxy := &models.ProxyConfig{
+		StableID: "binding-1", LogicalID: "logical-1", HostID: "host-1", NodeID: "node-1",
+		Name: "Node", Protocol: "vless", Server: "192.0.2.10", Port: 443,
+	}
+	pc := NewProxyChecker([]*models.ProxyConfig{proxy}, 10000, "", 1, "", "", 1, 1, "urltest", 1)
+	newer := proxyResult{status: false, lastCheck: now.Add(time.Second), lastError: "newer failure"}
+	pc.results.Store(proxyMetricKey(proxy), newer)
+	run := NodeDiagnosis{
+		NodeID: "node-1", Revision: nodeDiagnosisRevision([]*models.ProxyConfig{proxy}),
+		State: DiagnosisCompleted, CompletedAt: now.Unix(),
+		Bindings: []BindingDiagnosis{{StableID: "binding-1", Attempts: 3, Successes: 3}},
+	}
+
+	pc.applyDiagnosisEvidence(run, now)
+	if got := pc.resultsForKey(proxyMetricKey(proxy)); got.status || got.lastError != newer.lastError {
+		t.Fatalf("newer result overwritten: %#v", got)
+	}
+
+	pc.results.Store(proxyMetricKey(proxy), proxyResult{status: false, lastCheck: now.Add(-time.Minute)})
+	run.Revision = "old-revision"
+	pc.applyDiagnosisEvidence(run, now)
+	if got := pc.resultsForKey(proxyMetricKey(proxy)); got.status {
+		t.Fatalf("revision-mismatched diagnosis promoted result: %#v", got)
+	}
+}
+
+func TestSetDiagnosisFileReconcilesFreshSavedSuccess(t *testing.T) {
+	now := time.Now().Truncate(time.Second)
+	proxy := &models.ProxyConfig{
+		StableID: "binding-1", LogicalID: "logical-1", HostID: "host-1", NodeID: "node-1",
+		Name: "Node", Protocol: "vless", Server: "192.0.2.10", Port: 443,
+	}
+	pc := NewProxyChecker([]*models.ProxyConfig{proxy}, 10000, "", 1, "", "", 1, 1, "urltest", 1)
+	pc.results.Store(proxyMetricKey(proxy), proxyResult{status: false, lastCheck: now.Add(-time.Minute)})
+	snapshot := diagnosisSnapshot{Version: diagnosisSnapshotVersion, Nodes: map[string][]NodeDiagnosis{
+		"node-1": {{
+			RunID: "saved-run", NodeID: "node-1", Revision: nodeDiagnosisRevision([]*models.ProxyConfig{proxy}),
+			State: DiagnosisCompleted, Verdict: DiagnosisHealthy, CompletedAt: now.Unix(),
+			Bindings: []BindingDiagnosis{{StableID: "binding-1", Attempts: 3, Successes: 3, BestLatencyMs: 37}},
+		}},
+	}}
+	data, err := json.Marshal(snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "diagnoses.json")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := pc.SetDiagnosisFile(path); err != nil {
+		t.Fatalf("SetDiagnosisFile() error = %v", err)
+	}
+	result := pc.resultsForKey(proxyMetricKey(proxy))
+	if !result.status || result.unstable || result.latency != 37*time.Millisecond {
+		t.Fatalf("restored diagnosis result = %#v, want stable online at 37ms", result)
+	}
+}
+
+func (pc *ProxyChecker) resultsForKey(key proxyMetricLabels) proxyResult {
+	value, _ := pc.results.Load(key)
+	return value.(proxyResult)
 }
 
 func TestGetBindingDiagnosisSeparatesBindingsOnSameNode(t *testing.T) {

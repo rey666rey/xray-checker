@@ -1413,6 +1413,9 @@
       .text-offline {
         color: var(--color-red);
       }
+      .text-unstable {
+        color: var(--color-yellow);
+      }
       .filter-online {
         background: var(--filter-online-bg);
         color: var(--color-green);
@@ -1743,7 +1746,7 @@
         <div class="badge-card" :class="badgeClasses" :style="badgeStyle">
           <div
             class="badge-status"
-            :class="badgeProxy.unstable ? 'status-unstable pulse' : (badgeProxy.status ? 'status-online pulse' : 'status-offline')"
+            :class="isChecking(badgeProxy) ? 'status-unstable pulse' : (isEffectivelyOnline(badgeProxy) ? (badgeProxy.unstable ? 'status-unstable pulse' : 'status-online pulse') : 'status-offline')"
           ></div>
           <span
             x-show="badgeShowName"
@@ -1936,7 +1939,7 @@
       </header>
 
       <!-- Stats -->
-      <div x-show="showStats" class="grid grid-cols-4 gap-2 sm:gap-3 mb-6">
+      <div x-show="showStats" class="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 mb-6">
         <div class="card rounded-lg p-2 sm:p-4 text-center">
           <div
             class="text-base sm:text-xl font-semibold text-primary"
@@ -1963,6 +1966,15 @@
             0
           </div>
           <div class="text-xs text-muted mt-0.5">Offline</div>
+        </div>
+        <div class="card rounded-lg p-2 sm:p-4 text-center">
+          <div
+            class="text-base sm:text-xl font-semibold text-unstable"
+            x-text="stats.checking"
+          >
+            0
+          </div>
+          <div class="text-xs text-muted mt-0.5">Checking</div>
         </div>
         <div class="card rounded-lg p-2 sm:p-4 text-center">
           <div class="text-base sm:text-xl font-semibold text-primary">
@@ -2177,6 +2189,13 @@
                 class="px-3 py-1 rounded text-xs font-medium"
               >
                 Offline
+              </button>
+              <button
+                @click="setFilter('checking')"
+                :class="filter === 'checking' ? 'filter-all' : 'text-muted hover:text-secondary'"
+                class="hidden md:block px-3 py-1 rounded text-xs font-medium"
+              >
+                Checking
               </button>
               <button
                 @click="setFilter('repair')"
@@ -3477,6 +3496,33 @@
             return '';
           },
 
+		  currentDiagnosis(proxy) {
+			if (!proxy || !proxy.diagnosis || proxy.diagnosis.stale) return null;
+			return proxy.diagnosis;
+		  },
+
+		  isEffectivelyOnline(proxy) {
+			if (!proxy) return false;
+			if (proxy.status) return true;
+			const diagnosis = this.currentDiagnosis(proxy);
+			return !!diagnosis && diagnosis.state === 'completed' && ['healthy', 'degraded'].includes(diagnosis.verdict);
+		  },
+
+		  isChecking(proxy) {
+			if (!proxy || this.isEffectivelyOnline(proxy)) return false;
+			if (proxy.rechecking) return true;
+			const diagnosis = this.currentDiagnosis(proxy);
+			if (diagnosis) {
+			  if (['queued', 'running'].includes(diagnosis.state)) return true;
+			  if (diagnosis.state === 'completed') return diagnosis.verdict === 'inconclusive';
+			}
+			return ['unknown', 'suspected', 'ip_changed', 'verifying_new_ip'].includes(proxy.monitorState);
+		  },
+
+		  isConfirmedOffline(proxy) {
+			return !!proxy && !this.isEffectivelyOnline(proxy) && !this.isChecking(proxy);
+		  },
+
 		  cardDiagnosis(proxy) {
 			if (!proxy || proxy.status || !proxy.diagnosis || proxy.diagnosis.stale) return null;
 			return proxy.diagnosis;
@@ -3506,7 +3552,11 @@
 		  },
 
 		  cardDotClass(proxy) {
-			if (proxy.status) return proxy.unstable ? 'status-unstable pulse' : 'status-online pulse';
+			if (this.isEffectivelyOnline(proxy)) {
+			  const current = this.currentDiagnosis(proxy);
+			  return proxy.unstable || (current && current.verdict === 'degraded') ? 'status-unstable pulse' : 'status-online pulse';
+			}
+			if (this.isChecking(proxy)) return 'status-unstable pulse';
 			const diagnosis = this.cardDiagnosis(proxy);
 			if (!diagnosis) return 'status-offline';
 			if (['queued', 'running'].includes(diagnosis.state)) return 'status-unstable pulse';
@@ -3666,12 +3716,15 @@
           },
 
           get stats() {
-			const online = this.activeProxies.filter(p => p.status).length;
-			const withLatency = this.activeProxies.filter(p => p.status && p.latencyMs > 0);
+			const online = this.activeProxies.filter(p => this.isEffectivelyOnline(p)).length;
+			const offline = this.activeProxies.filter(p => this.isConfirmedOffline(p)).length;
+			const checking = this.activeProxies.filter(p => this.isChecking(p)).length;
+			const withLatency = this.activeProxies.filter(p => this.isEffectivelyOnline(p) && p.latencyMs > 0);
             return {
               total: this.activeProxies.length,
               online,
-              offline: this.activeProxies.length - online,
+			  offline,
+			  checking,
               avgLatency: withLatency.length ? Math.round(withLatency.reduce((s, p) => s + p.latencyMs, 0) / withLatency.length) : 0
             };
           },
@@ -3682,8 +3735,9 @@
               const q = this.search.toLowerCase();
               r = r.filter(p => p.name.toLowerCase().includes(q) || p.subName.toLowerCase().includes(q) || (p.serverInfo && p.serverInfo.toLowerCase().includes(q)));
             }
-            if (this.filter === 'online') r = r.filter(p => p.status);
-            else if (this.filter === 'offline') r = r.filter(p => !p.status);
+			if (this.filter === 'online') r = r.filter(p => this.isEffectivelyOnline(p));
+			else if (this.filter === 'offline') r = r.filter(p => this.isConfirmedOffline(p));
+			else if (this.filter === 'checking') r = r.filter(p => this.isChecking(p));
             else if (this.filter === 'repair') r = r.filter(p => ['needs_replacement', 'new_ip_failed'].includes(p.monitorState));
             else if (this.filter === 'changed') r = r.filter(p => ['ip_changed', 'verifying_new_ip', 'fixed'].includes(p.monitorState));
             else if (this.filter === 'unstable') r = r.filter(p => p.monitorState === 'unstable');
@@ -3701,7 +3755,7 @@
                 if (b.latencyMs === 0) return -1;
                 return b.latencyMs - a.latencyMs;
               }
-              if (this.sort === 'status') return b.status - a.status;
+			  if (this.sort === 'status') return Number(this.isEffectivelyOnline(b)) - Number(this.isEffectivelyOnline(a));
               if (this.sort === 'name') return this.stripLeadingEmoji(a.name).localeCompare(this.stripLeadingEmoji(b.name));
               return a.index - b.index;
             });
@@ -3726,7 +3780,7 @@
             // Ungrouped (standalone) nodes first so each balancer group below is
             // clearly delimited by its own header (no blending into a headerless block).
             if (ungrouped.length) {
-              blocks.push({ key: '_ungrouped', group: '', proxies: ungrouped, online: 0, total: ungrouped.length });
+			  blocks.push({ key: '_ungrouped', group: '', proxies: ungrouped, online: ungrouped.filter(p => this.isEffectivelyOnline(p)).length, total: ungrouped.length });
             }
             for (const [key, value] of groups) {
               const proxies = value.proxies;
@@ -3736,7 +3790,7 @@
                 key,
                 group: value.label,
                 proxies,
-                online: proxies.filter(p => p.status).length,
+				online: proxies.filter(p => this.isEffectivelyOnline(p)).length,
                 total: proxies.length,
 				nodeId,
 				diagnosis: nodeId ? this.nodeDiagnoses[nodeId] : null,
