@@ -56,15 +56,45 @@ func TestEndpointPoolGroupsDifferentHostsOnOnePhysicalNode(t *testing.T) {
 func TestEndpointPoolKeepsRunningSNIForExistingEndpoint(t *testing.T) {
 	current := poolProxy("host", "192.0.2.10")
 	current.SNI = "working.example"
+	current.StableID = current.GenerateStableID()
+	pc := NewProxyChecker([]*models.ProxyConfig{current}, 10000, "", 1, "", "", 1, 1, "urltest", 1)
+	pc.results.Store(proxyMetricKey(current), proxyResult{status: true})
 	pool := NewEndpointPool([]*models.ProxyConfig{current})
 	first := poolProxy("host", "192.0.2.10")
 	first.SNI = "random-a.example"
 	second := poolProxy("host", "192.0.2.10")
 	second.SNI = "random-b.example"
+	pc.StabilizeHealthySNI([]*models.ProxyConfig{current}, []*models.ProxyConfig{first})
+	pc.StabilizeHealthySNI([]*models.ProxyConfig{current}, []*models.ProxyConfig{second})
 
 	configs, stats := pool.Observe([]*models.ProxyConfig{first}, []*models.ProxyConfig{second})
 	if len(configs) != 1 || configs[0].SNI != "working.example" || stats.Updated != 0 {
 		t.Fatalf("configs=%#v stats=%+v, running SNI must remain stable", configs, stats)
+	}
+}
+
+func TestEndpointPoolAcceptsNewSNIForFailedEndpoint(t *testing.T) {
+	current := poolProxy("host", "192.0.2.10")
+	current.SNI = "broken.example"
+	current.StableID = current.GenerateStableID()
+	pc := NewProxyChecker([]*models.ProxyConfig{current}, 10000, "", 1, "", "", 1, 1, "urltest", 1)
+	pc.results.Store(proxyMetricKey(current), proxyResult{status: false, lastError: "handshake failed"})
+	pool := NewEndpointPool([]*models.ProxyConfig{current})
+
+	first := poolProxy("host", "192.0.2.10")
+	first.SNI = "working.example"
+	second := poolProxy("host", "192.0.2.10")
+	second.SNI = "working.example"
+	pc.StabilizeHealthySNI([]*models.ProxyConfig{current}, []*models.ProxyConfig{first})
+	pc.StabilizeHealthySNI([]*models.ProxyConfig{current}, []*models.ProxyConfig{second})
+
+	configs, stats := pool.Observe([]*models.ProxyConfig{first}, []*models.ProxyConfig{second})
+	if len(configs) != 1 || configs[0].SNI != "working.example" || stats.Updated != 1 {
+		t.Fatalf("configs=%#v stats=%+v, failed endpoint must accept the new SNI", configs, stats)
+	}
+	plan := PlanProxyUpdate([]*models.ProxyConfig{current}, configs)
+	if plan.Count(ProxyChanged) != 1 || len(plan.ProxiesToCheck()) != 1 {
+		t.Fatalf("plan=%#v, SNI repair must trigger an immediate check", plan)
 	}
 }
 

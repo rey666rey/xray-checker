@@ -77,6 +77,30 @@ Extra HTTP headers sent with every subscription request, each as a `Key: Value` 
 - **CLI**: repeat `--subscription-header` for each header
 - **Environment**: separate pairs with commas: `SUBSCRIPTION_HEADERS="X-Token: abc, X-Region: eu"`
 
+## Remnawave panels
+
+### REMNAWAVE_PANELS
+
+- Required: No
+- Default: empty
+
+Comma-separated stable IDs for Remnawave panels. Each ID creates a namespace
+for three environment variables:
+
+```dotenv
+REMNAWAVE_PANELS="rw220,rwleto,rwmaster,rwdog"
+REMNAWAVE_RW220_SUBSCRIPTION="220V"
+REMNAWAVE_RW220_API_URL="https://panel-220.example.com"
+REMNAWAVE_RW220_API_TOKEN="replace-with-api-token"
+```
+
+`REMNAWAVE_<ID>_SUBSCRIPTION` is required for every listed ID and must equal
+the subscription's dashboard name (normally the `#fragment` in
+`SUBSCRIPTION_URL`). `API_URL` and `API_TOKEN` may both be empty for a prepared
+but inactive mapping; otherwise both are required. IDs use lowercase letters,
+digits, and underscores. Tokens and API URLs are never exposed by the config
+API.
+
 ## Proxy
 
 ### PROXY_CHECK_INTERVAL
@@ -101,7 +125,7 @@ When enabled, runs one full proxy check after startup and disables scheduled bul
 - Required: No
 - Default: empty
 
-Comma-separated, case-insensitive host-name prefixes to exclude completely. Leading whitespace and decorative characters such as country-flag emoji or brackets are ignored, so `LTE` also matches `🇷🇺 LTE 12`. Matching happens before domain expansion and Xray generation. Excluded hosts are not checked and do not appear in metrics, alerts, APIs, or the dashboard. If the prefixes match every subscription host, startup or subscription refresh fails safely instead of replacing the active set with an empty configuration.
+Comma-separated, case-insensitive host-name prefixes or standalone markers to exclude completely. Leading whitespace and decorative characters such as country-flag emoji or brackets are ignored. At the beginning of a name the configured value remains a prefix; elsewhere it must be bounded like a standalone marker. Thus `LTE` matches both `🇷🇺 LTE 12` and `Автовыбор LTE | WL_LV16`, but not `MALTESE`. Matching happens before domain expansion and Xray generation. Excluded hosts are not checked and do not appear in metrics, alerts, APIs, or the dashboard. If the entries match every subscription host, startup or subscription refresh fails safely instead of replacing the active set with an empty configuration.
 
 ### PROXY_CHECK_CONCURRENCY
 

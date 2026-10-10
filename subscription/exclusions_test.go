@@ -7,24 +7,27 @@ import (
 	"xray-checker/models"
 )
 
-func TestFilterExcludedHostsMatchesTrimmedNamePrefixesCaseInsensitively(t *testing.T) {
+func TestFilterExcludedHostsMatchesPrefixesAndStandaloneMarkersCaseInsensitively(t *testing.T) {
 	ltePrimary := &models.ProxyConfig{Name: "🇷🇺 LTE Moscow"}
 	lteBackup := &models.ProxyConfig{Name: "  [lTe] backup"}
+	lteAutoselect := &models.ProxyConfig{Name: "🇪🇺 Автовыбор LTE | WL_LV16", GroupName: "🇪🇺 Автовыбор LTE"}
+	ltePrefixedSuffix := &models.ProxyConfig{Name: "LTE2 node"}
 	old := &models.ProxyConfig{Name: "OLD Amsterdam"}
-	keptHost := &models.ProxyConfig{Name: "Germany LTE"}
+	keptWord := &models.ProxyConfig{Name: "MALTESE node"}
+	keptNodeLabel := &models.ProxyConfig{Name: "Germany | LTE relay", GroupName: "Germany"}
 
 	kept, excluded, err := FilterExcludedHosts(
-		[]*models.ProxyConfig{ltePrimary, keptHost, lteBackup, old},
+		[]*models.ProxyConfig{ltePrimary, keptWord, lteBackup, lteAutoselect, ltePrefixedSuffix, keptNodeLabel, old},
 		[]string{" LTE ", "old"},
 	)
 	if err != nil {
 		t.Fatalf("FilterExcludedHosts() error = %v", err)
 	}
-	if excluded != 3 {
-		t.Fatalf("excluded = %d, want 3", excluded)
+	if excluded != 5 {
+		t.Fatalf("excluded = %d, want 5", excluded)
 	}
-	if len(kept) != 1 || kept[0] != keptHost {
-		t.Fatalf("kept = %#v, want only non-prefix match", kept)
+	if len(kept) != 2 || kept[0] != keptWord || kept[1] != keptNodeLabel {
+		t.Fatalf("kept = %#v, want only non-marker matches", kept)
 	}
 }
 

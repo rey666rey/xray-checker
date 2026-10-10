@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"net"
+	"os"
 	"strings"
 
 	"github.com/alecthomas/kong"
@@ -11,7 +12,7 @@ import (
 var CLIConfig CLI
 var Version string
 
-func Parse(version string) {
+func Parse(version string) error {
 	Version = version
 	ctx := kong.Parse(&CLIConfig,
 		kong.Name("xray-checker"),
@@ -21,9 +22,12 @@ func Parse(version string) {
 		},
 	)
 	_ = ctx
+	return CLIConfig.Validate()
 }
 
 type CLI struct {
+	RemnawavePanels []RemnawavePanel `kong:"-" json:"-"`
+
 	Subscription struct {
 		URLs           []string `name:"subscription-url" help:"URL(s) of the subscription (can be specified multiple times)" required:"true" env:"SUBSCRIPTION_URL"`
 		Update         bool     `name:"subscription-update" help:"Whether to recheck the subscription" default:"true" env:"SUBSCRIPTION_UPDATE"`
@@ -38,7 +42,7 @@ type CLI struct {
 		CheckInterval       int      `name:"proxy-check-interval" help:"Interval for proxy checks in seconds" default:"300" env:"PROXY_CHECK_INTERVAL"`
 		InitialCheckOnly    bool     `name:"proxy-initial-check-only" help:"Run one full check after startup without scheduled bulk rechecks; targeted repair checks continue" default:"false" env:"PROXY_INITIAL_CHECK_ONLY"`
 		CheckConcurrency    int      `name:"proxy-check-concurrency" help:"Max proxies checked in parallel per cycle (0 = unlimited)" default:"0" env:"PROXY_CHECK_CONCURRENCY"`
-		ExcludeNamePrefixes []string `name:"proxy-exclude-name-prefix" help:"Case-insensitive host-name prefix to exclude before Xray generation and monitoring; repeatable, env comma-separated" env:"PROXY_EXCLUDE_NAME_PREFIXES"`
+		ExcludeNamePrefixes []string `name:"proxy-exclude-name-prefix" help:"Case-insensitive host-name prefix or standalone marker to exclude before Xray generation and monitoring; repeatable, env comma-separated" env:"PROXY_EXCLUDE_NAME_PREFIXES"`
 		CheckMethod         string   `name:"proxy-check-method" help:"Method for checking proxy: urltest, ip, status or download" default:"ip" env:"PROXY_CHECK_METHOD"`
 		IpCheckUrl          string   `name:"proxy-ip-check-url" help:"Service URL for IP checking" default:"https://api.ipify.org?format=text" env:"PROXY_IP_CHECK_URL"`
 		URLTestUrl          string   `name:"proxy-url-test-url" help:"Small page used by check-method=urltest" default:"http://captive.apple.com/hotspot-detect.html" env:"PROXY_URL_TEST_URL"`
@@ -107,6 +111,12 @@ type CLI struct {
 }
 
 func (c *CLI) Validate() error {
+	panels, err := parseRemnawavePanels(os.Getenv)
+	if err != nil {
+		return err
+	}
+	c.RemnawavePanels = panels
+
 	if c.Web.Public && !c.Metrics.Protected {
 		return fmt.Errorf("--web-public requires --metrics-protected to be enabled")
 	}

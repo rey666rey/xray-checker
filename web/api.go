@@ -94,17 +94,24 @@ type StatusResponse struct {
 }
 
 type ConfigResponse struct {
-	CheckInterval              int      `json:"checkInterval"`
-	InitialCheckOnly           bool     `json:"initialCheckOnly"`
-	ExcludedNamePrefixes       []string `json:"excludedNamePrefixes,omitempty"`
-	CheckMethod                string   `json:"checkMethod"`
-	Timeout                    int      `json:"timeout"`
-	StartPort                  int      `json:"startPort"`
-	SubscriptionUpdate         bool     `json:"subscriptionUpdate"`
-	SubscriptionUpdateInterval int      `json:"subscriptionUpdateInterval"`
-	SubscriptionPoolSamples    int      `json:"subscriptionPoolSamples"`
-	SimulateLatency            bool     `json:"simulateLatency"`
-	SubscriptionNames          []string `json:"subscriptionNames"`
+	CheckInterval              int                  `json:"checkInterval"`
+	InitialCheckOnly           bool                 `json:"initialCheckOnly"`
+	ExcludedNamePrefixes       []string             `json:"excludedNamePrefixes,omitempty"`
+	CheckMethod                string               `json:"checkMethod"`
+	Timeout                    int                  `json:"timeout"`
+	StartPort                  int                  `json:"startPort"`
+	SubscriptionUpdate         bool                 `json:"subscriptionUpdate"`
+	SubscriptionUpdateInterval int                  `json:"subscriptionUpdateInterval"`
+	SubscriptionPoolSamples    int                  `json:"subscriptionPoolSamples"`
+	SimulateLatency            bool                 `json:"simulateLatency"`
+	SubscriptionNames          []string             `json:"subscriptionNames"`
+	RemnawavePanels            []RemnawavePanelInfo `json:"remnawavePanels,omitempty"`
+}
+
+type RemnawavePanelInfo struct {
+	ID           string `json:"id"`
+	Subscription string `json:"subscription"`
+	Configured   bool   `json:"configured"`
 }
 
 type SystemInfoResponse struct {
@@ -608,6 +615,14 @@ func APIStatusHandler(proxyChecker *checker.ProxyChecker) http.HandlerFunc {
 func APIConfigHandler(proxyChecker *checker.ProxyChecker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		subNames := CollectSubscriptionNames(proxyChecker.GetProxies())
+		remnawavePanels := make([]RemnawavePanelInfo, 0, len(config.CLIConfig.RemnawavePanels))
+		for _, panel := range config.CLIConfig.RemnawavePanels {
+			remnawavePanels = append(remnawavePanels, RemnawavePanelInfo{
+				ID:           panel.ID,
+				Subscription: panel.Subscription,
+				Configured:   panel.Configured(),
+			})
+		}
 		writeJSON(w, ConfigResponse{
 			CheckInterval:              config.CLIConfig.Proxy.CheckInterval,
 			InitialCheckOnly:           config.CLIConfig.Proxy.InitialCheckOnly,
@@ -620,6 +635,7 @@ func APIConfigHandler(proxyChecker *checker.ProxyChecker) http.HandlerFunc {
 			SubscriptionPoolSamples:    config.CLIConfig.Subscription.PoolSamples,
 			SimulateLatency:            config.CLIConfig.Proxy.SimulateLatency,
 			SubscriptionNames:          subNames,
+			RemnawavePanels:            remnawavePanels,
 		})
 	}
 }

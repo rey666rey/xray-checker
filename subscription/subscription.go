@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"unicode"
+	"unicode/utf8"
 	"xray-checker/config"
 	"xray-checker/logger"
 	"xray-checker/models"
@@ -77,10 +78,11 @@ func InitializeConfiguration(configFile string, version string) (*[]*models.Prox
 	return &proxyConfigs, nil
 }
 
-// FilterExcludedHosts removes subscription entries whose trimmed display name
-// starts with any configured prefix. Matching is case-insensitive and happens
-// before domain expansion, Xray generation and checker initialization, so an
-// excluded host cannot leak into checks, metrics, alerts, APIs or the dashboard.
+// FilterExcludedHosts removes subscription entries whose host display name
+// starts with a configured prefix or contains it as a standalone marker.
+// Matching is case-insensitive and happens before domain expansion, Xray
+// generation and checker initialization, so an excluded host cannot leak into
+// checks, metrics, alerts, APIs or the dashboard.
 func FilterExcludedHosts(configs []*models.ProxyConfig, prefixes []string) ([]*models.ProxyConfig, int, error) {
 	normalized := make([]string, 0, len(prefixes))
 	for _, prefix := range prefixes {
@@ -98,14 +100,23 @@ func FilterExcludedHosts(configs []*models.ProxyConfig, prefixes []string) ([]*m
 	for _, proxy := range configs {
 		name := ""
 		if proxy != nil {
-			name = strings.ToLower(strings.TrimSpace(proxy.Name))
+			// A grouped JSON subscription names bindings "<host> | <node>".
+			// Match the host label rather than accidentally excluding a whole host
+			// because only one of its node labels contains a configured marker.
+			name = proxy.GroupName
+			if strings.TrimSpace(name) == "" {
+				name = proxy.Name
+			}
+			name = strings.ToLower(strings.TrimSpace(name))
 		}
 		nameWithoutDecoration := strings.TrimLeftFunc(name, func(r rune) bool {
 			return !unicode.IsLetter(r) && !unicode.IsDigit(r)
 		})
 		matched := false
 		for _, prefix := range normalized {
-			if strings.HasPrefix(name, prefix) || strings.HasPrefix(nameWithoutDecoration, prefix) {
+			if strings.HasPrefix(name, prefix) ||
+				strings.HasPrefix(nameWithoutDecoration, prefix) ||
+				containsStandaloneNameMarker(nameWithoutDecoration, prefix) {
 				matched = true
 				break
 			}
@@ -120,6 +131,41 @@ func FilterExcludedHosts(configs []*models.ProxyConfig, prefixes []string) ([]*m
 		return nil, excluded, fmt.Errorf("proxy name exclusions matched all %d subscription hosts", len(configs))
 	}
 	return kept, excluded, nil
+}
+
+// containsStandaloneNameMarker matches a marker delimited by punctuation or
+// whitespace without treating it as a substring of an ordinary word. Thus LTE
+// matches "Autoselect LTE | node", but not "MALTESE". Prefix matching at the
+// beginning of a host name remains intentionally supported for compatibility.
+func containsStandaloneNameMarker(name, marker string) bool {
+	if name == "" || marker == "" {
+		return false
+	}
+	searchFrom := 0
+	for searchFrom <= len(name)-len(marker) {
+		relative := strings.Index(name[searchFrom:], marker)
+		if relative < 0 {
+			return false
+		}
+		start := searchFrom + relative
+		end := start + len(marker)
+		leftBoundary := start == 0
+		if !leftBoundary {
+			left, _ := utf8.DecodeLastRuneInString(name[:start])
+			leftBoundary = !unicode.IsLetter(left) && !unicode.IsDigit(left)
+		}
+		rightBoundary := end == len(name)
+		if !rightBoundary {
+			right, _ := utf8.DecodeRuneInString(name[end:])
+			rightBoundary = !unicode.IsLetter(right) && !unicode.IsDigit(right)
+		}
+		if leftBoundary && rightBoundary {
+			return true
+		}
+		_, size := utf8.DecodeRuneInString(name[start:])
+		searchFrom = start + size
+	}
+	return false
 }
 
 func ReadFromMultipleSources(urls []string) ([]*models.ProxyConfig, error) {

@@ -16,6 +16,10 @@ services:
         TARGETOS: linux
         TARGETARCH: arm64
     image: xray-checker:local
+    # Pass dynamic REMNAWAVE_<ID>_* variables through without hard-coding every
+    # future panel ID here. This env file is available only to the checker.
+    env_file:
+      - .env
     environment:
       SUBSCRIPTION_URL: ${SUBSCRIPTION_URL:?add SUBSCRIPTION_URL to .env}
       # Poll panel metadata, but only check new or changed nodes.
@@ -93,6 +97,11 @@ services:
       - TCP:172.17.0.1:2113
     ports:
       - "127.0.0.1:2112:2112"
+    # 172.17.0.1 is the gateway of Docker's built-in bridge, where the
+    # host-network checker listens. Compose's project network may receive a
+    # different subnet (for example 172.19.0.0/16), so pin the forwarder to the
+    # bridge whose gateway is used above.
+    network_mode: bridge
     depends_on:
       xray-checker:
         condition: service_healthy

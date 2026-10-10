@@ -27,7 +27,9 @@ var (
 )
 
 func main() {
-	config.Parse(version)
+	if err := config.Parse(version); err != nil {
+		logger.Fatal("Invalid configuration: %v", err)
+	}
 
 	logLevel := logger.ParseLevel(config.CLIConfig.LogLevel)
 	logger.SetLevel(logLevel)

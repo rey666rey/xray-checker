@@ -41,6 +41,7 @@ func (updater *subscriptionUpdater) Refresh() (checker.ProxyUpdatePlan, error) {
 	}
 
 	newConfigs, _ = updater.resolveDomains(newConfigs, 1)
+	updater.proxyChecker.StabilizeHealthySNI(*updater.configs, newConfigs)
 	reads := [][]*models.ProxyConfig{newConfigs}
 	sampleCount := config.CLIConfig.Subscription.PoolSamples
 	if sampleCount < 1 {
@@ -62,6 +63,7 @@ func (updater *subscriptionUpdater) Refresh() (checker.ProxyUpdatePlan, error) {
 		if !resolved && config.CLIConfig.Proxy.ResolveDomains {
 			continue
 		}
+		updater.proxyChecker.StabilizeHealthySNI(*updater.configs, nextSample)
 		reads = append(reads, nextSample)
 	}
 

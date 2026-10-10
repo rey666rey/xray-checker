@@ -70,6 +70,27 @@ func (plan ProxyUpdatePlan) Count(kind ProxyChangeKind) int {
 	return count
 }
 
+// StabilizeHealthySNI keeps a proven working SNI when a panel rotates the SNI
+// of an otherwise identical endpoint. Failed or unchecked endpoints retain the
+// newly observed SNI so a subscription refresh can repair a broken handshake.
+func (pc *ProxyChecker) StabilizeHealthySNI(current, observed []*models.ProxyConfig) {
+	currentByEndpoint := make(map[string]*models.ProxyConfig, len(current))
+	for _, proxy := range current {
+		currentByEndpoint[endpointPoolKey(proxy)] = proxy
+	}
+
+	for _, candidate := range observed {
+		active := currentByEndpoint[endpointPoolKey(candidate)]
+		if active == nil || active.SNI == candidate.SNI {
+			continue
+		}
+		result, ok := pc.results.Load(proxyMetricKey(active))
+		if ok && result.(proxyResult).status {
+			candidate.SNI = active.SNI
+		}
+	}
+}
+
 // PlanProxyUpdate keeps a logical node identity across subscription revisions.
 // Exact private connection revisions are paired first (covering renames), then
 // remaining entries are paired by panel display identity (covering IP/config

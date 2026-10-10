@@ -108,12 +108,12 @@ func TestGenerateIDs_RawJSONKeyOrderIndependent(t *testing.T) {
 	}
 }
 
-func TestGenerateRevisionID_IgnoresVolatileSNI(t *testing.T) {
+func TestGenerateRevisionIDIncludesSNI(t *testing.T) {
 	left := baseProxy()
 	right := baseProxy()
 	right.SNI = "rotated.example.com"
-	if left.GenerateRevisionID() != right.GenerateRevisionID() {
-		t.Fatal("monitoring revision must ignore panel-rotated SNI")
+	if left.GenerateRevisionID() == right.GenerateRevisionID() {
+		t.Fatal("monitoring revision must include SNI so failed handshakes can be repaired")
 	}
 	if left.GenerateStableID() == right.GenerateStableID() {
 		t.Fatal("public connection StableID should still describe the active SNI")

@@ -1059,6 +1059,25 @@ components:
           items:
             type: string
           example: ["Premium VPN", "Basic VPN"]
+        remnawavePanels:
+          type: array
+          description: Remnawave panel-to-subscription mappings; credentials are never exposed
+          items:
+            $ref: '#/components/schemas/RemnawavePanelInfo'
+
+    RemnawavePanelInfo:
+      type: object
+      properties:
+        id:
+          type: string
+          example: rw220
+        subscription:
+          type: string
+          example: 220V
+        configured:
+          type: boolean
+          description: Both the API URL and API token are present
+          example: true
 
     SystemInfoResponse:
       type: object

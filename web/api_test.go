@@ -130,6 +130,35 @@ func TestAPIConfigReturnsExcludedNamePrefixes(t *testing.T) {
 	}
 }
 
+func TestAPIConfigReturnsSafeRemnawavePanelSummary(t *testing.T) {
+	previousConfig := config.CLIConfig
+	t.Cleanup(func() { config.CLIConfig = previousConfig })
+	config.CLIConfig.RemnawavePanels = []config.RemnawavePanel{{
+		ID:           "rw220",
+		Subscription: "220V",
+		APIURL:       "https://panel.example.com",
+		APIToken:     "must-not-leak",
+	}}
+
+	proxyChecker := checker.NewProxyChecker(nil, 10000, "", 1, "", "", 1, 1, "urltest", 1)
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest("GET", "/api/v1/config", nil)
+	APIConfigHandler(proxyChecker).ServeHTTP(recorder, request)
+
+	var response struct {
+		Data ConfigResponse `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Data.RemnawavePanels) != 1 || response.Data.RemnawavePanels[0] != (RemnawavePanelInfo{ID: "rw220", Subscription: "220V", Configured: true}) {
+		t.Fatalf("unexpected Remnawave summary: %#v", response.Data.RemnawavePanels)
+	}
+	if strings.Contains(recorder.Body.String(), "must-not-leak") || strings.Contains(recorder.Body.String(), "panel.example.com") {
+		t.Fatalf("Remnawave credentials leaked through config API: %s", recorder.Body.String())
+	}
+}
+
 func TestAPINodesGroupsSeveralHostsOnOneEndpoint(t *testing.T) {
 	proxies := []*models.ProxyConfig{
 		{Protocol: "vless", Security: "reality", Name: "Germany (s1)", Server: "192.0.2.10", Port: 443, UUID: "00000000-0000-4000-8000-000000000001"},

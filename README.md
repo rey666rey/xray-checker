@@ -509,6 +509,26 @@ to the server. Keep the value quoted; otherwise `.env` treats `#` as a comment.
 
 `.env` is ignored by Git. Never commit real subscription URLs or HWIDs.
 
+### Remnawave panel mapping
+
+Register stable panel IDs once, then bind every ID to the exact subscription
+name from its `#fragment`:
+
+```dotenv
+REMNAWAVE_PANELS="rw220,rwleto,rwmaster,rwdog"
+
+REMNAWAVE_RW220_SUBSCRIPTION="220V"
+REMNAWAVE_RW220_API_URL="https://panel-220.example.com"
+REMNAWAVE_RW220_API_TOKEN="replace-with-api-token"
+```
+
+Every panel uses the same three variables:
+`REMNAWAVE_<ID>_SUBSCRIPTION`, `REMNAWAVE_<ID>_API_URL`, and
+`REMNAWAVE_<ID>_API_TOKEN`. `API_URL` and `API_TOKEN` may both stay empty while
+the mapping is being prepared, but setting only one of them is rejected. Panel
+IDs accept lowercase letters, digits, and underscores. API credentials are not
+returned by the checker config API.
+
 ## Find the iPhone USB interface
 
 Attach and unlock the iPhone, enable Personal Hotspot, then run:
@@ -607,7 +627,7 @@ Values are defined in [`compose.yaml`](compose.yaml).
 | `SUBSCRIPTION_POOL_SAMPLES` | `4` | independent snapshots per cycle |
 | `SUBSCRIPTION_JSON_FORMAT` | `true` | request full JSON configs |
 | `PROXY_INITIAL_CHECK_ONLY` | `true` | one full sweep, then targeted scheduling |
-| `PROXY_EXCLUDE_NAME_PREFIXES` | `LTE` | case-insensitive host-name prefixes omitted from Xray and all monitoring |
+| `PROXY_EXCLUDE_NAME_PREFIXES` | `LTE` | case-insensitive host-name prefixes or standalone markers omitted from Xray and all monitoring |
 | `PROXY_CHECK_CONCURRENCY` | `30` | first-pass concurrency |
 | `PROXY_RETRY_CONCURRENCY` | `10` | retry/targeted concurrency |
 | `PROXY_TIMEOUT` | `4` | seconds per fast attempt |

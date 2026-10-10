@@ -176,12 +176,6 @@ func (pc *ProxyConfig) revisionComparable() ProxyConfig {
 	clone.HostID = ""
 	clone.NodeID = ""
 	clone.MetricsLabels = nil
-	// This panel rotates SNI choices on every otherwise-identical subscription
-	// response for hundreds of nodes. Treating that volatile choice as a repair
-	// revision would restart Xray and recheck most of the fleet every minute.
-	// Fresh process starts still consume the latest SNI; live repair monitoring is
-	// intentionally driven by the endpoint and the remaining connection fields.
-	clone.SNI = ""
 	clone.RawXhttpSettings = canonicalRawJSON(clone.RawXhttpSettings)
 	clone.RawKcpSettings = canonicalRawJSON(clone.RawKcpSettings)
 	clone.ALPN = sortedStrings(clone.ALPN)
