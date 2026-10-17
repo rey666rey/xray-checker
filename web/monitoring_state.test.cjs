@@ -1,0 +1,51 @@
+// Unit tests for the rendered dashboard model; no browser or external API calls.
+const fs = require('node:fs');
+const vm = require('node:vm');
+const assert = require('node:assert/strict');
+const html = fs.readFileSync(process.argv[2], 'utf8');
+const script = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map(m => m[1]).find(s => s.includes('function dashboard()'));
+const start = script.indexOf('function dashboard()');
+const factory = vm.runInNewContext('(' + script.slice(start).trim() + ')', {
+  localStorage: { getItem: () => null, setItem() {} }, getUrlParam: () => false,
+  URLSearchParams, window: { location: { search: '' } }, console,
+});
+const app = factory();
+app.$nextTick = () => {};
+assert.equal(app.panelSummaries.length, 4);
+assert.equal(app.displayedMonitorPanels[0].name, 'LETO');
+assert.equal(app.panelVisibleProxies('MASTER').length, 4);
+assert.equal(app.panelFilteredProxies('MASTER').length, 30);
+assert.equal(app.panelVisibleProxies('MASTER')[0].stableId, 'node-0-0');
+assert.equal(app.monitorHostView(app.proxies.find(p => p.stableId === 'node-0-0')).tone, 'tunnel');
+assert.equal(app.monitorHostView(app.proxies.find(p => p.stableId === 'node-0-2')).label, 'Под подозрением');
+assert.equal(app.monitorHostView(app.proxies.find(p => p.stableId === 'node-0-5')).label, 'Работает');
+app.setMonitorFilter('MASTER', 'offline');
+assert.equal(app.panelVisibleProxies('MASTER').length, 1);
+assert.equal(app.panelState('LETO').filter, 'all');
+app.setMonitorFilter('MASTER', 'all');
+app.panelState('LETO').search = 'Япония';
+assert.equal(app.panelFilteredProxies('LETO').length, 15);
+assert.equal(app.panelFilteredProxies('MASTER').length, 30);
+app.panelState('LETO').search = '';
+app.search = '__no_match__';
+assert.equal(app.panelVisibleProxies('MASTER').length, 0);
+app.search = '';
+app.openMonitorPanel('MASTER');
+assert.equal(app.displayedMonitorPanels.length, 1);
+assert.equal(app.panelVisibleProxies('MASTER').length, 24);
+app.changeMonitorPage('MASTER', 1);
+assert.equal(app.panelVisibleProxies('MASTER').length, 6);
+app.setMonitorFilter('MASTER', 'online');
+assert.equal(app.monitorPageIndex('MASTER'), 0);
+assert.equal(app.panelFilteredProxies('MASTER').length, 28);
+app.setMonitorFilter('MASTER', 'checking');
+assert.equal(app.panelFilteredProxies('MASTER').length, 1);
+app.setMonitorFilter('MASTER', 'all');
+app.panelState('MASTER').sort = 'latency-asc';
+const values = app.panelFilteredProxies('MASTER').filter(p => p.latencyMs > 0).map(p => p.latencyMs);
+assert(values.every((n, i) => i === 0 || n >= values[i - 1]));
+app.closeMonitorPanel();
+assert.equal(app.displayedMonitorPanels.length, 4);
+assert.equal(app.panelVisibleProxies('MASTER').length, 4);
+assert.equal(app.stats.total, app.stats.online + app.stats.offline + app.stats.checking);
+console.log('MONITOR_STATE_PASS: preview=4; page=24; isolation/search/filter/sort/status=PASS');

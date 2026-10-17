@@ -13,11 +13,11 @@
     <link
       rel="icon"
       type="image/png"
-      href="./static/favicon-96x96.png"
+      href="./static/favicon-96x96.png?v=0a99573ec839"
       sizes="96x96"
     />
-    <link rel="icon" type="image/svg+xml" href="./static/favicon.svg" />
-    <link rel="shortcut icon" href="./static/favicon.ico" />
+    <link rel="icon" type="image/svg+xml" href="./static/favicon.svg?v=0a99573ec839" />
+    <link rel="shortcut icon" href="./static/favicon.ico?v=0a99573ec839" />
     <link
       rel="apple-touch-icon"
       sizes="180x180"
@@ -50,6 +50,64 @@
       .source-card button { min-height: 2.5rem; }
       .source-selected { border-color: var(--color-green) !important; }
       .source-status { padding: .75rem; border-radius: .5rem; background: var(--bg-tertiary); margin-bottom: 1rem; overflow-wrap: anywhere; }
+      .dashboard-shell { width:100%; max-width:1920px; margin:0 auto; padding:30px 36px; }
+      .monitor-stats-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; padding:20px 0; margin-bottom:.25rem; }
+      .monitor-stat-card { display:flex; align-items:center; justify-content:space-between; gap:.65rem; min-width:0; padding:13px 15px !important; border-radius:12px !important; text-align:left !important; background:var(--bg-secondary); }
+      .monitor-stat-label { color:var(--text-secondary); font-size:.75rem; }
+      .monitor-stat-note { color:var(--text-muted); font-size:.625rem; margin-top:2px; }
+      .monitor-stat-value { flex:none; font-size:1.3rem; font-weight:650; letter-spacing:-.04em; font-variant-numeric:tabular-nums; }
+      .monitor-overview { display:flex; align-items:flex-end; justify-content:space-between; gap:1rem; margin:3px 0 12px; }
+      .monitor-overview h2 { margin:0; font-size:1.125rem; font-weight:620; letter-spacing:-.025em; }
+      .monitor-overview p { margin:4px 0 0; color:var(--text-muted); font-size:.75rem; }
+      .monitor-global-tools { display:flex; align-items:center; gap:.5rem; min-width:0; }
+      .monitor-global-search { width:min(32rem, 42vw); height:2.25rem; padding:0 .7rem; color:var(--text-primary); background:#10151a; border:1px solid var(--border); border-radius:.5rem; font-size:.75rem; }
+      .monitor-global-search:focus { outline:2px solid color-mix(in srgb,var(--color-green) 45%,transparent); border-color:var(--color-green); }
+      .monitor-access-tag { padding:.38rem .6rem; border:1px solid #40345e; border-radius:.5rem; color:#c1a8ff; background:#211a31; font-size:.7rem; white-space:nowrap; }
+      .brand-avatar { display: block; width: 2.5rem; height: 2.5rem; flex: 0 0 2.5rem; border-radius: .75rem; overflow: hidden; border: 1px solid color-mix(in srgb, var(--color-green) 38%, var(--border)); box-shadow: 0 0 16px color-mix(in srgb, var(--color-green) 12%, transparent); }
+      .brand-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
+      .monitor-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.15rem; margin-bottom: 1.25rem; }
+      .monitor-panel { min-width: 0; overflow: hidden; border:1px solid var(--border); background:var(--bg-secondary); border-radius:13px; }
+      .monitor-panel-icon { display:grid; place-items:center; width:28px; height:28px; flex:0 0 28px; border-radius:8px; color:#aebdca; background:#1a242d; font-size:.7rem; font-weight:700; }
+      .monitor-panel-subtitle { display:block; color:var(--text-muted); font-size:.625rem; margin-top:2px; }
+      .monitor-panel-has-offline { border-color: color-mix(in srgb, var(--color-red) 38%, var(--border)); }
+      .monitor-panel-has-checking { border-color: color-mix(in srgb, var(--color-yellow) 32%, var(--border)); }
+      .monitor-panel-head { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:1rem 1.15rem; border-bottom:1px solid var(--border); }
+      .monitor-panel-has-offline .monitor-panel-head { background:linear-gradient(100deg,color-mix(in srgb,var(--color-red) 8%,transparent),transparent 42%); }
+      .monitor-panel-has-checking .monitor-panel-head { background:linear-gradient(100deg,color-mix(in srgb,var(--color-yellow) 7%,transparent),transparent 42%); }
+      .monitor-panel-title-row { display:flex; align-items:center; gap:.55rem; }
+      .monitor-panel-title-stack { min-width:0; }
+      .monitor-panel-health-dot { width:.55rem; height:.55rem; flex:0 0 auto; border-radius:999px; background:var(--color-green); box-shadow:0 0 0 3px color-mix(in srgb,var(--color-green) 12%,transparent); }
+      .monitor-panel-has-offline .monitor-panel-health-dot { background:var(--color-red); box-shadow:0 0 0 3px color-mix(in srgb,var(--color-red) 14%,transparent); }
+      .monitor-panel-has-checking .monitor-panel-health-dot { background:var(--color-yellow); box-shadow:0 0 0 3px color-mix(in srgb,var(--color-yellow) 14%,transparent); }
+      .monitor-panel-alert { display:inline-flex; align-items:center; gap:.35rem; padding:.3rem .55rem; border-radius:999px; color:var(--color-red); background:color-mix(in srgb,var(--color-red) 12%,var(--bg-secondary)); border:1px solid color-mix(in srgb,var(--color-red) 32%,var(--border)); font-size:.68rem; font-weight:650; white-space:nowrap; }
+      .monitor-panel-alert.checking { color:var(--color-yellow); background:color-mix(in srgb,var(--color-yellow) 10%,var(--bg-secondary)); border-color:color-mix(in srgb,var(--color-yellow) 30%,var(--border)); }
+      .monitor-stat-alert { border-color:color-mix(in srgb,var(--color-red) 40%,var(--border)) !important; background:linear-gradient(110deg,color-mix(in srgb,var(--color-red) 9%,var(--bg-secondary)),var(--bg-secondary) 68%); }
+      .monitor-panel-tools { display:flex; flex-wrap:wrap; align-items:center; gap:.55rem; padding:.75rem 1rem; border-bottom:1px solid #202830; }
+      .monitor-panel-tools input { flex:1 1 8rem; min-width:7rem; }
+      .monitor-panel-tools select { width:auto; min-width:8rem; padding:.48rem .65rem; font-size:.72rem; }
+      .monitor-panel-filters { display:flex; gap:.2rem; padding:.24rem; border:1px solid var(--border); background:var(--bg-primary); border-radius:.6rem; }
+      .monitor-panel-filters button { padding:.38rem .6rem; border-radius:.4rem; font-size:.7rem; white-space:nowrap; }
+      .monitor-panel-hosts { display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:.75rem; padding:.9rem; }
+      .monitor-panel-hosts .proxy-card { position:relative; min-width:0; min-height:7rem; padding:1rem 1.05rem  .9rem 1.15rem; border:1px solid #27313a; border-radius:12px; background:#141a20; }
+      .monitor-panel-hosts .proxy-card::before { content:""; position:absolute; left:0; top:16px; bottom:16px; width:3px; border-radius:0 3px 3px 0; background:var(--color-green); }
+      .monitor-panel-hosts .proxy-card.monitor-host-offline::before { background:var(--color-red); }
+      .monitor-panel-hosts .proxy-card.monitor-host-checking::before { background:var(--color-violet,#b49aff); }
+      .monitor-panel-hosts .proxy-card-heading { align-items:center; }
+      .monitor-panel-hosts .proxy-card-title { font-size:.75rem; font-weight:570; }
+      .monitor-panel-hosts .proxy-card-main { gap:.55rem; }
+      .monitor-panel-hosts .proxy-card-cause { max-width:11rem; min-width:0; }
+      .monitor-panel-hosts .proxy-card-side { gap:.2rem; }
+      .monitor-panel-hosts .proxy-card-time { font-size:.68rem; }
+      .monitor-panel-hosts .proxy-card-heading { margin-bottom:.3rem; }
+      .monitor-panel-hosts .proxy-card-cause { min-width:7.5rem; }
+      .monitor-panel-hosts .monitor-host-offline { border-color:color-mix(in srgb,var(--color-red) 48%,var(--border)); background:linear-gradient(110deg,color-mix(in srgb,var(--color-red) 8%,var(--bg-secondary)),var(--bg-secondary) 62%); box-shadow:inset 3px 0 0 color-mix(in srgb,var(--color-red) 78%,transparent); }
+      .monitor-panel-hosts .monitor-host-checking { border-color:color-mix(in srgb,var(--color-yellow) 42%,var(--border)); background:linear-gradient(110deg,color-mix(in srgb,var(--color-yellow) 7%,var(--bg-secondary)),var(--bg-secondary) 62%); box-shadow:inset 3px 0 0 color-mix(in srgb,var(--color-yellow) 75%,transparent); }
+      .monitor-panel-hosts .monitor-host-offline .proxy-card-title { color:var(--text-primary); }
+      .monitor-panel-foot { display:flex; justify-content:space-between; gap:.6rem; padding:0 1rem .85rem; color:var(--text-muted); font-size:.7rem; }
+      @media (max-width: 760px) { .dashboard-shell { padding:22px 20px; } .monitor-panel-head { align-items:flex-start; } .monitor-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+      @media (max-width: 760px) { .monitor-overview { align-items:flex-start; flex-direction:column; } .monitor-global-tools { width:100%; } .monitor-global-search { width:auto; flex:1; } }
+      @media (max-width: 520px) { .monitor-stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; } }
+      @media (max-width: 520px) { .dashboard-shell { padding:16px 12px; } .monitor-panel-hosts { grid-template-columns:minmax(0,1fr); } .monitor-panel-tools input { flex-basis:100%; } .monitor-stats-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:.5rem; } .monitor-stat-card { padding:11px !important; } .monitor-stat-note { display:none; } .monitor-global-tools { flex-wrap:wrap; } .monitor-access-tag { flex:0 0 auto; } }
       @media (max-width: 640px) { .source-layout, .source-panel-overview { grid-template-columns: minmax(0, 1fr); } }
       * {
         font-family: "Inter", "Twemoji Country Flags", system-ui, sans-serif;
@@ -1450,6 +1508,70 @@
       .connection-pill {
         max-width: 15rem;
       }
+	  .network-source-toggle {
+		display: flex;
+		align-items: stretch;
+		gap: 2px;
+		padding: 3px;
+		border: 1px solid color-mix(in srgb, var(--color-green) 38%, var(--border));
+		border-radius: .65rem;
+		background: color-mix(in srgb, var(--color-green) 4%, var(--bg-secondary));
+		min-width: 0;
+	  }
+	  .network-source-option {
+		min-width: 0;
+		min-height: 2.25rem;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: .45rem;
+		border: 0;
+		border-radius: .45rem;
+		padding: 0 .6rem;
+		background: transparent;
+		color: var(--text-secondary);
+		font-size: .75rem;
+		white-space: nowrap;
+		transition: color 160ms ease, background 160ms ease;
+	  }
+	  .network-source-option:hover:not(:disabled) { background: var(--hover-bg); }
+	  .network-source-option[aria-pressed="true"] {
+		background: linear-gradient(180deg, color-mix(in srgb, var(--color-green) 18%, var(--bg-secondary)), color-mix(in srgb, var(--color-green) 11%, var(--bg-secondary)));
+		color: var(--color-green);
+		box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-green) 52%, transparent), 0 2px 10px color-mix(in srgb, var(--color-green) 11%, transparent);
+	  }
+	  .source-route-state {
+		display:inline-flex;
+		align-items:center;
+		padding:.15rem .38rem;
+		border-radius:999px;
+		font-size:.58rem;
+		font-weight:700;
+		letter-spacing:.01em;
+		line-height:1.3;
+		background:color-mix(in srgb, var(--color-red) 12%, transparent);
+		color:var(--color-red);
+	  }
+	  .source-route-state.is-connected { background:color-mix(in srgb, var(--color-green) 16%, transparent); color:var(--color-green); }
+	  .source-route-state.is-switching { background:color-mix(in srgb, var(--color-yellow) 14%, transparent); color:var(--color-yellow); }
+	  .connection-control.connection-waiting .network-source-option[aria-pressed="true"],
+	  .connection-control.connection-recovering .network-source-option[aria-pressed="true"] {
+		background: color-mix(in srgb, var(--color-yellow) 10%, transparent);
+		color: var(--color-yellow);
+		box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-yellow) 30%, transparent);
+	  }
+	  .connection-control.connection-connected .network-source-toggle { border-color:color-mix(in srgb,var(--color-green) 58%,var(--border)); }
+	  .network-source-option:disabled { cursor: wait; opacity: .72; }
+	  .network-source-option .source-ip {
+		max-width: 8rem;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		font-variant-numeric: tabular-nums;
+	  }
+	  @media (max-width: 420px) {
+		.network-source-option { padding: 0 .45rem; gap: .35rem; }
+		.network-source-option .source-ip { max-width: 5rem; }
+	  }
 	  .connection-control {
 		display: flex;
 		align-items: stretch;
@@ -1492,6 +1614,8 @@
         flex-shrink: 0;
         position: relative;
       }
+      .connection-dot-idle { background: var(--text-muted); }
+	  .connection-control.connection-connected .network-source-option:not([aria-pressed="true"]) .connection-dot { background: var(--text-muted); }
       .connection-connected {
         color: var(--color-green);
         border-color: color-mix(in srgb, var(--color-green) 30%, transparent);
@@ -1743,6 +1867,186 @@
       .badge-transparent {
         background: transparent;
       }
+
+      /* Reference masthead: component styles do not depend on generated utilities. */
+      .dashboard-top-surface {
+        --top-bg:#0b0e12; --top-surface:#11161c; --top-line:#252e38;
+        --top-muted:#8994a3; --top-text:#edf2f7; --top-green:#3fe09b;
+        position:relative; isolation:isolate; color:var(--top-text); font-size:14px; line-height:1.4;
+      }
+      .dashboard-top-surface, .dashboard-top-surface * { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+      .dashboard-top-surface::before { content:""; position:absolute; inset:-30px -36px 0; background:var(--top-bg); z-index:-1; }
+      .panel-masthead { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:0 0 20px; border-bottom:1px solid var(--top-line); }
+      .panel-masthead-left { min-width:0; }
+      .panel-brand { display:flex; align-items:center; gap:12px; min-width:180px; }
+      .panel-brand-avatar { width:42px; height:42px; flex:none; border-radius:12px; overflow:hidden; border:1px solid rgba(52,211,153,.38); box-shadow:0 0 18px rgba(52,211,153,.15); }
+      .panel-brand-avatar img { display:block; width:100%; height:100%; object-fit:cover; }
+      .panel-brand h1 { display:block; margin:0; color:var(--top-text); font-size:15px; font-weight:700; letter-spacing:.01em; line-height:1.4; }
+      .panel-brand p { display:block; margin:2px 0 0; color:var(--top-muted); font-size:11px; line-height:1.4; }
+      .panel-top-nav { display:flex; flex-wrap:wrap; gap:5px; margin-top:15px; }
+      .panel-top-nav button, .panel-top-source button { font:inherit; color:var(--top-muted); background:transparent; border:1px solid transparent; border-radius:8px; padding:8px 12px; cursor:pointer; }
+      .panel-top-nav button.active { color:#68efb2; background:#10271f; border-color:#1d6345; }
+      .panel-top-actions { display:flex; align-items:center; justify-content:flex-end; gap:8px; flex-wrap:wrap; min-width:0; }
+      .panel-top-source { display:flex; align-items:center; background:#121920; border:1px solid #29343e; border-radius:10px; padding:3px; gap:2px; }
+      .panel-top-source button { display:inline-flex; align-items:center; padding:7px 10px; font-size:12px; white-space:nowrap; }
+      .panel-top-source button.selected { color:#7cf0b8; background:linear-gradient(180deg,#1b4934,#153525); border-color:#347b57; box-shadow:inset 0 0 0 1px #54d99455,0 3px 14px #3fe09b18; }
+      .panel-top-live { display:inline-block; width:7px; height:7px; flex:none; border-radius:50%; background:var(--top-green); margin-right:6px; box-shadow:0 0 10px #3fe09b66; }
+      .panel-top-route, .panel-top-refresh, .panel-top-countdown { border:1px solid var(--top-line); background:var(--top-surface); color:#c3ccd5; border-radius:9px; padding:8px 10px; font:inherit; font-size:12px; white-space:nowrap; }
+      .panel-top-route { display:inline-flex; align-items:center; }
+      .panel-top-route.connected { color:#74ebb1; background:#11271e; border-color:#286344; box-shadow:0 2px 12px #3fe09b12; }
+      .panel-top-route .panel-top-live { width:8px; height:8px; }
+      .panel-top-route.waiting { color:#f3b84b; border-color:#66512d; background:#241e14; white-space:normal; }
+      .panel-top-route.waiting .panel-top-live { background:currentColor; box-shadow:none; }
+      .panel-top-refresh { display:grid; place-items:center; width:36px; height:36px; flex:none; padding:0; font-size:16px; cursor:pointer; }
+      .panel-top-countdown { cursor:pointer; }
+      .panel-top-countdown[aria-pressed="false"] { color:var(--top-muted); }
+      .panel-masthead button:disabled { opacity:.55; cursor:wait; }
+      .panel-masthead button:focus-visible { outline:2px solid #50df9b; outline-offset:2px; }
+      .dashboard-top-surface .monitor-stats-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; padding:20px 0; margin:0; }
+      .dashboard-top-surface .monitor-stat-card { background:var(--top-surface); border:1px solid var(--top-line); border-radius:12px !important; padding:13px 15px !important; gap:10px; }
+      .dashboard-top-surface .monitor-stat-label { color:var(--top-muted); font-size:12px; }
+      .dashboard-top-surface .monitor-stat-note { display:block; color:#778392; font-size:10px; margin-top:2px; }
+      .dashboard-top-surface .monitor-stat-value { color:var(--top-text); font-size:21px; font-weight:650; letter-spacing:-.04em; white-space:nowrap; }
+      .dashboard-top-surface .monitor-stat-value.is-online { color:var(--top-green); }
+      .dashboard-top-surface .monitor-stat-value.is-checking { color:#f3b84b; }
+      .dashboard-top-surface .monitor-stat-value.is-offline { color:#fa6474; }
+      .dashboard-top-surface .monitor-stat-offline { border-color:#70303b; background:linear-gradient(100deg,#321a20,#15191e); }
+      .dashboard-top-surface .monitor-stat-unit { color:var(--top-muted); font-size:11px; font-weight:500; letter-spacing:0; }
+      .light .dashboard-top-surface { --top-bg:#f5f8fa; --top-surface:#fff; --top-line:#d0d9e8; --top-text:#0a0a0a; --top-muted:#4b5563; --top-green:#008f51; }
+      .light .panel-top-nav button.active { color:#087747; background:#e0f3e8; border-color:#8ec8a9; }
+      .light .panel-top-source { background:#edf1f7; border-color:#c5d1de; }
+      .light .panel-top-source button.selected { color:#087747; background:#d9efdf; border-color:#80b995; }
+      .light .panel-top-route.connected { color:#087747; background:#e0f3e8; border-color:#8ec8a9; }
+      .light .panel-top-refresh, .light .panel-top-countdown { color:#4b5563; }
+      .light .dashboard-top-surface .monitor-stat-offline { border-color:#dd9ca5; background:linear-gradient(100deg,#fbe8eb,#fff); }
+      .light .dashboard-top-surface .monitor-stat-note { color:#657286; }
+      @media(max-width:1100px) { .panel-top-actions { max-width:55%; } .dashboard-top-surface .monitor-stat-card { flex-wrap:wrap; } }
+      @media(max-width:760px) {
+        .dashboard-top-surface::before { inset:-22px -20px 0; }
+        .panel-masthead { align-items:flex-start; flex-direction:column; }
+        .panel-top-actions { justify-content:flex-start; max-width:100%; }
+        .dashboard-top-surface .monitor-stats-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      }
+      @media(max-width:520px) {
+        .dashboard-top-surface::before { inset:-16px -12px 0; }
+        .dashboard-top-surface .monitor-stats-grid { gap:8px; }
+        .dashboard-top-surface .monitor-stat-card { padding:12px !important; }
+        .dashboard-top-surface .monitor-stat-label { font-size:11px; }
+        .dashboard-top-surface .monitor-stat-note { font-size:9px; }
+        .dashboard-top-surface .monitor-stat-value { font-size:20px; }
+        .panel-top-route { max-width:100%; }
+      }
+
+      /* Panel-oriented monitoring: reference palette, compact previews, readable cards. */
+      .monitor-workspace { --mw-bg:#0b0e12; --mw-surface:#11161c; --mw-line:#252e38; --mw-muted:#8994a3; --mw-text:#edf2f7; --mw-green:#3fe09b; position:relative; isolation:isolate; color:var(--mw-text); font-size:14px; line-height:1.4; }
+      .monitor-workspace::before { content:""; position:absolute; inset:0 -36px; z-index:-1; background:var(--mw-bg); }
+      .monitor-workspace, .monitor-workspace * { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+      .monitor-workspace button { cursor:pointer; }
+      .monitor-workspace button:disabled { opacity:.45; cursor:not-allowed; }
+      .monitor-workspace button:focus-visible, .monitor-workspace input:focus-visible, .monitor-workspace select:focus-visible { outline:2px solid #50df9b; outline-offset:2px; }
+      .monitor-workspace .monitor-overview { align-items:flex-end; gap:12px; margin:3px 0 12px; }
+      .monitor-workspace .monitor-overview h2 { font-size:18px; font-weight:620; color:var(--mw-text); letter-spacing:-.025em; }
+      .monitor-workspace .monitor-overview p { margin:4px 0 0; font-size:12px; color:var(--mw-muted); }
+      .monitor-workspace .monitor-global-tools { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+      .monitor-search-box { height:34px; display:flex; align-items:center; gap:8px; border:1px solid var(--mw-line); border-radius:8px; background:#10151a; color:#bac4cf; padding:0 11px; min-width:210px; }
+      .monitor-workspace .monitor-global-search { flex:1; width:175px; min-width:0; height:32px; border:0; border-radius:0; background:transparent; color:#bac4cf; padding:0; font:inherit; font-size:12px; }
+      .monitor-workspace .monitor-global-search:focus { outline:none; }
+      .monitor-search-box:focus-within, .monitor-local-search:focus-within { outline:2px solid #50df9b; outline-offset:2px; }
+      .monitor-workspace .monitor-global-search::placeholder { color:#bac4cf; opacity:1; }
+      .monitor-workspace .monitor-local-search input::placeholder { color:#778392; opacity:1; }
+      .monitor-search-box > span, .monitor-local-search > span { font-size:12px; }
+      .monitor-workspace .monitor-access-tag { border:1px solid #40345e; color:#c1a8ff; background:#211a31; padding:6px 9px; border-radius:8px; font-size:11px; white-space:nowrap; }
+      .monitor-workspace .monitor-panels { display:grid; grid-template-columns:minmax(0,1fr); gap:20px; margin-bottom:16px; }
+      .monitor-workspace .monitor-panel { border:1px solid var(--mw-line); background:var(--mw-surface); border-radius:13px; min-width:0; overflow:hidden; }
+      .monitor-workspace .monitor-panel-has-offline { border-color:#5b3038; }
+      .monitor-workspace .monitor-panel-head { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:17px 19px 15px; border-bottom:1px solid var(--mw-line); }
+      .monitor-workspace .monitor-panel-has-offline .monitor-panel-head { background:linear-gradient(100deg,#24171b 0,#12171c 44%); }
+      .monitor-workspace .monitor-panel-title-row { display:flex; align-items:center; gap:9px; min-width:0; }
+      .monitor-workspace .monitor-panel-icon { width:28px; height:28px; flex:none; border-radius:8px; background:#1a242d; color:#aebdca; font-size:12px; font-weight:700; }
+      .monitor-workspace .monitor-panel-title-stack { min-width:0; }
+      .monitor-panel-title-stack h3 { margin:0; font-size:13px; font-weight:620; color:var(--mw-text); overflow-wrap:anywhere; }
+      .monitor-workspace .monitor-panel-subtitle { color:var(--mw-muted); font-size:10px; margin-top:2px; }
+      .monitor-panel-summary { display:flex; align-items:center; justify-content:flex-end; gap:12px; flex-wrap:wrap; min-width:0; }
+      .monitor-panel-count { font-size:11px; font-variant-numeric:tabular-nums; color:#aeb8c4; white-space:nowrap; }
+      .monitor-panel-count strong { color:var(--mw-green); font-weight:600; }
+      .monitor-workspace .monitor-panel-alert { display:inline-flex; align-items:center; gap:5px; padding:5px 9px; border-radius:999px; color:#ff8590; border:1px solid #69343d; background:#351d23; font-size:10px; font-weight:650; white-space:nowrap; }
+      .monitor-workspace .monitor-panel-alert::before { content:""; width:6px; height:6px; border-radius:50%; background:currentColor; box-shadow:0 0 9px #fa647466; }
+      .monitor-workspace .monitor-panel-alert.checking { color:#f3b84b; background:#2a2416; border-color:#5a472a; }
+      .monitor-workspace .monitor-panel-tools { padding:12px 16px; display:flex; align-items:center; gap:9px; flex-wrap:wrap; border-bottom:1px solid #202830; }
+      .monitor-local-search { flex:1 1 160px; min-width:160px; height:36px; border:1px solid var(--mw-line); border-radius:8px; background:#0d1217; color:#778392; padding:0 11px; display:flex; align-items:center; gap:7px; }
+      .monitor-workspace .monitor-local-search input { flex:1; min-width:0; width:100%; height:34px; border:0; border-radius:0; padding:0; margin:0; font-size:12px; color:#bac4cf; background:transparent; outline:none; }
+      .monitor-workspace .monitor-panel-filters { display:flex; gap:3px; background:#0c1116; border:1px solid #222b34; padding:3px; border-radius:8px; }
+      .monitor-workspace .monitor-panel-filters button { display:block; padding:5px 9px; color:#8893a1; border:0; border-radius:6px; background:transparent; font:inherit; font-size:11px; white-space:nowrap; }
+      .monitor-workspace .monitor-panel-filters button.is-active { background:#26313a; color:#edf2f7; }
+      .monitor-workspace .monitor-panel-filters button.is-offline.is-active { background:#3a2027; color:#ff8290; }
+      .monitor-workspace .monitor-panel-tools select { width:auto; min-width:0; margin:0; font-size:10px; color:#a7b1bd; padding:5px 7px; border:1px solid #29323b; border-radius:6px; background:#10161c; }
+      .monitor-workspace .monitor-panel-hosts { padding:14px; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
+      .monitor-host { position:relative; min-width:0; min-height:112px; background:#141a20; border:1px solid #27313a; border-radius:12px; padding:15px 15px 13px 17px; }
+      .monitor-host::before { content:""; position:absolute; left:0; top:16px; bottom:16px; width:3px; border-radius:0 3px 3px 0; background:var(--mw-green); }
+      .monitor-host.tone-tunnel { border-color:#51416b; background:linear-gradient(115deg,#211b2b,#141a20 72%); }
+      .monitor-host.tone-tunnel::before { background:#b49aff; }
+      .monitor-host.tone-suspect, .monitor-host.tone-checking { border-color:#5a472a; background:linear-gradient(115deg,#262116,#141a20 72%); }
+      .monitor-host.tone-suspect::before, .monitor-host.tone-checking::before { background:#f3b84b; }
+      .monitor-host.tone-offline { border-color:#69343d; background:linear-gradient(115deg,#281b20,#141a20 72%); }
+      .monitor-host.tone-offline::before { background:#fa6474; }
+      .monitor-host-top { display:flex; justify-content:space-between; align-items:center; gap:5px; }
+      .monitor-host-title { display:block; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; font-weight:570; color:var(--mw-text); text-align:left; border:0; padding:0; background:transparent; }
+      .monitor-host-protocol { flex:none; color:#efb64d; border:1px solid #5a4520; background:#2c2518; padding:2px 5px; border-radius:5px; font-size:9px; white-space:nowrap; }
+      .monitor-workspace .monitor-host-address, .monitor-workspace .monitor-detail-address { font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace; color:#8e9baa; margin:7px 0 11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .monitor-host-bottom { display:flex; justify-content:space-between; align-items:center; gap:5px; margin-top:auto; }
+      .monitor-host-status { display:inline-flex; align-items:center; gap:6px; border:0; border-radius:6px; padding:4px 8px; font-size:10px; white-space:nowrap; color:#62dfa6; background:#142a21; max-width:100%; }
+      .monitor-host-status::before { content:""; width:5px; height:5px; flex:none; border-radius:50%; background:currentColor; }
+      .tone-tunnel .monitor-host-status { color:#c1a6ff; background:#282039; }
+      .tone-suspect .monitor-host-status, .tone-offline .monitor-host-status { color:#ff818d; background:#351f26; }
+      .tone-checking .monitor-host-status { color:#f3b84b; background:#302918; }
+      .monitor-host-metric { font-size:10px; color:#8c98a6; white-space:nowrap; }
+      .monitor-host-metric strong { color:#d4dbe2; font-weight:550; }
+      .monitor-workspace .monitor-panel-foot { padding:0 16px 14px; color:#6f7b89; font-size:11px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+      .monitor-open-panel { color:#6f7b89; font:inherit; border:0; background:transparent; padding:0; }
+      .monitor-open-panel:hover { color:var(--mw-text); }
+      .monitor-empty { padding:24px 0; text-align:center; color:var(--mw-muted); grid-column:1/-1; font-size:12px; }
+      .monitor-back, .monitor-pagination button, .monitor-detail-actions button { border:1px solid var(--mw-line); border-radius:7px; background:#171d24; color:#bac4cf; padding:6px 9px; font:inherit; font-size:11px; }
+      .monitor-pagination { display:flex; align-items:center; gap:8px; }
+      .monitor-node-detail { margin:0 14px 14px; padding:16px; border:1px solid #3b4653; border-radius:10px; background:#0d1217; color:#aeb8c4; font-size:12px; }
+      .monitor-node-detail:focus { outline:2px solid #50df9b; outline-offset:2px; }
+      .monitor-node-detail header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:10px; }
+      .monitor-node-detail header strong { display:block; color:var(--mw-text); overflow-wrap:anywhere; }
+      .monitor-node-detail header span { display:block; font-size:11px; color:var(--mw-muted); margin-top:4px; }
+      .monitor-node-detail header button { flex:none; border:0; background:transparent; color:var(--mw-muted); font-size:22px; line-height:1; }
+      .monitor-node-detail p { margin:5px 0; overflow-wrap:anywhere; }
+      .monitor-detail-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+      .light .monitor-workspace { --mw-bg:#f5f8fa; --mw-surface:#fff; --mw-line:#d0d9e8; --mw-muted:#526174; --mw-text:#101820; --mw-green:#087747; }
+      .light .monitor-workspace .monitor-panel-head, .light .monitor-workspace .monitor-panel-has-offline .monitor-panel-head { background:var(--mw-surface); }
+      .light .monitor-host, .light .monitor-search-box, .light .monitor-local-search, .light .monitor-node-detail { background:#fff; border-color:#c5d1de; }
+      .light .monitor-host-address, .light .monitor-host-metric, .light .monitor-host-metric strong, .light .monitor-workspace input { color:#526174; }
+      @media(max-width:1199px) { .monitor-workspace .monitor-panel-hosts { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+      @media(max-width:760px) { .monitor-workspace::before { inset:0 -20px; } .monitor-workspace .monitor-overview { flex-direction:column; align-items:flex-start; } .monitor-workspace .monitor-global-tools { width:100%; } .monitor-search-box { flex:1; min-width:140px; } .monitor-workspace .monitor-panel-head { align-items:flex-start; flex-wrap:wrap; } .monitor-panel-summary { flex:1 1 auto; } }
+      @media(max-width:640px) { .monitor-workspace .monitor-panel-hosts { grid-template-columns:minmax(0,1fr); } .monitor-local-search { flex-basis:100%; } .monitor-host-bottom { flex-wrap:wrap; } }
+      @media(max-width:520px) { .monitor-workspace::before { inset:0 -12px; } .monitor-workspace .monitor-panel-head { padding:14px; } .monitor-panel-summary { gap:7px; } .monitor-workspace .monitor-panel-tools { padding:12px; } .monitor-workspace .monitor-panel-hosts { padding:12px; } }
+
+      /* Finishing controls: quick IP copy, persistent per-panel collapse, reference footer. */
+      .monitor-workspace .monitor-panels { margin-bottom:0; }
+      .monitor-panel-collapse { display:grid; place-items:center; flex:none; width:26px; height:26px; padding:0; border:1px solid transparent; border-radius:6px; background:transparent; color:#8994a3; }
+      .monitor-panel-collapse:hover { color:#edf2f7; border-color:#29343e; background:#171d24; }
+      .monitor-panel-collapse svg { transition:transform .15s ease; }
+      .is-collapsed .monitor-panel-collapse svg { transform:rotate(-90deg); }
+      .monitor-workspace .monitor-panel.is-collapsed .monitor-panel-head { border-bottom-color:transparent; }
+      .monitor-host-address-row { display:flex; align-items:center; gap:7px; margin:7px 0; min-width:0; }
+      .monitor-workspace .monitor-host-address-row .monitor-host-address { flex:1; min-width:0; margin:0; }
+      .monitor-copy-ip { display:grid; place-items:center; width:24px; height:24px; flex:none; border:1px solid #27313a; border-radius:6px; color:#8e9baa; background:transparent; padding:0; }
+      .monitor-copy-ip:hover { color:#edf2f7; background:#202a34; border-color:#41505f; }
+      .dashboard-footer { position:relative; isolation:isolate; display:flex; justify-content:space-between; align-items:flex-start; gap:10px; padding:14px 0 0; color:#687483; font-size:10px; line-height:1.4; }
+      .dashboard-footer, .dashboard-footer * { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+      .dashboard-footer::before { content:""; position:absolute; inset:0 -36px -30px; z-index:-1; background:#0b0e12; }
+      .dashboard-footer strong { color:#a1adb9; font-weight:500; }
+      .dashboard-footer-left { min-width:0; }
+      .dashboard-footer-right { text-align:right; }
+      .light .dashboard-footer::before { background:#f5f8fa; }
+      .light .dashboard-footer { color:#657286; }
+      .light .dashboard-footer strong { color:#526174; }
+      @media(max-width:760px) { .dashboard-footer { flex-direction:column; } .dashboard-footer-right { text-align:left; } .dashboard-footer::before { inset:0 -20px -22px; } }
+      @media(max-width:520px) { .dashboard-footer::before { inset:0 -12px -16px; } .monitor-panel-collapse { width:30px; height:30px; } .monitor-copy-ip { width:28px; height:28px; } }
+      @media(prefers-reduced-motion:reduce) { .monitor-panel-collapse svg { transition:none; } }
     </style>
   </head>
 
@@ -1799,161 +2103,53 @@
       </template>
     </div>
 
-    <div x-show="!badgeMode" class="max-w-screen-2xl mx-auto px-4 lg:px-6 py-6">
-      <!-- Header -->
-      <header
-        x-show="showHeader"
-        class="flex flex-wrap gap-3 items-center justify-between mb-6"
-      >
-        <div class="flex items-center gap-3">
-          <div
-            class="w-9 h-9 rounded-lg card-flat flex items-center justify-center overflow-hidden"
-          >
-            <img
-              x-show="darkMode"
-              src="./static/logo-dark.svg"
-              alt="Logo"
-              class="w-7 h-7"
-            />
-            <img
-              x-show="!darkMode"
-              src="./static/logo-light.svg"
-              alt="Logo"
-              class="w-7 h-7"
-            />
+    <div x-show="!badgeMode" class="dashboard-shell">
+      <!-- The masthead and summary share the reference mockup's own tokens. -->
+      <div class="dashboard-top-surface">
+      <header x-show="showHeader" class="panel-masthead" data-panel-top>
+        <div class="panel-masthead-left">
+          <div class="panel-brand">
+            <div class="panel-brand-avatar"><img src="./static/sephiroth-avatar.png" alt="Xray Checker" /></div>
+            <div>
+              <h1>{{ if and .IsPublic .SubscriptionName }}{{ .SubscriptionName }}{{ else }}Xray Checker{{ end }}</h1>
+              <p>Мониторинг узлов</p>
+            </div>
           </div>
-          <div>
-            <h1 class="text-base font-semibold text-primary">
-              {{ if and .IsPublic .SubscriptionName }}{{ .SubscriptionName }}{{
-              else }}Xray Checker{{ end }}
-            </h1>
-            {{ if .ShowServerDetails }}
-            <p class="text-xs text-muted">
-              {{.Host}}:{{.Port}}{{ if .Instance }} · {{.Instance}}{{ end }}
-            </p>
-            {{ end }}
-          </div>
-        </div>
-
-        <div class="source-header-controls">
-          <div
-            x-show="networkStatus.managed"
-			class="connection-control h-9 card-flat"
-			:class="networkStatusClass"
-          >
-			<div
-			  class="connection-pill connection-status-segment px-3 text-xs flex items-center gap-2"
-			  :title="networkStatus.message || networkStatusLabel"
-			>
-			  <span class="connection-dot" :class="networkStatus.ready && !networkRecovery.active && 'pulse'"></span>
-			  <span class="truncate" x-text="networkStatusLabel"></span>
-			</div>
-			{{ if not .IsPublic }}
-			<button
-			  type="button"
-			  class="network-reconnect-button flex items-center justify-center"
-			  :class="{ 'is-active': networkRecovery.active, 'is-offline': !networkStatus.ready && !networkRecovery.active }"
-			  :disabled="networkRecovery.active || networkRecoverySubmitting || !networkRecovery.enabled || sourceActionBusy || networkSources.activeSourceId === 'router'"
-			  :title="networkRecovery.active ? (networkRecovery.message || 'Reconnecting iPhone bridge…') : 'Reconnect the Colima iPhone bridge'"
-			  aria-label="Reconnect iPhone bridge"
-			  @click="reconnectNetwork()"
-			>
-			  <svg class="w-3.5 h-3.5" :class="networkRecovery.active && 'animate-spin'" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M5.5 15a7 7 0 0011.5 2M18.5 9A7 7 0 007 7" />
-			  </svg>
-			</button>
-			{{ end }}
-          </div>
-
-		  {{ if and (not .IsPublic) .Version }}
-          <span
-            class="h-9 px-3 text-xs rounded-lg card-flat text-muted flex items-center"
-            >{{.Version}}</span
-          >
-          {{ end }}
-
-          <button
-            @click="toggleAutoRefresh()"
-            class="btn h-9 px-3 rounded-lg text-xs font-medium flex items-center gap-1.5"
-            :class="autoRefresh && 'btn-active'"
-          >
-            <svg
-              class="w-3.5 h-3.5"
-              :class="autoRefresh && 'animate-spin'"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
-            <span
-              class="inline-block min-w-[2.5rem] text-right tabular-nums"
-              x-text="autoRefresh ? countdown + 's' : 'Auto'"
-            ></span>
-          </button>
-
           {{ if not .IsPublic }}
-          <button
-            x-ref="alertsButton"
-            @click="openAlerts($event)"
-            class="btn alerts-button h-9 w-9 rounded-lg flex items-center justify-center"
-            title="Telegram alerts"
-            aria-label="Telegram alerts"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 3L3.8 10.1c-.9.37-.86 1.67.06 1.98l4.37 1.48 1.48 4.37c.31.92 1.61.96 1.98.06L21 3Zm0 0L8.23 13.56" />
-            </svg>
-            <span class="alerts-status-dot" :class="alertsStatusClass"></span>
-          </button>
+          <nav class="panel-top-nav" aria-label="Разделы панели">
+            <button type="button" :class="{ 'active': activeView === 'monitor' }" :aria-current="activeView === 'monitor' ? 'page' : null" @click="setActiveView('monitor')">Мониторинг</button>
+            <button type="button" :class="{ 'active': activeView === 'network' }" :aria-current="activeView === 'network' ? 'page' : null" @click="openNetworkSources()">Сеть проверок</button>
+            <button type="button" x-ref="alertsButton" @click="openAlerts($event)" aria-label="Telegram alerts">Telegram-алерты</button>
+          </nav>
           {{ end }}
-
-          <button
-            @click="toggleDarkMode()"
-            class="btn h-9 w-9 rounded-lg flex items-center justify-center"
-          >
-            <svg
-              x-show="darkMode"
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-              />
-            </svg>
-            <svg
-              x-show="!darkMode"
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-              />
-            </svg>
-          </button>
+        </div>
+        <div class="panel-top-actions">
+          {{ if not .IsPublic }}
+          <div class="panel-top-source" role="group" aria-label="Источник сетевых проверок" x-show="networkSources.enabled && networkSources.activeSourceId">
+            <template x-for="sourceId in ['iphone', 'router']" :key="sourceId">
+              <button type="button" :class="{ 'selected': networkSources.activeSourceId === sourceId }" :aria-pressed="networkSources.activeSourceId === sourceId" :disabled="sourceActionBusy" :title="networkSourceButtonTitle(sourceId)" @click="switchNetworkSource(sourceId)">
+                <span class="panel-top-live" aria-hidden="true" x-show="networkSources.activeSourceId === sourceId"></span><span x-text="sourceShortName(sourceId)"></span>
+              </button>
+            </template>
+          </div>
+          {{ end }}
+          <div class="panel-top-route" x-show="networkStatus.managed" :class="{ 'connected': networkStatus.ready && !sourceActionBusy, 'waiting': !networkStatus.ready || sourceActionBusy }" :title="networkStatus.message || networkStatusLabel" role="status" aria-live="polite">
+            <span class="panel-top-live" aria-hidden="true"></span><span x-text="topRouteLabel"></span>
+          </div>
+          <button type="button" class="panel-top-refresh" @click="refreshData()" :disabled="refreshInFlight" :aria-busy="refreshInFlight" title="Обновить результаты" aria-label="Обновить"><span aria-hidden="true">↻</span></button>
+          <button type="button" class="panel-top-countdown" @click="toggleAutoRefresh()" :aria-pressed="autoRefresh" :title="autoRefresh ? 'Приостановить автообновление' : 'Включить автообновление'" aria-label="Автообновление"><span x-text="autoRefresh ? countdown + 'с' : 'Пауза'"></span></button>
         </div>
       </header>
+      <div x-show="showStats && activeView === 'monitor'" class="monitor-stats-grid" role="region" aria-label="Сводка">
+        <div class="card monitor-stat-card"><div><div class="monitor-stat-label">Онлайн</div><div class="monitor-stat-note">сейчас доступны</div></div><div class="monitor-stat-value is-online" x-text="stats.online">0</div></div>
+        <div class="card monitor-stat-card"><div><div class="monitor-stat-label">Всего узлов</div><div class="monitor-stat-note">во всех панелях</div></div><div class="monitor-stat-value" x-text="stats.total">0</div></div>
+        <div class="card monitor-stat-card"><div><div class="monitor-stat-label">Проверяются</div><div class="monitor-stat-note">текущий проход</div></div><div class="monitor-stat-value is-checking" x-text="stats.checking">0</div></div>
+        <div class="card monitor-stat-card"><div><div class="monitor-stat-label">Средняя задержка</div><div class="monitor-stat-note">по успешным проверкам</div></div><div class="monitor-stat-value"><span x-text="stats.avgLatency">0</span><span class="monitor-stat-unit">ms</span></div></div>
+        <div class="card monitor-stat-card monitor-stat-offline"><div><div class="monitor-stat-label">Офлайн</div><div class="monitor-stat-note" x-text="summaryPanelNote"></div></div><div class="monitor-stat-value is-offline" x-text="stats.offline">0</div></div>
+      </div>
+      </div>
 
       {{ if not .IsPublic }}
-      <nav class="flex flex-wrap gap-2 mb-5" aria-label="Разделы панели">
-        <button type="button" class="btn px-4 py-2 rounded-lg text-sm" :class="activeView === 'monitor' && 'btn-active'" @click="setActiveView('monitor')">Мониторинг</button>
-        <button type="button" class="btn px-4 py-2 rounded-lg text-sm" :class="activeView === 'network' && 'btn-active'" @click="openNetworkSources()">Сеть проверок</button>
-        <button type="button" class="btn px-4 py-2 rounded-lg text-sm" @click="openAlerts($event)">Telegram-алерты</button>
-      </nav>
       <section x-cloak x-show="activeView === 'network'" aria-label="Сеть проверок" class="mb-6">
         <h2 class="text-base font-semibold text-primary mb-2">Сеть проверок</h2>
         <p class="text-sm text-muted mb-4">Выберите LTE-роутер или iPhone в режиме модема. Автоматического перехода между источниками нет.</p>
@@ -1996,6 +2192,7 @@
         </div>
         <details class="card source-card mt-4 text-xs text-muted">
           <summary>Подробности измерительного маршрута</summary>
+          <button type="button" class="btn px-3 py-2 rounded-lg mt-3" :disabled="sourceActionBusy || (!networkSources.enabled && (!networkRecovery.enabled || networkRecoverySubmitting))" :title="networkReconnectLabel" aria-label="Reconnect selected measurement network" @click="reconnectSelectedNetwork()">Переподключить выбранную сеть</button>
           <p class="mt-3" x-text="'Интерфейс VM: ' + (networkStatus.interface || '—') + ' · прямой IP: ' + (networkStatus.ready && networkStatus.publicIp ? networkStatus.publicIp : 'нет свежих данных')"></p>
           <p class="mt-2" x-text="networkStatus.message || 'Ожидаем монитор маршрута'"></p>
           <p class="mt-2">Сегмент роутера должен использовать только мобильный WAN. Панель не включает режим модема на телефоне и не меняет настройки SIM/APN.</p>
@@ -2003,73 +2200,92 @@
       </section>
       {{ end }}
 
-      <section x-show="activeView === 'monitor'">
+      <section x-show="activeView === 'monitor'" class="monitor-workspace" data-monitor-workspace>
       {{ if not .IsPublic }}
       <div class="source-status text-sm" x-cloak x-show="networkStatus.managed && !networkStatus.ready" aria-live="polite"><strong>Измерения приостановлены</strong><p class="text-xs text-muted mt-2" x-text="networkStatus.message"></p><p class="text-xs text-muted mt-2">Ниже — последние сохранённые результаты, не текущая доступность серверов. Общий сбой сети не означает падение всех панелей.</p></div>
-      <div class="source-panel-overview" x-show="panelSummaries.length > 1" aria-label="Панели подписок">
-        <template x-for="panel in panelSummaries" :key="panel.name">
-          <button type="button" class="card source-card text-left" :class="selectedPanel === panel.name && 'source-selected'" :aria-pressed="selectedPanel === panel.name" @click="selectedPanel = panel.name; filter = 'all'">
-            <span class="block text-sm font-semibold text-primary" x-text="panel.name"></span>
-            <span class="block text-xs mt-2" :class="panel.offline ? 'text-offline' : 'text-muted'" x-text="networkStatus.managed && !networkStatus.ready ? 'Измерения приостановлены' : 'Работают: ' + panel.online + ' · ошибки: ' + panel.offline + ' · проверяются: ' + panel.checking"></span>
-            <span class="block text-xs text-muted mt-2" x-text="'Последняя проверка: ' + (panel.lastCheck ? formatCheckTime(panel.lastCheck) : 'ожидается')"></span>
-          </button>
-        </template>
-      </div>
-      <div class="flex flex-wrap items-center justify-between gap-2 mb-4" x-show="panelSummaries.length > 1"><h2 class="text-sm font-semibold text-primary" x-text="selectedPanel || 'Все панели · отдельные разделы'"></h2><button type="button" class="btn px-3 py-2 rounded-lg text-xs" @click="selectedPanel = ''">Все панели</button></div>
       {{ end }}
-      <!-- Stats -->
-      <div x-show="showStats" class="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 mb-6">
-        <div class="card rounded-lg p-2 sm:p-4 text-center">
-          <div
-            class="text-base sm:text-xl font-semibold text-primary"
-            x-text="stats.total"
-          >
-            0
-          </div>
-          <div class="text-xs text-muted mt-0.5">Hosts</div>
+      <div x-cloak x-show="showProxies && panelSummaries.length > 1" class="monitor-overview">
+        <div><h2 x-text="expandedPanel || 'Узлы по панелям'">Узлы по панелям</h2><p>Состояние, фильтры и сортировка ведутся отдельно для каждой панели</p></div>
+        <div class="monitor-global-tools">
+          <button type="button" class="monitor-back" x-show="expandedPanel" @click="closeMonitorPanel()">← Все панели</button>
+          <label class="monitor-search-box"><span aria-hidden="true">⌕</span><input type="search" class="monitor-global-search" x-model.debounce.150ms="search" @input="resetMonitorPages()" placeholder="Поиск по всем узлам…" aria-label="Поиск по всем узлам" /></label>
+          {{ if not .IsPublic }}<button type="button" @click="openAccessCheck($event)" class="monitor-access-tag">Проверка доступа</button>{{ end }}
         </div>
-        <div class="card rounded-lg p-2 sm:p-4 text-center">
-          <div
-            class="text-base sm:text-xl font-semibold text-online"
-            x-text="stats.online"
-          >
-            0
-          </div>
-          <div class="text-xs text-muted mt-0.5">Online</div>
-        </div>
-        <div class="card rounded-lg p-2 sm:p-4 text-center">
-          <div
-            class="text-base sm:text-xl font-semibold text-offline"
-            x-text="stats.offline"
-          >
-            0
-          </div>
-          <div class="text-xs text-muted mt-0.5">Offline</div>
-        </div>
-        <div class="card rounded-lg p-2 sm:p-4 text-center">
-          <div
-            class="text-base sm:text-xl font-semibold text-unstable"
-            x-text="stats.checking"
-          >
-            0
-          </div>
-          <div class="text-xs text-muted mt-0.5">Checking</div>
-        </div>
-        <div class="card rounded-lg p-2 sm:p-4 text-center">
-          <div class="text-base sm:text-xl font-semibold text-primary">
-            <span x-text="stats.avgLatency">0</span
-            ><span class="text-xs sm:text-sm text-muted ml-0.5">ms</span>
-          </div>
-          <div class="text-xs text-muted mt-0.5">Avg Latency</div>
-        </div>
+      </div>
+      <div x-cloak x-show="showProxies && panelSummaries.length > 1" class="monitor-panels" aria-label="Узлы по панелям">
+        <template x-for="panel in displayedMonitorPanels" :key="panel.name">
+          <section class="monitor-panel card" :aria-label="'Панель ' + panel.name" :class="{ 'monitor-panel-has-offline': panel.offline > 0, 'is-collapsed': isMonitorPanelCollapsed(panel.name) }">
+            <header class="monitor-panel-head">
+              <div class="monitor-panel-title-row"><span class="monitor-panel-icon" aria-hidden="true" x-text="monitorPanelIcon(panel.name)"></span><div class="monitor-panel-title-stack"><h3 x-text="panel.name"></h3><span class="monitor-panel-subtitle" :title="panel.lastCheck ? 'Последняя проверка: ' + formatTimestamp(panel.lastCheck) : 'Ожидает первой проверки'" x-text="monitorPanelSubtitle(panel.name)"></span></div></div>
+              <div class="monitor-panel-summary">
+                <span class="monitor-panel-alert" x-show="panel.offline > 0" x-text="panel.offline + ' офлайн'"></span>
+                <span class="monitor-panel-alert checking" x-show="panel.checking > 0" x-text="panel.checking + ' проверяются'"></span>
+                <span class="monitor-panel-count"><strong x-text="panel.online"></strong><span x-text="' / ' + panel.total + ' онлайн'"></span></span>
+                <button type="button" class="monitor-panel-collapse" :aria-expanded="!isMonitorPanelCollapsed(panel.name)" :aria-controls="monitorPanelBodyId(panel.name)" :aria-label="(isMonitorPanelCollapsed(panel.name) ? 'Развернуть панель ' : 'Свернуть панель ') + panel.name" :title="isMonitorPanelCollapsed(panel.name) ? 'Развернуть панель' : 'Свернуть панель'" @click="toggleMonitorPanel(panel.name)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round" /></svg></button>
+              </div>
+            </header>
+            <div class="monitor-panel-body" :id="monitorPanelBodyId(panel.name)" x-show="!isMonitorPanelCollapsed(panel.name)">
+            <div class="monitor-panel-tools">
+              <label class="monitor-local-search"><span aria-hidden="true">⌕</span><input type="search" :aria-label="'Поиск в панели ' + panel.name" :placeholder="'Найти в ' + panel.name + '…'" x-model.debounce.150ms="panelState(panel.name).search" @input="panelState(panel.name).page = 0; closeMonitorDetails(false)" /></label>
+              <div class="monitor-panel-filters" role="group" :aria-label="'Фильтр панели ' + panel.name">
+                <button type="button" :class="{ 'is-active': panelState(panel.name).filter === 'all' }" :aria-pressed="panelState(panel.name).filter === 'all'" @click="setMonitorFilter(panel.name, 'all')">Все</button>
+                <button type="button" :class="{ 'is-active': panelState(panel.name).filter === 'online' }" :aria-pressed="panelState(panel.name).filter === 'online'" @click="setMonitorFilter(panel.name, 'online')">Онлайн</button>
+                <button type="button" class="is-offline" :class="{ 'is-active': panelState(panel.name).filter === 'offline' }" :aria-pressed="panelState(panel.name).filter === 'offline'" @click="setMonitorFilter(panel.name, 'offline')"><span>Офлайн</span><span x-show="panel.offline > 0" x-text="' ' + panel.offline"></span></button>
+              </div>
+              <select class="monitor-sort" x-model="panelState(panel.name).sort" @change="panelState(panel.name).page = 0" :aria-label="'Сортировка панели ' + panel.name"><option value="default">По умолчанию</option><option value="name">По имени</option><option value="latency-asc">Задержка ↑</option><option value="latency-desc">Задержка ↓</option><option value="status">По статусу</option></select>
+              <select class="monitor-advanced-filter" x-show="expandedPanel === panel.name" x-model="panelState(panel.name).filter" @change="panelState(panel.name).page = 0" :aria-label="'Дополнительный фильтр панели ' + panel.name"><option value="all">Все состояния</option><option value="online">Онлайн</option><option value="offline">Офлайн</option><option value="checking">Проверяются</option><option value="repair">Нужна замена</option><option value="changed">Изменения IP/конфига</option><option value="unstable">Нестабильные</option></select>
+            </div>
+            <div class="monitor-panel-hosts">
+              <template x-for="proxy in panelVisibleProxies(panel.name)" :key="proxy.stableId">
+                <article class="monitor-host" :class="'tone-' + monitorHostView(proxy).tone" :aria-label="proxy.name">
+                  <div class="monitor-host-top">
+                    {{ if .IsPublic }}<span class="monitor-host-title" :title="proxy.name" x-text="proxy.name"></span>{{ else }}<button type="button" class="monitor-host-title" @click.stop="copyHostName(proxy)" :title="'Скопировать название: ' + proxy.name" x-text="proxy.name"></button>{{ end }}
+                    <span class="monitor-host-protocol" x-show="proxy.protocol" x-text="protoLabel(proxy.protocol)"></span>
+                  </div>
+                  {{ if .ShowServerDetails }}<div class="monitor-host-address-row"><div class="monitor-host-address" :title="proxy.serverInfo" x-text="proxy.serverInfo"></div>{{ if not .IsPublic }}<button type="button" class="monitor-copy-ip" :disabled="!ipForProxy(proxy)" @click.stop="copyIp(proxy)" :aria-label="'Скопировать IP узла ' + proxy.name" :title="'Скопировать IP без порта: ' + ipForProxy(proxy)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button>{{ end }}</div>{{ end }}
+                  <div class="monitor-host-bottom">
+                    <button type="button" class="monitor-host-status" @click="openMonitorDetails(proxy, $event)" :aria-label="'Детали узла: ' + proxy.name" :title="monitorHostView(proxy).label + ' · Открыть детали узла'" x-text="monitorHostView(proxy).label"></button>
+                    <span class="monitor-host-metric" x-show="monitorHostView(proxy).online && proxy.latencyMs > 0"><strong x-text="proxy.latencyMs"></strong> ms</span>
+                    <span class="monitor-host-metric" x-show="!monitorHostView(proxy).online && cardStatusTime(proxy)" :title="cardStatusTimeTitle(proxy)">проверка <strong x-text="formatCheckTime(cardStatusTime(proxy))"></strong></span>
+                    <span class="monitor-host-metric" x-show="!monitorHostView(proxy).online && !cardStatusTime(proxy)">в очереди</span>
+                  </div>
+                </article>
+              </template>
+              <div x-show="panelFilteredProxies(panel.name).length === 0" class="monitor-empty" role="status">Нет узлов по этим условиям</div>
+            </div>
+            <template x-for="proxy in monitorDetailsRows(panel.name)" :key="'details-' + proxy.stableId">
+              <section class="monitor-node-detail" :id="'monitor-details-' + proxy.stableId" tabindex="-1" :aria-label="'Детали узла ' + proxy.name" @keydown.escape.stop="closeMonitorDetails()">
+                <header><div><strong x-text="proxy.name"></strong><span x-text="monitorHostView(proxy).label"></span></div><button type="button" @click="closeMonitorDetails()" aria-label="Закрыть детали узла">×</button></header>
+                {{ if .ShowServerDetails }}<p class="monitor-detail-address" x-text="proxy.serverInfo"></p><p x-show="proxy.previousAddress && proxy.addressChangedAt"><span>Предыдущий адрес: </span><span x-text="proxy.previousAddress"></span></p>{{ end }}
+                <p><span x-text="protoLabel(proxy.protocol)"></span><span x-show="proxy.lastCheck" x-text="' · Последняя проверка: ' + formatTimestamp(proxy.lastCheck)"></span></p>
+                {{ if not .IsPublic }}<div class="monitor-detail-actions">
+                  <button type="button" :disabled="!proxy.nodeId || (networkStatus.managed && !networkStatus.ready)" @click="diagnoseNode(proxy.nodeId, $event)">Диагностика</button>
+                  <button type="button" :disabled="proxy.rechecking || (networkStatus.managed && !networkStatus.ready)" @click="recheckProxy(proxy)" x-text="proxy.rechecking ? 'Перепроверка…' : 'Перепроверить'"></button>
+                  <button type="button" :disabled="!proxy.nodeId" @click="openDiagnosis(proxy.nodeId, false, $event)">История диагностики</button>
+                  {{ if .ShowServerDetails }}<button type="button" @click="copyIp(proxy)">Скопировать IP</button>{{ end }}
+                </div>{{ end }}
+              </section>
+            </template>
+            <footer class="monitor-panel-foot">
+              <span :title="'По фильтрам: ' + panelFilteredProxies(panel.name).length + ' из ' + panel.total" x-text="'Показано ' + panelVisibleProxies(panel.name).length + ' из ' + panel.total"></span>
+              <div class="monitor-pagination" x-show="expandedPanel === panel.name && panelFilteredProxies(panel.name).length > monitorPageSize">
+                <button type="button" :disabled="monitorPageIndex(panel.name) === 0" @click="changeMonitorPage(panel.name, -1)" :aria-label="'Предыдущая страница ' + panel.name">←</button>
+                <span x-text="(monitorPageIndex(panel.name) + 1) + ' / ' + Math.max(1, Math.ceil(panelFilteredProxies(panel.name).length / monitorPageSize))"></span>
+                <button type="button" :disabled="(monitorPageIndex(panel.name) + 1) * monitorPageSize >= panelFilteredProxies(panel.name).length" @click="changeMonitorPage(panel.name, 1)" :aria-label="'Следующая страница ' + panel.name">→</button>
+              </div>
+              <button type="button" class="monitor-open-panel" :aria-label="expandedPanel ? 'Вернуться к обзору панелей' : 'Открыть панель ' + panel.name" @click="expandedPanel ? closeMonitorPanel() : openMonitorPanel(panel.name)" x-text="expandedPanel ? '← Все панели' : 'Открыть панель ↗'"></button>
+            </footer>
+            </div>
+          </section>
+        </template>
       </div>
 
       <!-- Servers header -->
       <div
-        x-show="showServersHeader"
+        x-show="showServersHeader && panelSummaries.length <= 1"
         class="flex flex-wrap items-center justify-between gap-3 mb-4"
       >
-        <h2 class="text-base font-semibold text-primary">Hosts</h2>
+        <h2 class="text-base font-semibold text-primary" x-text="panelSummaries.length > 1 ? 'Узлы по панелям' : 'Hosts'">Hosts</h2>
         {{ if not .IsPublic }}
         <div class="flex flex-wrap items-center gap-2">
           <button
@@ -2169,7 +2385,7 @@
 
       {{ if .Endpoints }}
       <!-- Controls -->
-      <div x-show="showControls" class="flex flex-col gap-2 mb-4">
+      <div x-show="showControls && panelSummaries.length <= 1" class="flex flex-col gap-2 mb-4">
         <!-- Mobile expanded search (separate row) -->
         <div
           x-show="searchOpen"
@@ -2310,7 +2526,7 @@
 
       <!-- Proxy Grid -->
 	  {{ if not .IsPublic }}
-	  <div x-cloak x-show="monitoring && !badgeMode" class="card-flat rounded-lg px-3 py-2 mb-3 text-xs text-muted flex flex-wrap items-center gap-x-4 gap-y-1" aria-live="polite">
+	  <div x-cloak x-show="monitoring && !badgeMode && panelSummaries.length <= 1" class="card-flat rounded-lg px-3 py-2 mb-3 text-xs text-muted flex flex-wrap items-center gap-x-4 gap-y-1" aria-live="polite">
 		<span>Общая очередь всех панелей</span>
 		<span class="font-medium" x-text="monitoringModeLabel"></span>
 		<span x-text="'Pending checks: ' + (monitoring?.pendingChecks || 0)"></span>
@@ -2320,10 +2536,10 @@
 	  </div>
 	  {{ end }}
       <div
-        x-show="showProxies"
+        x-show="showProxies && panelSummaries.length <= 1"
         class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 mb-4"
       >
-        <template x-for="item in displayItems" :key="item.key">
+        <template x-for="item in (panelSummaries.length <= 1 ? displayItems : [])" :key="item.key">
           <div :style="item.type === 'header' ? 'grid-column: 1 / -1' : ''">
             <!-- Group header (balancer groups) -->
             <template x-if="item.type === 'header'">
@@ -2487,7 +2703,7 @@
       </div>
 
       <div
-        x-show="showProxies && filteredProxies.length === 0"
+        x-show="showProxies && panelSummaries.length <= 1 && filteredProxies.length === 0"
         class="text-center py-12 text-muted"
       >
         No proxies match your criteria
@@ -2495,7 +2711,7 @@
 
       {{ if not .IsPublic }}
       <div
-        x-show="showStatusInfo"
+        x-show="showStatusInfo && panelSummaries.length <= 1"
         class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 text-xs text-muted pt-3 border-t border-default"
       >
         <span
@@ -2514,46 +2730,9 @@
       {{ end }} {{ end }}
       </section>
 
-      <footer
-        x-show="showFooter"
-        class="mt-8 pt-4 border-t border-default text-center text-xs text-muted"
-      >
-        {{ if .IsPublic }}
-        <div>
-          Powered by
-          <a
-            href="https://github.com/kutovoys/xray-checker"
-            target="_blank"
-            class="hover:text-secondary"
-            >Xray Checker</a
-          >
-        </div>
-        {{ else }}
-        <div>
-          <a
-            href="https://github.com/kutovoys/xray-checker"
-            target="_blank"
-            class="hover:text-secondary"
-            >GitHub</a
-          >
-          <span class="mx-2">·</span>
-          <a
-            href="https://t.me/+Ux5gQhAY8KA2OTdi"
-            target="_blank"
-            class="hover:text-secondary"
-            >Telegram Chat</a
-          >
-        </div>
-        <div class="mt-2">
-          Made with ❤️ by
-          <a
-            href="https://github.com/kutovoys"
-            target="_blank"
-            class="hover:text-secondary"
-            >kutovoys</a
-          >
-        </div>
-        {{ end }}
+      <footer x-show="showFooter" class="dashboard-footer" aria-label="Сводка мониторинга">
+        <div class="dashboard-footer-left"><strong x-text="monitorNodeCountLabel(activeProxies.length)"></strong><span> · </span><span x-text="expandedPanel ? 'полный список панели ' + expandedPanel : 'показаны основные и проблемные'"></span><span> · последняя синхронизация </span><time :datetime="new Date(lastSyncedAt).toISOString()" x-text="formatMonitorSyncTime(lastSyncedAt)" title="Время получения данных панели (UTC)"></time><span> UTC</span></div>
+        <div class="dashboard-footer-right"><span :title="autoRefresh ? 'Интервал обновления интерфейса' : 'Автообновление интерфейса на паузе'" x-text="autoRefresh ? 'Интервал ' + refreshSeconds + ' с' : 'Автообновление на паузе'"></span><span> · таймаут {{.Timeout}} с · результаты сгруппированы по панели</span></div>
       </footer>
     </div>
 
@@ -3343,8 +3522,8 @@
           networkSourceError: '',
           darkMode: localStorage.getItem('darkMode') !== 'false',
           autoRefresh: localStorage.getItem('autoRefresh') !== 'false',
-          refreshSeconds: 5,
-          countdown: 5,
+          refreshSeconds: 4,
+          countdown: 4,
           countdownInterval: null,
 		  refreshInFlight: false,
 		  monitoring: null,
@@ -3505,6 +3684,20 @@
             return classes.join(' ');
           },
 
+          get topRouteLabel() {
+            const source = this.networkSources.activeSourceId || this.networkStatus.sourceId;
+            const label = source === 'router' ? 'LTE' : (source === 'iphone' ? 'Телефон' : 'Сеть');
+            if (this.sourceActionBusy) return label + ' · ' + (this.networkRecovery.active ? 'переподключение…' : 'переключение…');
+            if (this.networkStatus.ready) return label + ' подключена · маршрут активен';
+            return label + ' · ' + ({ recovering: 'восстановление…', switching: 'переключение…', unknown: 'статус недоступен' }[this.networkStatus.state] || 'нет связи · проверки на паузе');
+          },
+          get summaryPanelNote() {
+            const count = this.panelSummaries.length;
+            if (!count) return 'нет панелей';
+            const noun = count % 10 === 1 && count % 100 !== 11 ? 'панели' : 'панелях';
+            return 'в ' + count + ' ' + noun;
+          },
+
           get networkStatusClass() {
 			if (this.networkRecovery.active) return 'connection-recovering';
             if (this.networkStatus.ready) return 'connection-connected';
@@ -3524,7 +3717,19 @@
             if (this.networkStatus.state === 'unknown') return label + ' · Monitor offline';
             return label + ' · Waiting';
           },
+          get networkReconnectLabel() {
+            if (this.sourceActionBusy) return this.networkSources.job?.message || 'Переподключение маршрута…';
+            if (this.networkSources.activeSourceId === 'router') return 'Переподключить LTE-маршрут проверок';
+            if (this.networkSources.activeSourceId === 'iphone') return 'Переподключить маршрут через телефон';
+            return this.networkRecovery.active ? (this.networkRecovery.message || 'Переподключение…') : 'Переподключить сеть проверок';
+          },
           sourceName(id) { return { iphone: 'iPhone · режим модема', router: 'LTE-роутер' }[id] || 'Не выбран'; },
+          sourceShortName(id) { return { iphone: 'Телефон', router: 'LTE-сеть' }[id] || 'Не выбрано'; },
+          networkSourceButtonTitle(id) {
+            if (this.networkSources.activeSourceId === id) return this.networkStatus.ready ? this.networkStatusLabel : this.networkStatus.message || this.sourceShortName(id) + ' выбран';
+            const profile = (this.networkSources.profiles || []).find(item => item.id === id);
+            return profile?.available ? 'Переключить маршрут проверок на ' + this.sourceShortName(id) : 'Настроить адаптер ' + this.sourceShortName(id) + ' в разделе «Сеть проверок»';
+          },
           get networkProfiles() { return ['iphone', 'router'].map(id => (this.networkSources.profiles || []).find(p => p.id === id) || { id, interface: '', available: false }); },
           get sourceActionBusy() { return this.networkSourceSubmitting || this.networkRecovery.active || ['queued','running'].includes(this.networkSources.job?.state); },
           get sourceJobLabel() { return {queued:'Действие в очереди',running:'Выполняется',succeeded:'Готово',failed:'Действие завершилось ошибкой'}[this.networkSources.job?.state] || ''; },
@@ -3554,6 +3759,32 @@
               this.showToast(action === 'activate' ? 'Переключение запрошено. Ожидаем возвращения панели.' : 'Действие поставлено в очередь');
             } catch (error) { this.networkSourceError = error instanceof TypeError ? 'Связь прервалась. Дождитесь возвращения панели и проверьте результат действия.' : error.message; }
             finally { this.networkSourceSubmitting = false; }
+          },
+          async switchNetworkSource(id) {
+            if (this.sourceActionBusy || this.networkSources.activeSourceId === id) return;
+            const profile = (this.networkSources.profiles || []).find(item => item.id === id);
+            if (!profile?.interface || !profile.available) {
+              await this.openNetworkSources();
+              this.showToast('Сначала выберите и подключите адаптер в разделе «Сеть проверок»');
+              return;
+            }
+            this.networkSourceDraft[id] = profile.interface;
+            await this.submitSourceAction('activate', id);
+          },
+          async reconnectSelectedNetwork() {
+            if (this.sourceActionBusy) return;
+            if (this.networkSources.enabled && this.networkSources.activeSourceId === 'router') {
+              const profile = (this.networkSources.profiles || []).find(item => item.id === 'router');
+              if (!profile?.interface || !profile.available) {
+                await this.openNetworkSources();
+                this.showToast('Адаптер LTE-сети не подключён');
+                return;
+              }
+              this.networkSourceDraft.router = profile.interface;
+              await this.submitSourceAction('activate', 'router');
+              return;
+            }
+            await this.reconnectNetwork();
           },
 
 		  get alertsStatusClass() {
@@ -3861,18 +4092,136 @@
             return this.proxies.filter(p => p.missingPolls === 0);
           },
           get scopedProxies() { return this.activeProxies.filter(p => !this.selectedPanel || (p.subName || p.groupName || 'Other') === this.selectedPanel); },
+          lastSyncedAt: Date.now(),
+          formatMonitorSyncTime(value) { return new Date(value).toLocaleTimeString('ru-RU', {timeZone:'UTC',hour:'2-digit',minute:'2-digit',hour12:false}); },
+          monitorNodeCountLabel(count) { const n = Math.abs(count) % 100, last = n % 10; return count + ' ' + (n >= 11 && n <= 14 ? 'узлов' : (last === 1 ? 'узел' : (last >= 2 && last <= 4 ? 'узла' : 'узлов'))); },
+          collapsedMonitorPanels: (() => {
+            try {
+              const saved = JSON.parse(localStorage.getItem('monitorCollapsedPanels') || '{}');
+              if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return {};
+              return Object.fromEntries(Object.entries(saved).filter(([, value]) => typeof value === 'boolean'));
+            } catch (_) { return {}; }
+          })(),
+          isMonitorPanelCollapsed(name) { return this.collapsedMonitorPanels[name] === true; },
+          monitorPanelBodyId(name) { return 'monitor-panel-body-' + encodeURIComponent(name); },
+          setMonitorPanelCollapsed(name, collapsed) {
+            this.collapsedMonitorPanels = { ...this.collapsedMonitorPanels, [name]: !!collapsed };
+            try { localStorage.setItem('monitorCollapsedPanels', JSON.stringify(this.collapsedMonitorPanels)); } catch (_) { /* In-memory collapse still works when browser storage is unavailable. */ }
+            if (collapsed && this.monitorDetailsRows(name).length) this.closeMonitorDetails(false);
+          },
+          toggleMonitorPanel(name) { this.setMonitorPanelCollapsed(name, !this.isMonitorPanelCollapsed(name)); },
+          expandedPanel: '',
+          monitorPageSize: 24,
+          monitorDetailsId: '',
+          monitorDetailsAnchor: null,
+          get displayedMonitorPanels() {
+            return this.expandedPanel ? this.panelSummaries.filter(p => p.name === this.expandedPanel) : this.panelSummaries;
+          },
+          monitorPanelIcon(name) { return /^\d/.test(name) ? name.slice(0, 2) : name.slice(0, 1).toUpperCase(); },
+          monitorPanelSubtitle(name) {
+            if (this.networkStatus.managed && !this.networkStatus.ready) return 'Измерения приостановлены';
+            const description = { MASTER: 'Основная панель', LETO: 'Летняя панель', DOG: 'Резервная панель', MOBILE: 'Мобильные узлы', 'MASTER · MOBILE': 'Мобильные узлы' }[name.toUpperCase()] || 'Панель ' + name;
+            return description + (this.autoRefresh ? ' · обновление каждые ' + this.refreshSeconds + ' с' : ' · автообновление на паузе');
+          },
+          setMonitorFilter(name, filter) { const state = this.panelState(name); state.filter = filter; state.page = 0; this.closeMonitorDetails(false); },
+          resetMonitorPages() { for (const state of Object.values(this.panelControls)) state.page = 0; this.closeMonitorDetails(false); },
+          monitorPageIndex(name) {
+            const maxPage = Math.max(0, Math.ceil(this.panelFilteredProxies(name).length / this.monitorPageSize) - 1);
+            return Math.min(Math.max(0, this.panelState(name).page || 0), maxPage);
+          },
+          panelVisibleProxies(name) {
+            const rows = this.panelFilteredProxies(name);
+            if (this.expandedPanel !== name) {
+              const state = this.panelState(name);
+              if (state.filter === 'all' && state.sort === 'default' && !this.search.trim() && !state.search.trim()) {
+                const selected = rows.filter(p => !this.isEffectivelyOnline(p)).slice(0, 4);
+                for (const row of rows) { if (selected.length >= 4) break; if (!selected.includes(row)) selected.push(row); }
+                return selected.sort((a, b) => a.index - b.index);
+              }
+              return rows.slice(0, 4);
+            }
+            const start = this.monitorPageIndex(name) * this.monitorPageSize;
+            return rows.slice(start, start + this.monitorPageSize);
+          },
+          openMonitorPanel(name) { this.setMonitorPanelCollapsed(name, false); this.expandedPanel = name; this.closeMonitorDetails(false); this.$nextTick(() => this.$root.querySelector('.monitor-overview')?.scrollIntoView({block:'start'})); },
+          closeMonitorPanel() { this.expandedPanel = ''; this.closeMonitorDetails(false); },
+          changeMonitorPage(name, delta) { this.panelState(name).page = this.monitorPageIndex(name) + delta; this.closeMonitorDetails(false); this.$nextTick(() => this.$root.querySelector('.monitor-overview')?.scrollIntoView({block:'start'})); },
+          monitorHostView(proxy) {
+            const online = this.isEffectivelyOnline(proxy);
+            const diagnosis = this.cardDiagnosis(proxy);
+            if (proxy.rechecking) return { online, tone:'checking', label:'Перепроверка…' };
+            if (online) {
+              const unstable = proxy.unstable || this.currentDiagnosis(proxy)?.verdict === 'degraded';
+              return { online:true, tone:unstable ? 'checking' : 'online', label:unstable ? 'Нестабильно' : 'Работает' };
+            }
+            if (diagnosis?.state === 'completed') {
+              const view = { tunnel_failed:['tunnel','Xray tunnel failed'], handshake_failed:['suspect','Ошибка TLS'], net_unreachable:['offline','Нет соединения'], inconclusive:['checking','Нет данных маршрута'] }[diagnosis.verdict];
+              if (view) return { online:false, tone:view[0], label:view[1] };
+            }
+            if (diagnosis && ['queued','running'].includes(diagnosis.state)) return { online:false, tone:this.isConfirmedOffline(proxy) ? 'offline' : 'checking', label:'Диагностика…' };
+            if (this.isChecking(proxy)) return { online:false, tone:proxy.monitorState === 'suspected' ? 'suspect' : 'checking', label:proxy.monitorState === 'suspected' ? 'Под подозрением' : (proxy.lastCheck ? 'Проверяется' : 'Ожидает проверки') };
+            return { online:false, tone:'offline', label:['needs_replacement','new_ip_failed'].includes(proxy.monitorState) ? 'Требует замены' : 'Офлайн' };
+          },
+          monitorDetailsRows(name) { return this.activeProxies.filter(p => p.stableId === this.monitorDetailsId && (p.subName || p.groupName || 'Other') === name); },
+          openMonitorDetails(proxy, event) { this.monitorDetailsId = proxy.stableId; this.monitorDetailsAnchor = event?.currentTarget || null; this.$nextTick(() => document.getElementById('monitor-details-' + proxy.stableId)?.focus()); },
+          closeMonitorDetails(restoreFocus = true) { const anchor = this.monitorDetailsAnchor; this.monitorDetailsId = ''; this.monitorDetailsAnchor = null; if (restoreFocus && anchor?.isConnected) this.$nextTick(() => anchor.focus()); },
+          panelControls: {},
+          panelState(name) {
+            if (!this.panelControls[name]) this.panelControls[name] = { search: '', filter: 'all', sort: 'default', page: 0 };
+            return this.panelControls[name];
+          },
+          panelFilteredProxies(name) {
+            const state = this.panelState(name);
+            let rows = this.activeProxies.filter(p => (p.subName || p.groupName || 'Other') === name);
+            const queries = [this.search, state.search].map(value => (value || '').trim().toLowerCase()).filter(Boolean);
+            if (queries.length) rows = rows.filter(p => queries.every(query => p.name.toLowerCase().includes(query) || (p.serverInfo || '').toLowerCase().includes(query) || (p.subName || '').toLowerCase().includes(query)));
+            if (state.filter === 'online') rows = rows.filter(p => this.isEffectivelyOnline(p));
+            else if (state.filter === 'offline') rows = rows.filter(p => this.isConfirmedOffline(p));
+            else if (state.filter === 'checking') rows = rows.filter(p => this.isChecking(p));
+            else if (state.filter === 'repair') rows = rows.filter(p => ['needs_replacement', 'new_ip_failed'].includes(p.monitorState));
+            else if (state.filter === 'changed') rows = rows.filter(p => ['ip_changed', 'config_changed', 'verifying_new_ip', 'fixed'].includes(p.monitorState));
+            else if (state.filter === 'unstable') rows = rows.filter(p => p.monitorState === 'unstable');
+            return [...rows].sort((a, b) => {
+              if (state.sort === 'latency-asc') {
+                if (!a.latencyMs && !b.latencyMs) return 0;
+                if (!a.latencyMs) return 1;
+                if (!b.latencyMs) return -1;
+                return a.latencyMs - b.latencyMs;
+              }
+              if (state.sort === 'latency-desc') {
+                if (!a.latencyMs && !b.latencyMs) return 0;
+                if (!a.latencyMs) return 1;
+                if (!b.latencyMs) return -1;
+                return b.latencyMs - a.latencyMs;
+              }
+              if (state.sort === 'status') return Number(this.isEffectivelyOnline(b)) - Number(this.isEffectivelyOnline(a));
+              if (state.sort === 'name') return this.stripLeadingEmoji(a.name).localeCompare(this.stripLeadingEmoji(b.name));
+              return a.index - b.index;
+            });
+          },
+          monitorPanelRank(name) {
+            const key = String(name || '').trim().toUpperCase();
+            if (key === '220' || key === '220V' || key === '220В') return 0;
+            const rank = ['LETO', 'MASTER', 'DOG'].indexOf(key);
+            return rank < 0 ? 4 : rank + 1;
+          },
+
           get panelSummaries() {
             const groups = new Map();
             for (const p of this.activeProxies) {
               const name = p.subName || p.groupName || 'Other';
-              if (!groups.has(name)) groups.set(name, {name, online:0,offline:0,checking:0,lastCheck:0});
+              if (!groups.has(name)) groups.set(name, {name, total:0, online:0,offline:0,checking:0,lastCheck:0});
               const panel = groups.get(name);
+              panel.total++;
               if (this.isEffectivelyOnline(p)) panel.online++;
               else if (this.isConfirmedOffline(p)) panel.offline++;
               else panel.checking++;
               panel.lastCheck = Math.max(panel.lastCheck, p.lastCheck || 0);
             }
-            return [...groups.values()];
+            // Keep the panel order stable regardless of polling/endpoint order.
+            return [...groups.values()].sort((a, b) =>
+              this.monitorPanelRank(a.name) - this.monitorPanelRank(b.name) || a.name.localeCompare(b.name, 'ru')
+            );
           },
 
           get stats() {
@@ -4190,6 +4539,7 @@
               const res = await fetch(privateDashboard ? './api/v1/proxies' : './api/v1/public/proxies');
               const json = await res.json();
               if (json.success && json.data) {
+                this.lastSyncedAt = Date.now();
                 if (privateDashboard) {
 				  const activeRechecks = new Set(this.proxies.filter(p => p.rechecking).map(p => p.stableId));
                   this.proxies = json.data.map(updated => ({
@@ -4968,20 +5318,19 @@
             this.showToast('Host name copied: ' + name);
           },
 
-          async copyIp(proxy) {
-            let ip = String(proxy.currentResolved || proxy.serverInfo || '').split(',')[0].trim();
+          ipForProxy(proxy) {
+            let ip = String(proxy?.currentResolved || proxy?.serverInfo || '').split(',')[0].trim();
             const bracketed = ip.match(/^\[([^\]]+)\](?::\d+)?$/);
-            if (bracketed) ip = bracketed[1];
-            else {
-              const hostWithPort = ip.match(/^([^:]+):\d+$/);
-              if (hostWithPort) ip = hostWithPort[1];
-            }
-            if (!ip) {
-              this.showToast('IP is unavailable');
-              return;
-            }
+            if (bracketed) return bracketed[1];
+            const hostWithPort = ip.match(/^([^:]+):\d+$/);
+            return hostWithPort ? hostWithPort[1] : ip;
+          },
+
+          async copyIp(proxy) {
+            const ip = this.ipForProxy(proxy);
+            if (!ip) { this.showToast('IP отсутствует'); return; }
             await this.copyText(ip);
-            this.showToast('IP copied: ' + ip);
+            this.showToast('IP скопирован: ' + ip);
           },
 
           showToast(msg) {

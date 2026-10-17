@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Local macOS source adapter. No panel APIs, shell evaluation or modem writes.
 
-Only `tick` consumes dashboard requests. `active` prepares/reads local settings; `new-epoch` is
-used by start.sh to fence a new VM session. All persistent files are local.
+Only `tick` consumes dashboard requests. `active` reads the running selection; `startup`
+chooses a connected saved profile when the selected one is detached; `new-epoch` fences a
+new VM session. All persistent files are local.
 """
 from __future__ import annotations
 
@@ -143,6 +144,37 @@ class Controller:
             atomic_json(self.directory / "config.json", config)
             return config["activeSourceId"], config["interfaces"][config["activeSourceId"]], config["epoch"]
 
+    def startup(self):
+        """Keep a configured, attached alternate source usable without the phone.
+
+        This is a one-time startup choice only. The running supervisor never
+        switches sources automatically; normal transitions remain user-driven.
+        """
+        with self.lock():
+            config = self.config()
+            interfaces = self.inventory()
+
+            def available(source_id):
+                interface = config["interfaces"].get(source_id, "")
+                return bool(interface and any(item["name"] == interface and item.get("address") for item in interfaces))
+
+            selected = config["activeSourceId"]
+            if not available(selected):
+                alternate = "router" if selected == "iphone" else "iphone"
+                if available(alternate):
+                    selected = alternate
+                    config["activeSourceId"] = selected
+                    config["epoch"] = uuid.uuid4().hex
+                    atomic_json(self.directory / "config.json", config)
+                    self.publish(config, {
+                        "state": "succeeded",
+                        "action": "startup",
+                        "sourceId": selected,
+                        "message": "Using the configured connected source at startup",
+                        "updatedAt": int(time.time()),
+                    }, interfaces)
+            return selected, config["interfaces"].get(selected, ""), config["epoch"]
+
     def new_epoch(self):
         with self.lock():
             config = self.config()
@@ -268,6 +300,8 @@ def main():
         control.tick()
     elif command == "active":
         print("\t".join(control.active()))
+    elif command == "startup":
+        print("\t".join(control.startup()))
     elif command == "new-epoch":
         print(control.new_epoch())
     else:

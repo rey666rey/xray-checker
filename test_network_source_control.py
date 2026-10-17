@@ -112,6 +112,22 @@ class SourceControlTests(unittest.TestCase):
         self.assertEqual(self.controller.active()[0], "iphone")
         self.assertEqual(self.controller.active()[2], self.original["epoch"])
 
+    def test_startup_uses_saved_lte_profile_when_phone_is_detached(self):
+        config = control.read_json(self.directory / "config.json")
+        config["interfaces"]["router"] = "en9"
+        control.atomic_json(self.directory / "config.json", config)
+        self.inventory[0]["address"] = ""
+
+        source_id, interface, epoch = self.controller.startup()
+
+        self.assertEqual((source_id, interface), ("router", "en9"))
+        self.assertNotEqual(epoch, self.original["epoch"])
+        snapshot = control.read_json(self.directory / "status.json")
+        self.assertEqual(snapshot["activeSourceId"], "router")
+        self.assertEqual(snapshot["job"]["action"], "startup")
+        self.assertEqual(snapshot["job"]["state"], "succeeded")
+        self.assertEqual(self.calls, [])
+
     def test_start_script_adapter_with_stubbed_commands(self):
         # Run a copy: no real Docker/Colima, production .env, network or VM access.
         root = Path(self.temporary.name) / "start-test"

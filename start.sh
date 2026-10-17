@@ -126,7 +126,10 @@ if [[ -n "${NETWORK_SOURCE_ID:-}" ]]; then
   source_interface="${NETWORK_HOST_INTERFACE:?NETWORK_HOST_INTERFACE is required}"
   source_epoch="${NETWORK_SOURCE_EPOCH:?NETWORK_SOURCE_EPOCH is required}"
 else
-  IFS=$'\t' read -r source_id source_interface source_epoch < <("${NETWORK_SOURCE_PYTHON}" "${SCRIPT_DIR}/network-source-control.py" active)
+  # At process startup only, prefer the configured, currently attached source.
+  # This lets the monitor boot through the LTE router with no tethered phone;
+  # the long-running supervisor still never performs an automatic failover.
+  IFS=$'\t' read -r source_id source_interface source_epoch < <("${NETWORK_SOURCE_PYTHON}" "${SCRIPT_DIR}/network-source-control.py" startup)
   if [[ "${source_id}" == "iphone" && -n "${IPHONE_INTERFACE:-}" ]]; then source_interface="${IPHONE_INTERFACE}"; fi
 fi
 [[ "${source_id}" == "iphone" || "${source_id}" == "router" ]] || { printf 'Invalid network source\n' >&2; exit 1; }

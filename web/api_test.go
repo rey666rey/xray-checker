@@ -67,10 +67,13 @@ func TestRenderIndexIncludesSubscriptionName(t *testing.T) {
 		!strings.Contains(out.String(), "discoverTelegramChats") {
 		t.Fatal("rendered private dashboard does not include Telegram alert setup")
 	}
-	if !strings.Contains(out.String(), `@click="reconnectNetwork()"`) ||
+	if !strings.Contains(out.String(), `@click="reconnectSelectedNetwork()"`) ||
+		!strings.Contains(out.String(), `@click="switchNetworkSource(sourceId)"`) ||
+		!strings.Contains(out.String(), `aria-label="Источник сетевых проверок"`) ||
+		!strings.Contains(out.String(), "sourceShortName(id)") ||
 		!strings.Contains(out.String(), "X-Xray-Action") ||
-		!strings.Contains(out.String(), `aria-label="Reconnect iPhone bridge"`) {
-		t.Fatal("rendered private dashboard does not include the one-click iPhone reconnect control")
+		!strings.Contains(out.String(), `aria-label="Reconnect selected measurement network"`) {
+		t.Fatal("rendered private dashboard does not include the network source switch and reconnect control")
 	}
 	if !strings.Contains(out.String(), "Check access") ||
 		!strings.Contains(out.String(), "./api/v1/access-checks") ||
@@ -84,8 +87,10 @@ func TestRenderIndexIncludesSubscriptionName(t *testing.T) {
 	}
 	if strings.Contains(out.String(), "setViewMode(") ||
 		strings.Contains(out.String(), ">Nodes</button>") ||
-		!strings.Contains(out.String(), `<h2 class="text-base font-semibold text-primary">Hosts</h2>`) {
-		t.Fatal("rendered dashboard must expose Hosts as its only view")
+		!strings.Contains(out.String(), `x-show="showServersHeader && panelSummaries.length <= 1"`) ||
+		!strings.Contains(out.String(), `>Hosts</h2>`) ||
+		!strings.Contains(out.String(), `Узлы по панелям`) {
+		t.Fatal("rendered dashboard must retain the panel overview and single-panel Hosts fallback")
 	}
 }
 
