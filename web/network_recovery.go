@@ -9,8 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
+	"xray-checker/networksource"
 )
 
 const networkRecoveryStaleAfter = 5 * time.Minute
@@ -37,11 +37,10 @@ type networkRecoveryRequest struct {
 // APINetworkRecoveryHandler bridges the dashboard to the macOS launch agent
 // through a host-mounted request file. The HTTP response is completed before
 // the supervisor stops Colima and temporarily takes the dashboard offline.
-func APINetworkRecoveryHandler(requestFile, statusFile string) http.HandlerFunc {
+func APINetworkRecoveryHandler(requestFile, statusFile string, sourceDirs ...string) http.HandlerFunc {
 	requestFile = strings.TrimSpace(requestFile)
 	statusFile = strings.TrimSpace(statusFile)
 	enabled := requestFile != "" && statusFile != ""
-	var mu sync.Mutex
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
@@ -58,8 +57,16 @@ func APINetworkRecoveryHandler(requestFile, statusFile string) http.HandlerFunc 
 				return
 			}
 
-			mu.Lock()
-			defer mu.Unlock()
+			networkControlMu.Lock()
+			defer networkControlMu.Unlock()
+			if len(sourceDirs) > 0 && sourceDirs[0] != "" {
+				dir := sourceDirs[0]
+				s, err := networksource.Read(dir)
+				if err != nil || !s.Fresh(time.Now()) || s.ActiveSourceID != "iphone" || s.Job.Active() || networksource.Exists(dir, networksource.RequestName) || networksource.Exists(dir, networksource.ProcessingName) {
+					writeError(w, "Use the network source selector; iPhone recovery is unavailable", http.StatusConflict)
+					return
+				}
+			}
 			current := readNetworkRecoveryStatus(statusFile, enabled)
 			if current.Active || fileExists(requestFile) {
 				writeError(w, "iPhone reconnect is already queued or running", http.StatusConflict)

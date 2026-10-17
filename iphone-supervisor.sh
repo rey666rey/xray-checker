@@ -4,7 +4,8 @@ set -uo pipefail
 
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly COLIMA_PROFILE="${COLIMA_PROFILE:-iphone}"
-readonly IPHONE_INTERFACE="${IPHONE_INTERFACE:-en7}"
+IPHONE_INTERFACE="${IPHONE_INTERFACE:-en7}"
+readonly NETWORK_SOURCE_PYTHON="${NETWORK_SOURCE_PYTHON:-$(command -v python3 || printf /usr/bin/python3)}"
 readonly LABEL="com.xray-checker.iphone-supervisor"
 readonly RUNTIME_DIR="${SCRIPT_DIR}/.runtime"
 readonly RECOVERY_CONTROL_DIR="${IPHONE_RECOVERY_CONTROL_DIR:-${RUNTIME_DIR}/control}"
@@ -132,6 +133,13 @@ request_manual_recovery() {
   local requested_at
   local temporary
 
+  local source_id source_interface source_epoch
+  IFS=$'\t' read -r source_id source_interface source_epoch < <("${NETWORK_SOURCE_PYTHON}" "${SCRIPT_DIR}/network-source-control.py" active)
+  if [[ "${source_id}" != "iphone" || -e "${SCRIPT_DIR}/.runtime/control/network-sources/request.json" || -e "${SCRIPT_DIR}/.runtime/control/network-sources/processing.json" ]]; then
+    log "Use the network source selector; iPhone recovery is unavailable"
+    return 1
+  fi
+
   prepare_recovery_control
   if [[ -f "${RECOVERY_REQUEST_FILE}" || -f "${RECOVERY_PROCESSING_FILE}" ]]; then
     log "iPhone bridge reconnect is already queued or running"
@@ -187,6 +195,19 @@ run_supervisor() {
   fi
   log "iPhone recovery supervisor started (interface=${IPHONE_INTERFACE}, profile=${COLIMA_PROFILE})"
   while true; do
+    # The source adapter owns manual transitions. It never writes panel APIs.
+    if ! "${NETWORK_SOURCE_PYTHON}" "${SCRIPT_DIR}/network-source-control.py" tick; then
+      log "Network source control needs attention; automatic recovery paused"
+      sleep "${CHECK_INTERVAL}"
+      continue
+    fi
+    IFS=$'\t' read -r active_source active_interface active_epoch < <("${NETWORK_SOURCE_PYTHON}" "${SCRIPT_DIR}/network-source-control.py" active)
+    if [[ "${active_source}" != "iphone" ]]; then
+      failures=0
+      sleep "${CHECK_INTERVAL}"
+      continue
+    fi
+    IPHONE_INTERFACE="${active_interface}"
     if process_manual_recovery; then
       last_recovery="$(date +%s)"
       last_state="manual_recovery_completed"

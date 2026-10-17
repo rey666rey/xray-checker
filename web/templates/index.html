@@ -41,6 +41,16 @@
       [x-cloak] {
         display: none !important;
       }
+      .source-layout, .source-panel-overview { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+      .source-panel-overview { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 1rem; }
+      .source-card { padding: 1.25rem; border-radius: .75rem; min-width: 0; }
+      .source-card select { width: 100%; margin: .75rem 0; padding: .65rem; border-radius: .5rem; }
+      .source-header-controls { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; min-width: 0; max-width: 100%; }
+      @media (max-width: 640px) { .source-header-controls { width: 100%; } }
+      .source-card button { min-height: 2.5rem; }
+      .source-selected { border-color: var(--color-green) !important; }
+      .source-status { padding: .75rem; border-radius: .5rem; background: var(--bg-tertiary); margin-bottom: 1rem; overflow-wrap: anywhere; }
+      @media (max-width: 640px) { .source-layout, .source-panel-overview { grid-template-columns: minmax(0, 1fr); } }
       * {
         font-family: "Inter", "Twemoji Country Flags", system-ui, sans-serif;
       }
@@ -1793,7 +1803,7 @@
       <!-- Header -->
       <header
         x-show="showHeader"
-        class="flex items-center justify-between mb-6"
+        class="flex flex-wrap gap-3 items-center justify-between mb-6"
       >
         <div class="flex items-center gap-3">
           <div
@@ -1825,7 +1835,7 @@
           </div>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="source-header-controls">
           <div
             x-show="networkStatus.managed"
 			class="connection-control h-9 card-flat"
@@ -1843,7 +1853,7 @@
 			  type="button"
 			  class="network-reconnect-button flex items-center justify-center"
 			  :class="{ 'is-active': networkRecovery.active, 'is-offline': !networkStatus.ready && !networkRecovery.active }"
-			  :disabled="networkRecovery.active || networkRecoverySubmitting || !networkRecovery.enabled"
+			  :disabled="networkRecovery.active || networkRecoverySubmitting || !networkRecovery.enabled || sourceActionBusy || networkSources.activeSourceId === 'router'"
 			  :title="networkRecovery.active ? (networkRecovery.message || 'Reconnecting iPhone bridge…') : 'Reconnect the Colima iPhone bridge'"
 			  aria-label="Reconnect iPhone bridge"
 			  @click="reconnectNetwork()"
@@ -1938,6 +1948,75 @@
         </div>
       </header>
 
+      {{ if not .IsPublic }}
+      <nav class="flex flex-wrap gap-2 mb-5" aria-label="Разделы панели">
+        <button type="button" class="btn px-4 py-2 rounded-lg text-sm" :class="activeView === 'monitor' && 'btn-active'" @click="setActiveView('monitor')">Мониторинг</button>
+        <button type="button" class="btn px-4 py-2 rounded-lg text-sm" :class="activeView === 'network' && 'btn-active'" @click="openNetworkSources()">Сеть проверок</button>
+        <button type="button" class="btn px-4 py-2 rounded-lg text-sm" @click="openAlerts($event)">Telegram-алерты</button>
+      </nav>
+      <section x-cloak x-show="activeView === 'network'" aria-label="Сеть проверок" class="mb-6">
+        <h2 class="text-base font-semibold text-primary mb-2">Сеть проверок</h2>
+        <p class="text-sm text-muted mb-4">Выберите LTE-роутер или iPhone в режиме модема. Автоматического перехода между источниками нет.</p>
+        <div class="source-status text-sm" aria-live="polite">
+          <span x-text="networkSources.message || 'Активный источник: ' + sourceName(networkSources.activeSourceId)"></span>
+          <p class="text-xs text-muted mt-2" x-show="!networkSources.enabled">Источник подключается через локальный supervisor. После обновления запустите start.sh; текущая сеть сама не переключится.</p>
+        </div>
+        <div class="source-status text-sm" x-show="networkSources.job?.id || networkSources.job?.message" aria-live="polite">
+          <span x-text="sourceJobLabel"></span>
+          <p class="text-xs text-muted mt-2" x-text="networkSources.job?.message || ''"></p>
+        </div>
+        <div class="source-status text-sm text-offline" x-show="networkSourceError" x-text="networkSourceError" role="alert"></div>
+        <div class="source-layout">
+          <template x-for="profile in networkProfiles" :key="profile.id">
+            <article class="source-card card" :class="networkSources.activeSourceId === profile.id && 'source-selected'">
+              <div class="flex flex-wrap justify-between gap-2 items-center">
+                <h3 class="text-sm font-semibold text-primary" x-text="sourceName(profile.id)"></h3>
+                <span class="text-xs text-online" x-show="networkSources.activeSourceId === profile.id" x-text="networkStatus.ready ? 'Сейчас используется' : 'Выбран · проверки на паузе'"></span>
+              </div>
+              <p class="text-xs text-muted mt-2" x-text="profile.id === 'router' ? 'Модем → роутер → отдельный Ethernet / Wi-Fi адаптер Mac' : 'Включите режим модема на iPhone и подключите телефон по USB'"></p>
+              <label class="text-xs text-muted block mt-4" :for="'source-interface-' + profile.id">Адаптер на Mac</label>
+              <select :id="'source-interface-' + profile.id" x-model="networkSourceDraft[profile.id]" :disabled="sourceActionBusy || !networkSources.enabled">
+                <option value="">Выберите адаптер</option>
+                <template x-for="adapter in (networkSources.interfaces || [])" :key="adapter.name">
+                  <option :value="adapter.name" x-text="adapter.label + ' · ' + adapter.name + (adapter.address ? ' · ' + adapter.address : ' · без IPv4')"></option>
+                </template>
+              </select>
+              <p class="text-xs text-muted" x-text="profile.available ? 'Адаптер подключён · ' + profile.address : 'Сохранённый адаптер не подключён или не получил IPv4'"></p>
+              <div class="flex flex-wrap gap-2 mt-4">
+                <button type="button" class="btn px-3 py-2 rounded-lg text-xs" :disabled="sourceActionBusy || !networkSources.enabled || !networkSourceDraft[profile.id]" @click="submitSourceAction('validate', profile.id)">Проверить адаптер</button>
+                <button type="button" class="btn px-3 py-2 rounded-lg text-xs" x-show="profile.id !== networkSources.activeSourceId" :disabled="sourceActionBusy || !networkSources.enabled || !networkSourceDraft[profile.id]" @click="submitSourceAction('configure', profile.id)">Сохранить адаптер</button>
+                <button type="button" class="btn btn-active px-3 py-2 rounded-lg text-xs" :disabled="sourceActionBusy || !networkSources.enabled || !networkSourceDraft[profile.id] || (networkStatus.ready && profile.id === networkSources.activeSourceId && profile.interface === networkSourceDraft[profile.id])" @click="networkSourceConfirm = profile.id">Использовать эту сеть</button>
+              </div>
+              <div class="source-status text-xs mt-4" x-show="networkSourceConfirm === profile.id">
+                <p>Проверки будут приостановлены. Bridge перезапустится, панель временно потеряет связь. При неудаче supervisor попробует вернуть прежнее подключение.</p>
+                <div class="flex flex-wrap gap-2 mt-3"><button type="button" class="btn btn-active px-3 py-2 rounded-lg" :disabled="sourceActionBusy" @click="submitSourceAction('activate', profile.id)">Переключить</button><button type="button" class="btn px-3 py-2 rounded-lg" @click="networkSourceConfirm = ''">Отмена</button></div>
+              </div>
+            </article>
+          </template>
+        </div>
+        <details class="card source-card mt-4 text-xs text-muted">
+          <summary>Подробности измерительного маршрута</summary>
+          <p class="mt-3" x-text="'Интерфейс VM: ' + (networkStatus.interface || '—') + ' · прямой IP: ' + (networkStatus.ready && networkStatus.publicIp ? networkStatus.publicIp : 'нет свежих данных')"></p>
+          <p class="mt-2" x-text="networkStatus.message || 'Ожидаем монитор маршрута'"></p>
+          <p class="mt-2">Сегмент роутера должен использовать только мобильный WAN. Панель не включает режим модема на телефоне и не меняет настройки SIM/APN.</p>
+        </details>
+      </section>
+      {{ end }}
+
+      <section x-show="activeView === 'monitor'">
+      {{ if not .IsPublic }}
+      <div class="source-status text-sm" x-cloak x-show="networkStatus.managed && !networkStatus.ready" aria-live="polite"><strong>Измерения приостановлены</strong><p class="text-xs text-muted mt-2" x-text="networkStatus.message"></p><p class="text-xs text-muted mt-2">Ниже — последние сохранённые результаты, не текущая доступность серверов. Общий сбой сети не означает падение всех панелей.</p></div>
+      <div class="source-panel-overview" x-show="panelSummaries.length > 1" aria-label="Панели подписок">
+        <template x-for="panel in panelSummaries" :key="panel.name">
+          <button type="button" class="card source-card text-left" :class="selectedPanel === panel.name && 'source-selected'" :aria-pressed="selectedPanel === panel.name" @click="selectedPanel = panel.name; filter = 'all'">
+            <span class="block text-sm font-semibold text-primary" x-text="panel.name"></span>
+            <span class="block text-xs mt-2" :class="panel.offline ? 'text-offline' : 'text-muted'" x-text="networkStatus.managed && !networkStatus.ready ? 'Измерения приостановлены' : 'Работают: ' + panel.online + ' · ошибки: ' + panel.offline + ' · проверяются: ' + panel.checking"></span>
+            <span class="block text-xs text-muted mt-2" x-text="'Последняя проверка: ' + (panel.lastCheck ? formatCheckTime(panel.lastCheck) : 'ожидается')"></span>
+          </button>
+        </template>
+      </div>
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-4" x-show="panelSummaries.length > 1"><h2 class="text-sm font-semibold text-primary" x-text="selectedPanel || 'Все панели · отдельные разделы'"></h2><button type="button" class="btn px-3 py-2 rounded-lg text-xs" @click="selectedPanel = ''">Все панели</button></div>
+      {{ end }}
       <!-- Stats -->
       <div x-show="showStats" class="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 mb-6">
         <div class="card rounded-lg p-2 sm:p-4 text-center">
@@ -2232,6 +2311,7 @@
       <!-- Proxy Grid -->
 	  {{ if not .IsPublic }}
 	  <div x-cloak x-show="monitoring && !badgeMode" class="card-flat rounded-lg px-3 py-2 mb-3 text-xs text-muted flex flex-wrap items-center gap-x-4 gap-y-1" aria-live="polite">
+		<span>Общая очередь всех панелей</span>
 		<span class="font-medium" x-text="monitoringModeLabel"></span>
 		<span x-text="'Pending checks: ' + (monitoring?.pendingChecks || 0)"></span>
 		<span x-text="'Oldest delay: ' + (monitoring?.oldestDelaySeconds || 0) + 's'"></span>
@@ -2432,6 +2512,7 @@
         >
       </div>
       {{ end }} {{ end }}
+      </section>
 
       <footer
         x-show="showFooter"
@@ -2504,7 +2585,7 @@
               <div class="min-w-0">
                 <div class="text-[9px] uppercase tracking-[.14em] font-bold" style="color:#8d72ff">Route diagnostics</div>
                 <h2 class="text-base font-semibold text-primary">Check access</h2>
-                <p class="text-[10px] text-muted mt-0.5 truncate">Direct iPhone route first, healthy VPN routes second</p>
+                <p class="text-[10px] text-muted mt-0.5 truncate">Direct measurement route first, healthy VPN routes second</p>
               </div>
             </div>
             <button type="button" @click="closeAccessCheck()" class="diagnosis-close flex-shrink-0" title="Close" aria-label="Close access check">
@@ -2526,7 +2607,7 @@
                       <h3 class="text-sm font-semibold text-primary">What should answer?</h3>
                       <p class="text-[10px] text-muted mt-1">Choose a protocol so a bare open port cannot masquerade as success.</p>
                     </div>
-                    <span class="alerts-route-count" x-show="networkStatus.ready">iPhone ready</span>
+                    <span class="alerts-route-count" x-show="networkStatus.ready">Mobile route ready</span>
                   </div>
 
                   <div class="access-methods">
@@ -2616,7 +2697,7 @@
                   <div class="access-progress">
                     <div class="access-progress-step" :class="accessCurrent.stage === 'direct' ? 'active' : (accessCurrent.stage === 'vpn' || accessCurrent.state === 'completed' ? 'done' : '')">
                       <span class="access-step-dot" x-text="accessCurrent.stage === 'vpn' || accessCurrent.state === 'completed' ? '✓' : '1'"></span>
-                      <span class="min-w-0"><span class="text-[11px] font-semibold text-primary block">Direct · iPhone</span><span class="text-[9px] text-muted block mt-0.5">3 protocol attempts</span></span>
+                      <span class="min-w-0"><span class="text-[11px] font-semibold text-primary block">Direct · mobile</span><span class="text-[9px] text-muted block mt-0.5">3 protocol attempts</span></span>
                     </div>
                     <span class="access-progress-line"></span>
                     <div class="access-progress-step" :class="accessCurrent.stage === 'vpn' ? 'active' : ''">
@@ -2752,7 +2833,7 @@
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
 			  <div class="diagnosis-metric p-3">
-				<div class="text-xs text-muted mb-1">iPhone route</div>
+				<div class="text-xs text-muted mb-1">measurement route</div>
                 <div class="text-sm" :class="selectedDiagnosis.control && selectedDiagnosis.control.online ? 'latency-good' : 'latency-bad'" x-text="selectedDiagnosis.control && selectedDiagnosis.control.online ? 'Available' : 'Failed'"></div>
                 <div class="text-[10px] text-muted mt-1" x-show="selectedDiagnosis.control" x-text="selectedDiagnosis.control ? ((selectedDiagnosis.control.latencyMs || 0) + 'ms · HTTP ' + (selectedDiagnosis.control.statusCode || '—')) : ''"></div>
               </div>
@@ -3152,7 +3233,7 @@
                       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2" stroke-width="1.8"/><path stroke-linecap="round" stroke-width="1.8" d="M10.5 5h3M11 18.5h2"/></svg>
                     </span>
                     <span class="alerts-notification-copy">
-                      <span class="alerts-notification-title">iPhone connection status</span>
+                      <span class="alerts-notification-title">Measurement network status</span>
                       <span class="alerts-notification-description">Delivery resumes after the probe reconnects</span>
                     </span>
                     <span class="alerts-toggle flex-shrink-0" :class="telegramPreferences.networkStatus && 'on'"></span>
@@ -3253,6 +3334,13 @@
 
       function dashboard() {
         return {
+          activeView: {{ if .IsPublic }}'monitor'{{ else }}localStorage.getItem('activeView') === 'network' ? 'network' : 'monitor'{{ end }},
+          selectedPanel: '',
+          networkSources: { enabled: false, activeSourceId: '', epoch: '', profiles: [], interfaces: [], job: { state: 'idle' } },
+          networkSourceDraft: {},
+          networkSourceSubmitting: false,
+          networkSourceConfirm: '',
+          networkSourceError: '',
           darkMode: localStorage.getItem('darkMode') !== 'false',
           autoRefresh: localStorage.getItem('autoRefresh') !== 'false',
           refreshSeconds: 5,
@@ -3265,6 +3353,7 @@
           filter: localStorage.getItem('filter') || 'all',
           sort: localStorage.getItem('sort') || 'default',
           toasts: [],
+          toastSequence: 0,
           initialLoad: true,
           networkStatus: {
             managed: false,
@@ -3357,7 +3446,7 @@
 		  },
 		  telegramDeliveryOptions: [
 			{ key: 'auto', shortLabel: 'Auto', label: 'Auto · healthy Xray nodes', description: 'Recommended. Tries up to three different physical nodes without touching the checker queue.' },
-			{ key: 'direct', shortLabel: 'Direct', label: 'Direct mobile connection', description: 'Use the iPhone route directly. Telegram may be blocked by the mobile provider.' },
+			{ key: 'direct', shortLabel: 'Direct', label: 'Direct mobile connection', description: 'Use the measurement route directly. Telegram may be blocked by the mobile provider.' },
 			{ key: 'custom', shortLabel: 'Custom', label: 'Custom proxy', description: 'Use a separate HTTP, HTTPS, SOCKS5, or SOCKS5H proxy.' },
 		  ],
 		  telegramPreferences: {
@@ -3376,7 +3465,7 @@
 			{ key: 'recoveries', label: 'Successful recoveries', description: 'A failed or replaced node works again' },
 			{ key: 'newIpFailures', label: 'New IP verification failed', description: 'The replacement did not pass confirmation' },
 			{ key: 'unstable', label: 'Unstable nodes', description: 'Potentially noisy; disabled by default' },
-			{ key: 'networkStatus', label: 'iPhone connection status', description: 'Delivery resumes after the probe reconnects' },
+			{ key: 'networkStatus', label: 'Measurement network status', description: 'Delivery resumes after the probe reconnects' },
 		  ],
 
           // URL-controlled visibility
@@ -3424,13 +3513,47 @@
           },
 
           get networkStatusLabel() {
-			if (this.networkRecovery.active) return 'iPhone · Reconnecting';
+			const label = this.networkStatus.label || (this.networkSources.activeSourceId ? this.sourceName(this.networkSources.activeSourceId) : 'Mobile network');
+			if (this.sourceActionBusy && this.networkSources.job?.action === 'activate') return label + ' · Switching';
+			if (this.networkRecovery.active) return label + ' · Reconnecting';
             if (this.networkStatus.ready) {
-              return 'iPhone · ' + (this.networkStatus.publicIp || 'Connected');
+              return label + ' · ' + (this.networkStatus.publicIp || 'Connected');
             }
-            if (this.networkStatus.state === 'recovering') return 'iPhone · Recovering';
-            if (this.networkStatus.state === 'unknown') return 'iPhone · Monitor offline';
-            return 'iPhone · Waiting';
+            if (this.networkStatus.state === 'recovering') return label + ' · Recovering';
+            if (this.networkStatus.state === 'switching') return label + ' · Switching';
+            if (this.networkStatus.state === 'unknown') return label + ' · Monitor offline';
+            return label + ' · Waiting';
+          },
+          sourceName(id) { return { iphone: 'iPhone · режим модема', router: 'LTE-роутер' }[id] || 'Не выбран'; },
+          get networkProfiles() { return ['iphone', 'router'].map(id => (this.networkSources.profiles || []).find(p => p.id === id) || { id, interface: '', available: false }); },
+          get sourceActionBusy() { return this.networkSourceSubmitting || this.networkRecovery.active || ['queued','running'].includes(this.networkSources.job?.state); },
+          get sourceJobLabel() { return {queued:'Действие в очереди',running:'Выполняется',succeeded:'Готово',failed:'Действие завершилось ошибкой'}[this.networkSources.job?.state] || ''; },
+          setActiveView(view) { this.activeView = view; localStorage.setItem('activeView', view); },
+          async openNetworkSources() { this.setActiveView('network'); await this.refreshNetworkSources(); },
+          async refreshNetworkSources() {
+            try {
+              const res = await fetch('./api/v1/network/sources', {cache:'no-store'});
+              const json = await res.json();
+              if (!res.ok || !json.success || !json.data) return;
+              const oldJob = this.networkSources.job;
+              this.networkSources = json.data;
+              for (const p of json.data.profiles || []) if (this.networkSourceDraft[p.id] === undefined) this.networkSourceDraft[p.id] = p.interface;
+              if (oldJob?.id && oldJob.id === json.data.job?.id && ['queued','running'].includes(oldJob.state) && ['failed','succeeded'].includes(json.data.job.state)) this.showToast(json.data.job.message);
+              if (json.data.job?.id === localStorage.getItem('networkSourceJob') && !['queued','running'].includes(json.data.job.state)) localStorage.removeItem('networkSourceJob');
+            } catch (_) { /* Preserve the pending transition while the VM is offline. */ }
+          },
+          async submitSourceAction(action, id) {
+            if (this.sourceActionBusy || !this.networkSources.enabled) return;
+            this.networkSourceError = ''; this.networkSourceSubmitting = true; this.networkSourceConfirm = '';
+            try {
+              const res = await fetch('./api/v1/network/sources', {method:'POST',headers:{'Content-Type':'application/json','X-Xray-Action':'network-source'},body:JSON.stringify({action,sourceId:id,interface:this.networkSourceDraft[id],expectedEpoch:this.networkSources.epoch})});
+              const json = await res.json();
+              if (!res.ok || !json.success) throw new Error(json.error || 'Не удалось поставить действие в очередь');
+              this.networkSources = json.data;
+              localStorage.setItem('networkSourceJob', json.data.job.id);
+              this.showToast(action === 'activate' ? 'Переключение запрошено. Ожидаем возвращения панели.' : 'Действие поставлено в очередь');
+            } catch (error) { this.networkSourceError = error instanceof TypeError ? 'Связь прервалась. Дождитесь возвращения панели и проверьте результат действия.' : error.message; }
+            finally { this.networkSourceSubmitting = false; }
           },
 
 		  get alertsStatusClass() {
@@ -3659,7 +3782,7 @@
 		  diagnosisLayerDescription(diagnosis) {
 			if (!diagnosis) return '';
 			if (diagnosis.stale) return 'This is an older point-in-time result. Run Diagnose again before acting on it.';
-			if (diagnosis.verdict === 'net_unreachable') return 'The iPhone route works, but the configured TCP ports did not accept a connection.';
+			if (diagnosis.verdict === 'net_unreachable') return 'The measurement route works, but the configured TCP ports did not accept a connection.';
 			if (diagnosis.verdict === 'handshake_failed') return 'TCP is reachable, but the TLS/SNI negotiation did not complete. This is not classified as a blocked port.';
 			if (diagnosis.verdict === 'tunnel_failed') return 'The endpoint is reachable, but the configured Xray binding did not carry the control request.';
 			if (diagnosis.verdict === 'inconclusive') return 'The probe route was unavailable, so this run cannot classify the node.';
@@ -3705,7 +3828,7 @@
 			let responseStatus = workingBindings > 0 ? (workingBindings === bindings.length ? 'pass' : 'partial') : (responseFailures > 0 ? 'fail' : 'blocked');
 			if (!completed && diagnosis.stage === 'xray_tunnels') responseStatus = 'running';
 			return [
-			  { key: 'route', label: 'iPhone route', status: routeStatus, detail: control.online ? ('Available' + (control.latencyMs ? ' · ' + control.latencyMs + 'ms' : '')) : (control.error || (completed ? 'Unavailable' : 'Waiting')) },
+			  { key: 'route', label: 'measurement route', status: routeStatus, detail: control.online ? ('Available' + (control.latencyMs ? ' · ' + control.latencyMs + 'ms' : '')) : (control.error || (completed ? 'Unavailable' : 'Waiting')) },
 			  { key: 'endpoint', label: 'TCP endpoint', status: endpointStatus, detail: endpointStatus === 'blocked' ? 'Not reached' : (ports.length ? reachablePorts + '/' + ports.length + ' ports reachable' : 'No direct TCP probe') },
 			  { key: 'secure', label: 'TLS / SNI', status: secureStatus, detail: secureStatus === 'blocked' ? 'Not reached' : (tls.length ? securePassed + '/' + tls.length + ' probes passed' : 'Not required or not tested') },
 			  { key: 'tunnel', label: 'Xray tunnel', status: tunnelStatus, detail: tunnelStatus === 'blocked' ? 'Not reached' : (bindings.length ? workingBindings + '/' + bindings.length + ' bindings working' : 'No bindings tested') },
@@ -3718,7 +3841,7 @@
 			if (diagnosis.state === 'completed') return diagnosis.summary || 'Diagnosis completed';
 			const stage = {
 			  queued: 'Waiting for the current background check',
-			  network_control: 'Checking the iPhone route',
+			  network_control: 'Checking the measurement route',
 			  direct_endpoint: 'Testing TCP and TLS/Reality',
 			  xray_tunnels: 'Testing real Xray tunnels',
 			}[diagnosis.stage] || diagnosis.summary || 'Diagnosis is running';
@@ -3737,14 +3860,28 @@
           get activeProxies() {
             return this.proxies.filter(p => p.missingPolls === 0);
           },
+          get scopedProxies() { return this.activeProxies.filter(p => !this.selectedPanel || (p.subName || p.groupName || 'Other') === this.selectedPanel); },
+          get panelSummaries() {
+            const groups = new Map();
+            for (const p of this.activeProxies) {
+              const name = p.subName || p.groupName || 'Other';
+              if (!groups.has(name)) groups.set(name, {name, online:0,offline:0,checking:0,lastCheck:0});
+              const panel = groups.get(name);
+              if (this.isEffectivelyOnline(p)) panel.online++;
+              else if (this.isConfirmedOffline(p)) panel.offline++;
+              else panel.checking++;
+              panel.lastCheck = Math.max(panel.lastCheck, p.lastCheck || 0);
+            }
+            return [...groups.values()];
+          },
 
           get stats() {
-			const online = this.activeProxies.filter(p => this.isEffectivelyOnline(p)).length;
-			const offline = this.activeProxies.filter(p => this.isConfirmedOffline(p)).length;
-			const checking = this.activeProxies.filter(p => this.isChecking(p)).length;
-			const withLatency = this.activeProxies.filter(p => this.isEffectivelyOnline(p) && p.latencyMs > 0);
+			const online = this.scopedProxies.filter(p => this.isEffectivelyOnline(p)).length;
+			const offline = this.scopedProxies.filter(p => this.isConfirmedOffline(p)).length;
+			const checking = this.scopedProxies.filter(p => this.isChecking(p)).length;
+			const withLatency = this.scopedProxies.filter(p => this.isEffectivelyOnline(p) && p.latencyMs > 0);
             return {
-              total: this.activeProxies.length,
+              total: this.scopedProxies.length,
               online,
 			  offline,
 			  checking,
@@ -3753,7 +3890,7 @@
           },
 
           get filteredProxies() {
-            let r = this.activeProxies;
+            let r = this.scopedProxies;
             if (this.search) {
               const q = this.search.toLowerCase();
               r = r.filter(p => p.name.toLowerCase().includes(q) || p.subName.toLowerCase().includes(q) || (p.serverInfo && p.serverInfo.toLowerCase().includes(q)));
@@ -3984,6 +4121,7 @@
               }
             }
 			{{ if not .IsPublic }}
+			await this.refreshNetworkSources();
 			await this.refreshNetworkRecoveryStatus();
 			{{ end }}
           },
@@ -4007,7 +4145,7 @@
 		  },
 
 		  async reconnectNetwork() {
-			if (this.networkRecovery.active || this.networkRecoverySubmitting || !this.networkRecovery.enabled) return;
+			if (this.sourceActionBusy || this.networkSources.activeSourceId === 'router' || this.networkRecovery.active || this.networkRecoverySubmitting || !this.networkRecovery.enabled) return;
 			this.networkRecoverySubmitting = true;
 			this.networkRecovery = {
 			  ...this.networkRecovery,
@@ -4327,7 +4465,7 @@
 		  accessStageLabel(check) {
 			if (!check) return 'Preparing check';
 			if (check.stage === 'vpn') return 'Direct access failed · comparing VPN routes';
-			if (check.stage === 'direct') return 'Checking the direct iPhone route';
+			if (check.stage === 'direct') return 'Checking the direct measurement route';
 			return 'Preparing the direct probe';
 		  },
 
@@ -4847,7 +4985,7 @@
           },
 
           showToast(msg) {
-            const t = { id: Date.now(), message: msg, visible: true };
+            const t = { id: ++this.toastSequence, message: msg, visible: true };
             this.toasts.push(t);
             setTimeout(() => { t.visible = false; setTimeout(() => this.toasts = this.toasts.filter(x => x.id !== t.id), 200); }, 2000);
           }

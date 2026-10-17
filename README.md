@@ -7,6 +7,14 @@ route is isolated inside a dedicated Colima virtual machine.
 
 [Русская версия](README_RU.md)
 
+### Measurement source selector
+
+The private **Сеть проверок** view can select iPhone USB or a dedicated LTE-router
+adapter. Update the host supervisor with `./start.sh`; validation does not switch
+the VM, activation requires confirmation and attempts rollback on failure.
+Source/session measurements are isolated; Telegram preferences remain shared.
+See [setup and limitations](docs/network-source-switching.md).
+
 ## Purpose
 
 This repository is tailored to the operational workflow of maintaining Xray
@@ -234,8 +242,8 @@ connection begins on the iPhone mobile network.
 
 ## Full sweep
 
-A normal `./start.sh` removes only `results.json`, builds the image, and starts a
-new full check of every current binding.
+A normal `./start.sh` preserves previous snapshots, builds the image, and starts a
+new measurement session with a fresh check of every current binding.
 
 The sweep works as follows:
 
@@ -486,11 +494,13 @@ The dashboard is independent from Prometheus and reads the JSON API directly.
 
 ## Persistence
 
-The named `xray-results` volume is mounted at `/app/data`.
+The named `xray-results` volume is mounted at `/app/data`. Measurement files now live
+in `network-sources/<sourceId>/<epoch>/`; Telegram settings/token/proxy stay at the
+volume root. Current and up to five previous sessions are retained per source.
 
 | File | Contents | Normal `./start.sh` |
 | --- | --- | --- |
-| `results.json` | last online/latency/error per binding and completed-sweep flag | removed to force a new full sweep |
+| `results.json` | last online/latency/error per binding and completed-sweep flag | archived; a new session gets its own file |
 | `node-history.json` | repair states, revisions, and the latest 40 events | preserved |
 | `node-diagnostics.json` | latest ten manual or automatic diagnoses per Node | preserved |
 | `access-checks.json` | latest 20 completed direct-vs-VPN access checks | preserved |
@@ -589,7 +599,7 @@ IPHONE_INTERFACE=en8 ./start.sh
 3. starts bridged vmnet on the selected USB interface;
 4. verifies that the VM default route uses `col0`;
 5. builds the image;
-6. removes only the previous `results.json`;
+6. selects a new source/session snapshot directory without deleting legacy results;
 7. starts `network-monitor`, `xray-checker`, and `web-forwarder`;
 8. installs the recovery LaunchAgent.
 
@@ -601,8 +611,8 @@ Different operations intentionally behave differently:
 
 | Operation | Full sweep |
 | --- | --- |
-| `./start.sh` | yes; deletes `results.json` |
-| automatic recovery after the iPhone returns | no; restores the snapshot |
+| `./start.sh` | yes; new source/session context, old snapshots retained |
+| bridge recovery after the iPhone returns | yes; new bridge session; previous measurements remain archived |
 | `docker restart xray-checker-xray-checker-1` | no; uses the volume |
 | `docker-compose ... up -d --build --force-recreate` | no when a complete matching snapshot exists |
 | add/change a subscription binding | checks only affected bindings |
@@ -667,7 +677,7 @@ Values are defined in [`compose.yaml`](compose.yaml).
 | `METRICS_HOST` | `172.17.0.1` | listen only on Colima's Docker bridge, not on the iPhone/LAN interface |
 | `METRICS_PORT` | `2113` | checker port inside the Colima host namespace; forwarded to Mac `127.0.0.1:2112` |
 | `NETWORK_STATUS_MAX_AGE` | `15` | sidecar is stale after 15 seconds |
-| `RESULTS_FILE` | `/app/data/results.json` | result snapshot |
+| `RESULTS_FILE` | `/app/data/network-sources/<source>/<epoch>/results.json` | result snapshot |
 | `NODE_HISTORY_FILE` | `/app/data/node-history.json` | repair history |
 | `NODE_DIAGNOSIS_FILE` | `/app/data/node-diagnostics.json` | Diagnose history |
 | `ACCESS_CHECK_FILE` | `/app/data/access-checks.json` | latest 20 direct-vs-VPN checks |

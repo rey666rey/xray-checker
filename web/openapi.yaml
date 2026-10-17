@@ -439,6 +439,58 @@ paths:
                       data:
                         $ref: '#/components/schemas/NetworkStatus'
 
+  /api/v1/network/sources:
+    get:
+      summary: Read measurement source profiles, host adapters and last transition
+      description: A fresh host supervisor snapshot is required for mutations. A disabled snapshot means no action can be admitted. This endpoint never changes routing.
+      tags: [Network]
+      responses:
+        '200':
+          description: Source snapshot wrapped in APIResponse
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: {type: boolean}
+                  data:
+                    type: object
+                    properties:
+                      enabled: {type: boolean}
+                      activeSourceId: {type: string, enum: [iphone, router]}
+                      epoch: {type: string}
+                      profiles: {type: array, items: {type: object}}
+                      interfaces: {type: array, items: {type: object}}
+                      job: {type: object}
+    post:
+      summary: Queue a local source preflight, configuration or activation
+      description: Private same-origin control. Configure saves an inactive adapter; validate only checks host availability/IPv4; activate restarts the bridge and attempts rollback on failure. A 202 response means queued, not applied. No Remnawave API calls are made.
+      tags: [Network]
+      parameters:
+        - in: header
+          name: X-Xray-Action
+          required: true
+          schema: {type: string, enum: [network-source]}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [action, sourceId, interface, expectedEpoch]
+              properties:
+                action: {type: string, enum: [configure, validate, activate]}
+                sourceId: {type: string, enum: [iphone, router]}
+                interface: {type: string, pattern: '^en[0-9]{1,3}$'}
+                expectedEpoch: {type: string}
+      responses:
+        '202': {description: Queued; poll GET for the durable result}
+        '400': {description: Invalid or unknown fields, source or adapter}
+        '403': {description: Missing action header or cross-origin request}
+        '409': {description: Another action is pending, source context changed or active configuration requires activation}
+        '503': {description: Host supervisor is missing, disabled or stale}
+
   /api/v1/network/reconnect:
     get:
       summary: Get iPhone bridge reconnect status

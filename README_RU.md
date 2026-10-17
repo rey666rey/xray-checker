@@ -7,6 +7,15 @@ Wi-Fi: мобильный маршрут изолирован внутри от�
 
 [English version](README.md)
 
+## Ручной выбор сети проверок
+
+Раздел **«Сеть проверок»** позволяет выбрать iPhone USB или LTE-роутер, сохранить
+адаптер, выполнить preflight и отдельно подтвердить переключение. Обновлённый
+host-supervisor устанавливается через `./start.sh`. Перезапуск bridge временно
+отключает панель; при неудаче выполняется попытка возврата прежнего источника.
+Результаты источников/сеансов разделены, настройки Telegram сохраняются.
+Подробности, границы первой версии и приёмка железа: [инструкция](docs/network-source-switching.md).
+
 ## Для чего нужен этот репозиторий
 
 Проект предназначен для практического обслуживания Xray-подписок:
@@ -241,8 +250,8 @@ keep-alive и делает два независимых HTTP-запроса.
 
 ## Полная проходка
 
-Обычный запуск `./start.sh` удаляет только `results.json`, собирает образ и
-начинает новую полную проверку всех актуальных binding.
+Обычный запуск `./start.sh` сохраняет прежние снимки, собирает образ и
+начинает новый сеанс измерений с полной проверкой актуальных binding.
 
 Проходка выполняется так:
 
@@ -501,11 +510,13 @@ xray_proxy_latency_ms{protocol="vless",address="185.186.78.215:443",name="Sweden
 
 ## Какие данные сохраняются
 
-Именованный volume `xray-results` монтируется в `/app/data`.
+Именованный volume `xray-results` монтируется в `/app/data`. Файлы измерений находятся
+в `network-sources/<sourceId>/<epoch>/`; настройки, token и proxy Telegram остаются
+в корне volume. Для каждого источника сохраняются текущий и до пяти прежних сеансов.
 
 | Файл | Содержимое | Обычный `./start.sh` |
 | --- | --- | --- |
-| `results.json` | последний online/latency/error каждой binding и флаг завершённой проходки | удаляется для новой полной проверки |
+| `results.json` | последний online/latency/error каждой binding и флаг завершённой проходки | архивируется; новый сеанс получает свой файл |
 | `node-history.json` | состояния ремонта, смены конфигурации и последние 40 событий | сохраняется |
 | `node-diagnostics.json` | последние 10 ручных или автоматических диагностик каждой Node | сохраняется |
 | `access-checks.json` | последние 20 завершённых direct-vs-VPN проверок | сохраняется |
@@ -585,7 +596,7 @@ IPHONE_INTERFACE=en8 ./start.sh
 3. запускает bridged vmnet через указанный USB-интерфейс;
 4. убеждается, что default route виртуальной машины использует `col0`;
 5. собирает образ;
-6. удаляет только предыдущий `results.json`;
+6. выбирает отдельный каталог нового сеанса, не удаляя legacy-результаты;
 7. запускает `network-monitor`, `xray-checker` и `web-forwarder`;
 8. устанавливает LaunchAgent восстановления.
 
@@ -597,8 +608,8 @@ IPHONE_INTERFACE=en8 ./start.sh
 
 | Действие | Полная проходка |
 | --- | --- |
-| `./start.sh` | да, `results.json` удаляется |
-| автоматический recovery после возврата iPhone | нет, снимок восстанавливается |
+| `./start.sh` | да, новый контекст; прежние снимки остаются в архиве |
+| пересоздание bridge после возврата iPhone | да, новый сеанс bridge; прежние измерения остаются в архиве |
 | `docker restart xray-checker-xray-checker-1` | нет, используется volume |
 | `docker-compose ... up -d --build --force-recreate` | нет, если снимок complete и соответствует текущим binding |
 | изменение/добавление binding в подписке | проверяются только затронутые binding |
@@ -665,7 +676,7 @@ docker --context colima-iphone compose ps
 | `NETWORK_STATUS_MAX_AGE` | `15` | считать sidecar недоступным после 15 секунд тишины |
 | `NETWORK_RECOVERY_REQUEST_FILE` | `/app/host-control/iphone-recovery.request` | очередь ручного reconnect для macOS supervisor |
 | `NETWORK_RECOVERY_STATUS_FILE` | `/app/host-control/iphone-recovery-status.json` | сохраняемое состояние reconnect для панели |
-| `RESULTS_FILE` | `/app/data/results.json` | снимок результатов |
+| `RESULTS_FILE` | `/app/data/network-sources/<source>/<epoch>/results.json` | снимок результатов |
 | `NODE_HISTORY_FILE` | `/app/data/node-history.json` | история ремонта |
 | `NODE_DIAGNOSIS_FILE` | `/app/data/node-diagnostics.json` | история Diagnose |
 | `ACCESS_CHECK_FILE` | `/app/data/access-checks.json` | 20 последних проверок direct/VPN |

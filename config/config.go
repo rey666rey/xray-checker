@@ -91,12 +91,16 @@ type CLI struct {
 
 	Alerts struct {
 		SettingsFile  string `name:"alerts-settings-file" help:"Path to persistent Telegram alert settings" default:"" env:"ALERTS_SETTINGS_FILE"`
+		StateFile     string `name:"alerts-state-file" help:"Optional source-session-specific Telegram delivery state" default:"" env:"ALERTS_STATE_FILE"`
 		TelegramToken string `name:"telegram-bot-token" help:"Telegram bot token managed through the environment" default:"" env:"TELEGRAM_BOT_TOKEN"`
 		TelegramChat  int64  `name:"telegram-chat-id" help:"Telegram chat ID managed through the environment" default:"0" env:"TELEGRAM_CHAT_ID"`
 		TelegramProxy string `name:"telegram-proxy-url" help:"HTTP or SOCKS proxy for Telegram managed through the environment" default:"" env:"TELEGRAM_PROXY_URL"`
 	} `embed:"" prefix:""`
 
 	NetworkStatusFile          string      `name:"network-status-file" help:"Path to a route-monitor status JSON file; unavailable status pauses proxy checks" default:"" env:"NETWORK_STATUS_FILE"`
+	NetworkSourceControlDir    string      `name:"network-source-control-dir" help:"Private host-shared network source control directory" default:"" env:"NETWORK_SOURCE_CONTROL_DIR"`
+	NetworkSourceID            string      `name:"network-source-id" help:"Active measurement source identifier" default:"" env:"NETWORK_SOURCE_ID"`
+	NetworkSourceEpoch         string      `name:"network-source-epoch" help:"Active measurement source session" default:"" env:"NETWORK_SOURCE_EPOCH"`
 	NetworkStatusMaxAge        int         `name:"network-status-max-age" help:"Maximum network status age in seconds before checks are paused" default:"15" env:"NETWORK_STATUS_MAX_AGE"`
 	NetworkRecoveryRequestFile string      `name:"network-recovery-request-file" help:"Host-shared request file used to queue a manual iPhone bridge reconnect" default:"" env:"NETWORK_RECOVERY_REQUEST_FILE"`
 	NetworkRecoveryStatusFile  string      `name:"network-recovery-status-file" help:"Host-shared JSON status file for manual iPhone bridge reconnects" default:"" env:"NETWORK_RECOVERY_STATUS_FILE"`

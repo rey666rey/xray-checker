@@ -3,8 +3,8 @@
 set -Eeuo pipefail
 
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly NETWORK_SOURCE_PYTHON="${NETWORK_SOURCE_PYTHON:-$(command -v python3 || printf /usr/bin/python3)}"
 readonly COLIMA_PROFILE="${COLIMA_PROFILE:-iphone}"
-readonly IPHONE_INTERFACE="${IPHONE_INTERFACE:-en7}"
 readonly DOCKER_CONTEXT="colima-${COLIMA_PROFILE}"
 readonly RECOVERY_MODE="${XRAY_RECOVERY_MODE:-false}"
 readonly PRESERVE_RESULTS="${XRAY_PRESERVE_RESULTS:-false}"
@@ -68,7 +68,7 @@ wait_for_bridge_data_plane() {
   printf 'Жду стабильного доступа в интернет через col0...\n'
   while ((SECONDS < deadline)); do
     if colima ssh --profile "${COLIMA_PROFILE}" -- \
-      curl --interface col0 --fail --silent --connect-timeout 2 --max-time 4 \
+      curl -4 --noproxy '*' --interface col0 --fail --silent --connect-timeout 2 --max-time 4 \
         "${BRIDGE_PROBE_URL}" 2>/dev/null | grep -Fq 'ip='; then
       successes=$((successes + 1))
       if ((successes >= BRIDGE_READY_SUCCESSES)); then
@@ -121,8 +121,26 @@ command -v docker >/dev/null 2>&1 || die "Docker CLI не установлен."
 mkdir -p "${SCRIPT_DIR}/.runtime/control"
 chmod 0777 "${SCRIPT_DIR}/.runtime/control" 2>/dev/null || true
 acquire_start_lock
+if [[ -n "${NETWORK_SOURCE_ID:-}" ]]; then
+  source_id="${NETWORK_SOURCE_ID}"
+  source_interface="${NETWORK_HOST_INTERFACE:?NETWORK_HOST_INTERFACE is required}"
+  source_epoch="${NETWORK_SOURCE_EPOCH:?NETWORK_SOURCE_EPOCH is required}"
+else
+  IFS=$'\t' read -r source_id source_interface source_epoch < <("${NETWORK_SOURCE_PYTHON}" "${SCRIPT_DIR}/network-source-control.py" active)
+  if [[ "${source_id}" == "iphone" && -n "${IPHONE_INTERFACE:-}" ]]; then source_interface="${IPHONE_INTERFACE}"; fi
+fi
+[[ "${source_id}" == "iphone" || "${source_id}" == "router" ]] || { printf 'Invalid network source\n' >&2; exit 1; }
+[[ "${source_interface}" =~ ^en[0-9]{1,3}$ && "${source_epoch}" =~ ^[a-f0-9]{32}$ ]] || { printf 'Invalid network interface/session\n' >&2; exit 1; }
+ipconfig getifaddr "${source_interface}" >/dev/null 2>&1 || die "Интерфейс ${source_interface} не получил IPv4-адрес."
+if [[ -z "${NETWORK_SOURCE_ID:-}" ]]; then
+  source_epoch="$("${NETWORK_SOURCE_PYTHON}" "${SCRIPT_DIR}/network-source-control.py" new-epoch)"
+fi
+readonly IPHONE_INTERFACE="${source_interface}"
+export NETWORK_SOURCE_ID="${source_id}" NETWORK_HOST_INTERFACE="${source_interface}" NETWORK_SOURCE_EPOCH="${source_epoch}"
+export NETWORK_SOURCE_LABEL="LTE router"
+[[ "${source_id}" != "iphone" ]] || export NETWORK_SOURCE_LABEL="iPhone USB"
 ipconfig getifaddr "${IPHONE_INTERFACE}" >/dev/null 2>&1 ||
-  die "iPhone USB не подключён: интерфейс ${IPHONE_INTERFACE} не получил IPv4-адрес."
+  die "${NETWORK_SOURCE_LABEL}: интерфейс ${IPHONE_INTERFACE} не получил IPv4-адрес."
 
 if docker compose version >/dev/null 2>&1; then
   compose=(docker --context "${DOCKER_CONTEXT}" compose)
@@ -153,8 +171,8 @@ fi
 # absent daemon is harmless and prevents `daemon start` from being ignored.
 colima daemon stop "${COLIMA_PROFILE}" >/dev/null 2>&1 || true
 
-printf 'Запускаю bridge Colima %s через iPhone USB (%s)...\n' \
-  "${COLIMA_PROFILE}" "${IPHONE_INTERFACE}"
+printf 'Запускаю bridge Colima %s через %s (%s)...\n' \
+  "${COLIMA_PROFILE}" "${NETWORK_SOURCE_LABEL}" "${IPHONE_INTERFACE}"
 colima daemon start "${COLIMA_PROFILE}" \
   --vmnet \
   --vmnet-mode bridged \
@@ -164,18 +182,20 @@ colima start \
   --network-address \
   --network-mode bridged \
   --network-interface "${IPHONE_INTERFACE}" \
+  --network-preferred-route \
+  --dns "${NETWORK_DNS_SERVER:-1.1.1.1}" \
   --save-config
 
 vm_routes="$(colima ssh --profile "${COLIMA_PROFILE}" -- ip -4 route show default)"
-if ! grep -Eq '^default .* dev col0 ' <<<"${vm_routes}"; then
+if ! grep -Eq '^default .* dev col0( |$)' <<<"${vm_routes}"; then
   colima stop --profile "${COLIMA_PROFILE}" >/dev/null 2>&1 || true
-  die "Colima не получила основной bridge-маршрут col0 через iPhone; checker не запущен."
+  die "Colima не получила основной bridge-маршрут col0; checker не запущен."
 fi
 if ! wait_for_bridge_data_plane; then
   die "Маршрут col0 получен, но не стал стабильно пропускать трафик за ${BRIDGE_READY_TIMEOUT} секунд."
 fi
 
-reclaim_docker_space
+if [[ "${RECOVERY_MODE}" != "true" ]]; then reclaim_docker_space; fi
 
 printf 'Запускаю Xray Checker с монитором сети...\n'
 (
@@ -187,13 +207,7 @@ printf 'Запускаю Xray Checker с монитором сети...\n'
   else
     printf 'Собираю образ...\n'
     "${compose[@]}" build
-    if [[ "${PRESERVE_RESULTS}" == "true" ]]; then
-      printf 'Сохраняю результаты прошлого запуска...\n'
-    else
-      printf 'Удаляю результаты прошлого запуска для новой полной проверки...\n'
-      "${compose[@]}" run --rm --no-deps --entrypoint /bin/rm \
-        xray-checker -f /app/data/results.json /app/data/results.json.tmp
-    fi
+    printf 'Прошлые результаты сохранены отдельно; новый сеанс не наследует их доступность.\n'
     "${compose[@]}" up -d --force-recreate network-monitor xray-checker
     wait_for_checker_services
     "${compose[@]}" up -d --force-recreate --no-deps web-forwarder
