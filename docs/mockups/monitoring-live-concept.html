@@ -1,0 +1,530 @@
+<div id="monitoring-live-concept" aria-label="Макет рабочего мониторинга">
+  <style>
+    #monitoring-live-concept {
+      --ml-bg: light-dark(#f5f8fa,#0f1114); --ml-surface: light-dark(#ffffff,#1a1d21);
+      --ml-raised: light-dark(#edf1f7,#23262b); --ml-line: light-dark(#d0d9e8,#2d3138);
+      --ml-text: light-dark(#171c25,#dedfe3); --ml-muted: light-dark(#536172,#a1a8b3);
+      --ml-green: light-dark(#077637,#3aff82); --ml-green-soft: light-dark(#e8f5ed,#183027);
+      --ml-red: light-dark(#b82b38,#ff828c); --ml-red-soft: light-dark(#fff0f1,#362127);
+      --ml-amber: light-dark(#885500,#ffbd61); --ml-amber-soft: light-dark(#fff3dc,#352b1d);
+      --ml-blue: light-dark(#334bc4,#a5b5ff); --ml-blue-soft: light-dark(#eef1ff,#252e49);
+      --ml-radius: 12px;
+      color: var(--ml-text); font: 400 13px/1.5 Inter,system-ui,sans-serif;
+    }
+    #monitoring-live-concept * { box-sizing: border-box; }
+    #monitoring-live-concept button, #monitoring-live-concept select { font: inherit; color: var(--ml-text); background: var(--ml-surface); border: 1px solid var(--ml-line); border-radius: 8px; padding: 8px 11px; min-height: 36px; max-width: 100%; }
+    #monitoring-live-concept button:disabled { opacity: .5; }
+    #monitoring-live-concept button[aria-pressed="true"] { background: var(--ml-text); border-color: var(--ml-text); color: var(--ml-bg); }
+    #monitoring-live-concept .ml-primary { background: var(--ml-text); border-color: var(--ml-text); color: var(--ml-bg); }
+    #monitoring-live-concept h2, #monitoring-live-concept h3, #monitoring-live-concept p { margin: 0; }
+    #monitoring-live-concept h2 { font-size: 22px; font-weight: 500; line-height: 1.3; }
+    #monitoring-live-concept h3 { font-size: 14px; font-weight: 500; }
+    #monitoring-live-concept .ml-small { color: var(--ml-muted); font-size: 12px; }
+    #monitoring-live-concept .ml-demo { display: flex; justify-content: space-between; align-items: end; flex-wrap: wrap; gap: 10px; padding: 0 105px 16px 0; }
+    #monitoring-live-concept .ml-demo label { display: grid; gap: 5px; color: var(--ml-muted); font-size: 12px; }
+    #monitoring-live-concept .ml-demo-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+    #monitoring-live-concept .ml-demo-note { padding: 0 0 12px; color: var(--ml-muted); font-size: 12px; }
+    #monitoring-live-concept .ml-app { background: var(--ml-bg); border: 1px solid var(--ml-line); border-radius: 18px; overflow: clip; }
+    #monitoring-live-concept .ml-header { display: flex; gap: 18px; flex-wrap: wrap; justify-content: space-between; align-items: center; padding: 19px 22px; border-bottom: 1px solid var(--ml-line); }
+    #monitoring-live-concept .ml-brand { display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 15px; }
+    #monitoring-live-concept .ml-brand i { color: var(--ml-green); }
+    #monitoring-live-concept .ml-header-right { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    #monitoring-live-concept .ml-source-button { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+    #monitoring-live-concept .ml-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+    #monitoring-live-concept .ml-good-dot { color: var(--ml-green); }
+    #monitoring-live-concept .ml-tabs { display: flex; gap: 22px; padding: 0 22px; border-bottom: 1px solid var(--ml-line); flex-wrap: wrap; }
+    #monitoring-live-concept .ml-tabs button { background: transparent; border: 0; border-radius: 0; padding: 12px 0; color: var(--ml-muted); }
+    #monitoring-live-concept .ml-tabs button[aria-selected="true"] { color: var(--ml-text); box-shadow: inset 0 -2px var(--ml-green); }
+    #monitoring-live-concept .ml-main { padding: 22px; }
+    #monitoring-live-concept .ml-title-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 17px; }
+    #monitoring-live-concept .ml-title-row p { margin-top: 6px; }
+    #monitoring-live-concept .ml-scope { display: inline-flex; gap: 7px; align-items: center; color: var(--ml-muted); font-size: 12px; }
+    #monitoring-live-concept .ml-stats { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; margin: 17px 0; }
+    #monitoring-live-concept .ml-stat { padding: 14px 15px; border: 1px solid var(--ml-line); border-radius: var(--ml-radius); background: var(--ml-surface); }
+    #monitoring-live-concept .ml-stat-label { color: var(--ml-muted); font-size: 12px; }
+    #monitoring-live-concept .ml-value { display: block; margin-top: 4px; font-size: 24px; font-weight: 500; font-variant-numeric: tabular-nums; }
+    #monitoring-live-concept .ml-banner { display: flex; align-items: start; gap: 10px; padding: 13px 15px; border-radius: 10px; background: var(--ml-raised); margin-bottom: 15px; }
+    #monitoring-live-concept .ml-banner[data-tone="warn"] { background: var(--ml-amber-soft); }
+    #monitoring-live-concept .ml-banner[data-tone="info"] { background: var(--ml-blue-soft); }
+    #monitoring-live-concept .ml-banner strong { font-weight: 500; display: block; margin-bottom: 3px; }
+    #monitoring-live-concept .ml-banner i { flex-shrink: 0; margin-top: 2px; }
+    #monitoring-live-concept .ml-queue { padding: 13px 15px; border: 1px solid var(--ml-line); border-radius: var(--ml-radius); margin-bottom: 20px; }
+    #monitoring-live-concept .ml-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+    #monitoring-live-concept .ml-track { height: 4px; background: var(--ml-raised); border-radius: 3px; margin: 10px 0 8px; overflow: hidden; }
+    #monitoring-live-concept .ml-track-fill { background: var(--ml-green); height: 100%; width: 20%; transition: width .35s ease; }
+    #monitoring-live-concept .ml-filters { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 13px; }
+    #monitoring-live-concept .ml-filters-left { display: flex; gap: 6px; flex-wrap: wrap; }
+    #monitoring-live-concept .ml-filters select { font-size: 12px; }
+    #monitoring-live-concept .ml-workspace { display: grid; grid-template-columns: minmax(0,1fr) 274px; gap: 16px; align-items: start; }
+    #monitoring-live-concept .ml-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 11px; }
+    #monitoring-live-concept .ml-node { padding: 15px; background: var(--ml-surface); border: 1px solid var(--ml-line); border-radius: var(--ml-radius); min-width: 0; }
+    #monitoring-live-concept .ml-node[data-selected="true"] { border-color: var(--ml-muted); }
+    #monitoring-live-concept .ml-node-head { display: flex; align-items: start; justify-content: space-between; gap: 8px; }
+    #monitoring-live-concept .ml-node-title { border: 0; border-radius: 0; padding: 0; background: transparent; min-height: 0; text-align: left; font-weight: 500; }
+    #monitoring-live-concept .ml-node-title:hover { text-decoration: underline; text-underline-offset: 3px; }
+    #monitoring-live-concept .ml-meta { font-size: 11px; color: var(--ml-muted); margin-top: 5px; }
+    #monitoring-live-concept .ml-status { display: inline-flex; gap: 6px; align-items: center; padding: 3px 7px; border-radius: 5px; font-size: 11px; white-space: nowrap; }
+    #monitoring-live-concept .ml-status[data-kind="healthy"] { color: var(--ml-green); background: var(--ml-green-soft); }
+    #monitoring-live-concept .ml-status[data-kind="unstable"], #monitoring-live-concept .ml-status[data-kind="suspect"] { color: var(--ml-amber); background: var(--ml-amber-soft); }
+    #monitoring-live-concept .ml-status[data-kind="failed"] { color: var(--ml-red); background: var(--ml-red-soft); }
+    #monitoring-live-concept .ml-status[data-kind="pending"] { color: var(--ml-muted); background: var(--ml-raised); }
+    #monitoring-live-concept .ml-endpoint { color: var(--ml-muted); font-size: 11px; margin-top: 12px; overflow-wrap: anywhere; }
+    #monitoring-live-concept .ml-node-result { min-height: 38px; margin: 9px 0 12px; font-size: 12px; }
+    #monitoring-live-concept .ml-node-bottom { display: flex; justify-content: space-between; gap: 7px; flex-wrap: wrap; align-items: center; padding-top: 10px; border-top: 1px solid var(--ml-line); }
+    #monitoring-live-concept .ml-node-bottom button { padding: 4px 7px; min-height: 28px; font-size: 11px; }
+    #monitoring-live-concept .ml-node-bottom span { font-size: 11px; color: var(--ml-muted); }
+    #monitoring-live-concept .ml-aside { background: var(--ml-surface); border: 1px solid var(--ml-line); border-radius: var(--ml-radius); padding: 17px; }
+    #monitoring-live-concept .ml-aside-name { font-size: 16px; font-weight: 500; margin: 8px 0 3px; }
+    #monitoring-live-concept .ml-diagnosis { padding: 12px; background: var(--ml-raised); border-radius: 8px; margin: 15px 0; font-size: 12px; }
+    #monitoring-live-concept .ml-evidence { list-style: none; margin: 15px 0; padding: 0; }
+    #monitoring-live-concept .ml-evidence li { display: grid; grid-template-columns: 9px minmax(0,1fr); gap: 7px; margin-bottom: 15px; font-size: 12px; }
+    #monitoring-live-concept .ml-evidence .ml-dot { margin-top: 6px; color: var(--ml-muted); }
+    #monitoring-live-concept .ml-evidence small { display: block; color: var(--ml-muted); margin-top: 3px; font-size: 11px; }
+    #monitoring-live-concept .ml-aside-footer { border-top: 1px solid var(--ml-line); padding-top: 12px; color: var(--ml-muted); font-size: 11px; }
+    #monitoring-live-concept .ml-empty { padding: 28px 18px; color: var(--ml-muted); border: 1px solid var(--ml-line); border-radius: var(--ml-radius); grid-column: 1/-1; }
+    #monitoring-live-concept .ml-bottom { display: flex; gap: 10px; justify-content: space-between; flex-wrap: wrap; margin-top: 20px; color: var(--ml-muted); font-size: 11px; }
+    #monitoring-live-concept .ml-network { background: var(--ml-surface); border: 1px solid var(--ml-line); padding: 20px; border-radius: var(--ml-radius); }
+    #monitoring-live-concept .ml-route { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; margin: 20px 0; }
+    #monitoring-live-concept .ml-hop { padding: 14px; border-radius: 9px; background: var(--ml-raised); overflow-wrap: anywhere; }
+    #monitoring-live-concept .ml-hop small { display: block; color: var(--ml-muted); font-size: 11px; margin-bottom: 7px; }
+    #monitoring-live-concept .ml-properties { margin: 15px 0; }
+    #monitoring-live-concept .ml-property { display: flex; justify-content: space-between; gap: 15px; flex-wrap: wrap; padding: 12px 0; border-bottom: 1px solid var(--ml-line); font-size: 12px; }
+    #monitoring-live-concept .ml-property dt { color: var(--ml-muted); }
+    #monitoring-live-concept .ml-property dd { margin: 0; }
+    #monitoring-live-concept .ml-events { list-style: none; margin: 0; padding: 0; }
+    #monitoring-live-concept .ml-events li { display: flex; align-items: start; gap: 16px; padding: 17px 0; border-bottom: 1px solid var(--ml-line); }
+    #monitoring-live-concept .ml-events time { color: var(--ml-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+    #monitoring-live-concept .ml-events small { display: block; color: var(--ml-muted); margin-top: 4px; font-size: 12px; }
+    #monitoring-live-concept .ml-alert-layout { display: grid; grid-template-columns: minmax(0,1.3fr) minmax(0,1fr); gap: 18px; align-items: start; }
+    #monitoring-live-concept .ml-alert-section { padding: 18px; border: 1px solid var(--ml-line); border-radius: var(--ml-radius); background: var(--ml-surface); margin-bottom: 14px; min-width: 0; }
+    #monitoring-live-concept .ml-alert-section h3 { margin-bottom: 8px; }
+    #monitoring-live-concept .ml-check-row { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid var(--ml-line); }
+    #monitoring-live-concept .ml-check-row:last-child { border-bottom: 0; }
+    #monitoring-live-concept input[type="checkbox"] { accent-color: var(--ml-green); width: 16px; height: 16px; flex-shrink: 0; margin: 3px 0 0; }
+    #monitoring-live-concept .ml-check-row small { display: block; margin-top: 3px; font-size: 12px; color: var(--ml-muted); }
+    #monitoring-live-concept .ml-inline-checks { display: flex; flex-wrap: wrap; gap: 16px; margin: 12px 0; }
+    #monitoring-live-concept .ml-inline-checks label { display: flex; gap: 7px; align-items: center; }
+    #monitoring-live-concept .ml-field { display: grid; gap: 6px; font-size: 12px; color: var(--ml-muted); margin: 14px 0 0; }
+    #monitoring-live-concept .ml-alert-status { color: var(--ml-green); font-size: 12px; }
+    #monitoring-live-concept .ml-alert-save { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    #monitoring-live-concept .ml-message { margin-top: 15px; padding: 18px; border-radius: 12px; background: var(--ml-blue-soft); }
+    #monitoring-live-concept .ml-message h3 { margin-bottom: 10px; }
+    #monitoring-live-concept .ml-message p { white-space: pre-line; font-size: 12px; overflow-wrap: anywhere; }
+    #monitoring-live-concept .ml-message-caption { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--ml-line); font-size: 11px; color: var(--ml-muted); }
+    #monitoring-live-concept .ml-preview-state { padding: 12px; background: var(--ml-raised); border-radius: 9px; margin-top: 14px; font-size: 12px; }
+    #monitoring-live-concept .ml-muted-setting { opacity: .65; }
+    #monitoring-live-concept .ml-alert-divider { border-top: 1px solid var(--ml-line); padding-top: 14px; margin-top: 16px; }
+    #monitoring-live-concept .ml-panel-overview { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin: 18px 0 24px; }
+    #monitoring-live-concept button.ml-panel-card { display: block; width: 100%; padding: 16px; text-align: left; border-radius: var(--ml-radius); background: var(--ml-surface); color: var(--ml-text); border: 1px solid var(--ml-line); }
+    #monitoring-live-concept button.ml-panel-card[aria-pressed="true"] { background: var(--ml-raised); border-color: var(--ml-muted); box-shadow: inset 0 3px var(--ml-green); }
+    #monitoring-live-concept .ml-panel-name { font-size: 17px; font-weight: 500; letter-spacing: .04em; }
+    #monitoring-live-concept .ml-panel-health { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; padding: 3px 6px; border-radius: 5px; }
+    #monitoring-live-concept .ml-panel-health[data-tone="failed"] { color: var(--ml-red); background: var(--ml-red-soft); }
+    #monitoring-live-concept .ml-panel-health[data-tone="attention"] { color: var(--ml-amber); background: var(--ml-amber-soft); }
+    #monitoring-live-concept .ml-panel-health[data-tone="healthy"] { color: var(--ml-green); background: var(--ml-green-soft); }
+    #monitoring-live-concept .ml-panel-health[data-tone="paused"], #monitoring-live-concept .ml-panel-health[data-tone="pending"] { color: var(--ml-muted); background: var(--ml-bg); }
+    #monitoring-live-concept .ml-panel-numbers { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px 12px; margin: 15px 0; }
+    #monitoring-live-concept .ml-panel-number { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; color: var(--ml-muted); font-size: 11px; }
+    #monitoring-live-concept .ml-panel-number b { color: var(--ml-text); font-weight: 500; font-size: 15px; font-variant-numeric: tabular-nums; }
+    #monitoring-live-concept .ml-panel-foot { display: block; color: var(--ml-muted); font-size: 11px; margin-top: 5px; }
+    #monitoring-live-concept .ml-panel-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding-top: 20px; border-top: 1px solid var(--ml-line); }
+    #monitoring-live-concept .ml-panel-heading h3 { font-size: 19px; }
+    #monitoring-live-concept .ml-panel-heading p { margin-top: 4px; }
+    #monitoring-live-concept .ml-panel-group { grid-column: 1/-1; min-width: 0; padding-bottom: 13px; border-bottom: 1px solid var(--ml-line); }
+    #monitoring-live-concept .ml-group-header { margin: 4px 0 12px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+    #monitoring-live-concept .ml-group-header h3 { letter-spacing: .05em; }
+    #monitoring-live-concept .ml-telegram-scope { margin-top: 12px; }
+    @media (max-width: 600px) { #monitoring-live-concept .ml-panel-overview { grid-template-columns: minmax(0,1fr); } }
+    #monitoring-live-concept.ml-dense .ml-node { padding: 11px; }
+    #monitoring-live-concept.ml-dense .ml-node-result { min-height: 18px; }
+    #monitoring-live-concept [hidden] { display: none !important; }
+    @media (max-width: 800px) {
+      #monitoring-live-concept .ml-alert-layout { grid-template-columns: minmax(0,1fr); }
+      #monitoring-live-concept .ml-workspace { grid-template-columns: minmax(0,1fr); }
+      #monitoring-live-concept .ml-aside { order: -1; }
+      #monitoring-live-concept .ml-evidence { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
+      #monitoring-live-concept .ml-evidence li { margin: 0; }
+      #monitoring-live-concept .ml-route { grid-template-columns: repeat(2,minmax(0,1fr)); }
+    }
+    @media (max-width: 500px) {
+      #monitoring-live-concept .ml-demo { padding-right: 95px; align-items: start; }
+      #monitoring-live-concept .ml-demo-controls { display: grid; width: 100%; }
+      #monitoring-live-concept .ml-main { padding: 15px; }
+      #monitoring-live-concept .ml-header { padding: 16px; }
+      #monitoring-live-concept .ml-tabs { padding: 0 16px; gap: 18px; }
+      #monitoring-live-concept .ml-grid { grid-template-columns: minmax(0,1fr); }
+      #monitoring-live-concept .ml-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      #monitoring-live-concept .ml-stat { padding: 11px 13px; }
+      #monitoring-live-concept .ml-value { font-size: 21px; }
+      #monitoring-live-concept .ml-evidence { grid-template-columns: minmax(0,1fr); }
+      #monitoring-live-concept .ml-node-title { font-size: 14px; }
+      #monitoring-live-concept .ml-node-head { flex-wrap: wrap; }
+    }
+    @media (pointer: coarse) {
+      #monitoring-live-concept button, #monitoring-live-concept .ml-node-bottom button { min-height: 44px; }
+      #monitoring-live-concept select { min-height: 44px; font-size: 16px; }
+    }
+    @media (prefers-reduced-motion: reduce) { #monitoring-live-concept .ml-track-fill { transition: none; } }
+  </style>
+  <div class="ml-demo">
+    <div class="ml-demo-controls">
+      <label>Сценарий примера<select data-scenario class="cursor-interaction"><option value="normal">Обычная работа</option><option value="wave">Волна ошибок</option><option value="outage">Мобильная сеть пропала</option><option value="recovery">Сеть восстановилась</option></select></label>
+      <button type="button" data-play class="cursor-interaction">Проиграть сценарий</button>
+    </div>
+  </div>
+  <p class="ml-demo-note">Демонстрация интерфейса · статусы и адреса вымышлены · кнопки работают только внутри примера</p>
+  <div class="ml-app">
+    <header class="ml-header">
+      <div class="ml-brand"><i data-lucide="activity" aria-hidden="true"></i>Xray Checker</div>
+      <div class="ml-header-right"><span class="ml-small">Мобильная точка наблюдения</span><button type="button" data-source-button class="ml-source-button cursor-interaction"><span class="ml-dot ml-good-dot" data-source-dot></span><span data-source-label>LTE-роутер · доступен</span><i data-lucide="chevron-right" aria-hidden="true"></i></button></div>
+    </header>
+    <div class="ml-tabs" role="tablist" aria-label="Разделы мониторинга">
+      <button type="button" id="ml-tab-monitor" role="tab" aria-selected="true" aria-controls="ml-monitor" data-tab="monitor" class="cursor-interaction">Мониторинг</button>
+      <button type="button" id="ml-tab-network" role="tab" aria-selected="false" aria-controls="ml-network" data-tab="network" class="cursor-interaction">Сеть проверок</button>
+      <button type="button" id="ml-tab-events" role="tab" aria-selected="false" aria-controls="ml-events" data-tab="events" class="cursor-interaction">События</button>
+      <button type="button" id="ml-tab-alerts" role="tab" aria-selected="false" aria-controls="ml-alerts" data-tab="alerts" class="cursor-interaction">Telegram-алерты</button>
+    </div>
+    <main class="ml-main">
+      <section id="ml-monitor" role="tabpanel" aria-labelledby="ml-tab-monitor">
+        <div class="ml-title-row"><div><h2>Панели подписок</h2><p class="ml-small" data-context>Измерения из сети LTE-роутера · IPv4</p></div><span class="ml-scope"><i data-lucide="radio" aria-hidden="true"></i><span data-session>Сеанс 17 · источник router-mobile</span></span></div>
+        <div class="ml-banner" data-banner data-tone="info" aria-live="polite"><i data-lucide="info" aria-hidden="true"></i><div><strong data-banner-title>Плановые проверки продолжаются</strong><p class="ml-small" data-banner-text>Ошибки подтверждаются отдельно, здоровые привязки не теряются в очереди.</p></div></div>
+        <div class="ml-panel-overview" data-panel-overview role="group" aria-label="Выбрать панель подписки"></div>
+        <div class="ml-panel-heading"><div><h3 data-panel-heading>MASTER · рабочая область</h3><p class="ml-small" data-panel-description>Привязки, очередь и наблюдения этой панели</p></div><button type="button" data-all-panels aria-pressed="false" class="cursor-interaction">Все панели по разделам</button></div>
+        <div class="ml-stats" aria-label="Результаты выбранной панели" data-scope-stats>
+          <div class="ml-stat"><span class="ml-stat-label">Работают</span><span class="ml-value" data-count="healthy">7</span></div>
+          <div class="ml-stat"><span class="ml-stat-label">Нестабильны</span><span class="ml-value" data-count="unstable">1</span></div>
+          <div class="ml-stat"><span class="ml-stat-label">Повторные ошибки</span><span class="ml-value" data-count="failed">0</span></div>
+          <div class="ml-stat"><span class="ml-stat-label" data-pending-label>На подтверждении</span><span class="ml-value" data-count="pending">0</span></div>
+        </div>
+        <section class="ml-queue" aria-label="Работа очереди">
+          <div class="ml-row"><h3 data-queue-title>Очередь проверок</h3><span class="ml-small" data-queue-count>В работе 2 · ожидают 0</span></div>
+          <div class="ml-track" role="progressbar" aria-label="Использование бюджета проверок" aria-valuemin="0" aria-valuemax="10" aria-valuenow="2" data-budget><div class="ml-track-fill" data-budget-fill></div></div>
+          <div class="ml-row ml-small"><span data-queue-policy>Плановые и новые привязки проверяются по очереди</span><span data-budget-text>Бюджет 2 / 10</span></div>
+        </section>
+        <div class="ml-filters"><div class="ml-filters-left"><button type="button" data-filter="all" aria-pressed="true" class="cursor-interaction">Все <span data-all-count>4</span></button><button type="button" data-filter="attention" aria-pressed="false" class="cursor-interaction">Требуют внимания <span data-attention-count>2</span></button></div><span class="ml-small" data-panel-scope-label>Панель MASTER</span></div>
+        <div class="ml-workspace" id="ml-panel-workspace"><div class="ml-grid" data-grid></div><aside class="ml-aside" aria-label="Подробности выбранной привязки" data-aside></aside></div>
+        <div class="ml-bottom"><span data-results-age>Показаны последние измерения текущего сеанса</span><span>Источник один · скрытого перехода на домашнюю сеть нет</span></div>
+      </section>
+      <section id="ml-network" role="tabpanel" aria-labelledby="ml-tab-network" hidden>
+        <div class="ml-title-row"><div><h2>Сеть проверок</h2><p class="ml-small">Активный источник · LTE-роутер</p></div><span class="ml-small">IPv4 · отдельный мобильный сегмент</span></div>
+        <section class="ml-network">
+          <div class="ml-row"><h3 data-network-title>Маршрут доступен</h3><span class="ml-small" data-network-session>Сеанс 17</span></div>
+          <div class="ml-route"><div class="ml-hop"><small>Mac</small>Ethernet · en8</div><div class="ml-hop"><small>Гостевая VM</small>col0</div><div class="ml-hop"><small>LTE-роутер</small>192.168.8.1</div><div class="ml-hop"><small>Прямой внешний IP</small><span data-public-ip>203.0.113.42</span></div></div>
+          <dl class="ml-properties"><div class="ml-property"><dt>Контрольные запросы</dt><dd data-network-controls>2 из 2 успешны</dd></div><div class="ml-property"><dt>DNS источника</dt><dd data-network-dns>Отвечает</dd></div><div class="ml-property"><dt>Основание выбора мобильного WAN</dt><dd>LTE-only сегмент · задано пользователем</dd></div><div class="ml-property"><dt>Переход на домашний интернет</dt><dd>Не используется для измерений</dd></div><div class="ml-property"><dt>iPhone USB</dt><dd>Запасной профиль · не активен</dd></div></dl>
+          <p class="ml-small">IP контроля — до VPN. Выходной IP конкретной VPN-привязки относится к её измерению, а не к этому маршруту.</p>
+        </section>
+      </section>
+      <section id="ml-events" role="tabpanel" aria-labelledby="ml-tab-events" hidden><div class="ml-title-row"><div><h2>События</h2><p class="ml-small">Сеть наблюдения и ошибки привязок — разные события.</p></div></div><div class="ml-network"><ul class="ml-events" data-events></ul></div></section>
+      <section id="ml-alerts" role="tabpanel" aria-labelledby="ml-tab-alerts" hidden>
+        <div class="ml-title-row"><div><h2>Telegram-алерты</h2><p class="ml-small">Что отправлять, по каким панелям и как не утонуть в сообщениях.</p></div><span class="ml-alert-status" data-alert-settings-status>Настройки примера</span></div>
+        <div class="ml-alert-layout">
+          <div>
+            <section class="ml-alert-section" aria-label="Доставка Telegram-уведомлений">
+              <div class="ml-row"><h3>Доставка</h3><span class="ml-small">Подключение · пример</span></div>
+              <label class="ml-check-row cursor-interaction"><input type="checkbox" data-alert-enabled checked><span>Отправлять уведомления<small>Выключение не останавливает сам мониторинг.</small></span></label>
+              <dl class="ml-properties"><div class="ml-property"><dt>Бот</dt><dd>Токен задан на сервере · скрыт</dd></div><div class="ml-property"><dt>Получатель</dt><dd>Команда мониторинга · пример чата</dd></div><div class="ml-property"><dt>Канал доставки</dt><dd>Служебный маршрут Telegram</dd></div></dl>
+              <p class="ml-small">Если Telegram тоже недоступен, событие ждёт в очереди. Мгновенная доставка при обрыве сети не гарантируется.</p>
+            </section>
+            <section class="ml-alert-section" aria-label="Категории уведомлений">
+              <h3>Какие события присылать</h3>
+              <label class="ml-check-row cursor-interaction"><input type="checkbox" data-alert-event="failure" checked><span>Повторные ошибки привязок<small>После подтверждения мониторингом, а не после первого таймаута.</small></span></label>
+              <label class="ml-check-row cursor-interaction"><input type="checkbox" data-alert-event="recovery" checked><span>Восстановление привязок<small>Только после успешного запроса через Xray.</small></span></label>
+              <label class="ml-check-row cursor-interaction"><input type="checkbox" data-alert-event="ip" checked><span>Смена IP ноды<small>Старый → новый адрес сервера, не смена мобильного IP.</small></span></label>
+              <label class="ml-check-row cursor-interaction"><input type="checkbox" data-alert-event="config"><span>Изменение конфигурации<small>Отдельно от замены IP: профиль, транспорт или параметры подключения.</small></span></label>
+              <label class="ml-check-row cursor-interaction"><input type="checkbox" data-alert-event="network" checked><span>Сеть проверок<small>Потеря, восстановление и смена источника; без массовых node-down.</small></span></label>
+            </section>
+            <section class="ml-alert-section" aria-label="Область и группировка уведомлений">
+              <h3>Для каких измерений</h3>
+              <div class="ml-inline-checks"><label class="cursor-interaction"><input type="checkbox" data-alert-panel="MASTER" checked>MASTER</label><label class="cursor-interaction"><input type="checkbox" data-alert-panel="LETO" checked>LETO</label><label class="cursor-interaction"><input type="checkbox" data-alert-panel="220" checked>220</label></div>
+              <label class="ml-field">Источник измерений<select data-alert-source class="cursor-interaction"><option value="all">Все источники</option><option value="router">LTE-роутер</option><option value="iphone">iPhone USB</option></select></label>
+              <div class="ml-alert-divider"><h3>Во время волны ошибок</h3><label class="ml-check-row cursor-interaction"><input type="checkbox" data-alert-group checked><span>Собирать ошибки в сводку<small>Несколько привязок — одно сообщение вместо отдельных уведомлений.</small></span></label><label class="ml-field">Окно накопления сводки<select data-alert-window class="cursor-interaction"><option value="1">1 минута</option><option value="5" selected>5 минут</option><option value="15">15 минут</option></select></label><p class="ml-small" style="margin-top:12px">Один эпизод не рассылается снова при каждом тесте. Сетевые события отправляются отдельно, без ожидания сводки.</p></div>
+            </section>
+            <div class="ml-alert-save"><button type="button" class="ml-primary cursor-interaction" data-alert-save disabled>Сохранить настройки</button><span class="ml-small" data-alert-save-note aria-live="polite">Изменения действуют только в макете</span></div>
+          </div>
+          <aside class="ml-alert-section" aria-label="Предпросмотр сообщения в Telegram">
+            <h3>Как это придёт в Telegram</h3><p class="ml-small">Предпросмотр текущего черновика.</p>
+            <label class="ml-field">Пример события<select data-alert-example class="cursor-interaction"><option value="failure">Волна ошибок</option><option value="recovery">Привязка восстановилась</option><option value="network">Мобильная сеть пропала</option><option value="ip">Нода сменила IP</option><option value="config">Конфигурация изменилась</option></select></label>
+            <label class="ml-field ml-telegram-scope" data-alert-preview-panel-field>Панель в примере сводки<select data-alert-preview-panel class="cursor-interaction"><option value="MASTER">MASTER</option><option value="LETO">LETO</option><option value="220">220</option></select></label>
+            <div class="ml-preview-state" data-alert-preview-state aria-live="polite">Сводка за 5 минут · 3 привязки</div>
+            <div class="ml-message" data-alert-message><h3 data-alert-message-title>Ошибки проверок · 3 привязки</h3><p data-alert-message-body></p><div class="ml-message-caption">Пример сообщения · не отправлен</div></div>
+            <div class="ml-alert-divider"><button type="button" class="cursor-interaction" data-alert-test>Тест сообщения · демо</button><p class="ml-small" style="margin-top:10px" data-alert-test-note aria-live="polite">Внешние запросы не выполняются.</p></div>
+            <p class="ml-small ml-alert-divider">«События» — внутренний журнал. Здесь настраивается отдельная доставка в Telegram. Эти настройки не меняют методику проверки серверов.</p>
+          </aside>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script>
+    (() => {
+      const root = document.getElementById('monitoring-live-concept');
+      const base = [
+        {id:'de',flag:'🇩🇪',name:'Германия (T1)',panel:'MASTER',ip:'192.0.2.11:443',latency:88},
+        {id:'s24',flag:'🇩🇪',name:'Германия (S24t)',panel:'220',ip:'192.0.2.24:8443',latency:4310},
+        {id:'jp',flag:'🇯🇵',name:'Япония',panel:'MASTER',ip:'198.51.100.21:443',latency:218},
+        {id:'al',flag:'🇦🇱',name:'Албания',panel:'LETO',ip:'198.51.100.22:443',latency:104},
+        {id:'tr',flag:'🇹🇷',name:'Турция',panel:'LETO',ip:'198.51.100.23:443',latency:122},
+        {id:'at',flag:'🇦🇹',name:'Австрия (T1)',panel:'MASTER',ip:'192.0.2.31:443',latency:91},
+        {id:'nl',flag:'🇳🇱',name:'Нидерланды',panel:'MASTER',ip:'192.0.2.32:443',latency:76},
+        {id:'fi',flag:'🇫🇮',name:'Финляндия',panel:'220',ip:'192.0.2.33:443',latency:83}
+      ];
+      const scenarios = ['normal','wave','outage','recovery'];
+      const stored = window.openai?.widgetState?.modelContent || {};
+      const storedUI = window.openai?.widgetState?.privateContent || {};
+      const panels = ['MASTER','LETO','220'];
+      const alertDefaults={enabled:true,events:{failure:true,recovery:true,ip:true,config:false,network:true},panels:{MASTER:true,LETO:true,'220':true},source:'all',group:true,window:'5'};
+      const clone=value=>JSON.parse(JSON.stringify(value));
+      const state = {scenario:storedUI.panelLayoutVersion===1&&scenarios.includes(stored.scenario)?stored.scenario:'wave',selected:base.some(n=>n.id===stored.selected)?stored.selected:'de',filter:stored.filter==='attention'?'attention':'all',panel:storedUI.panelLayoutVersion===1&&['all',...panels].includes(stored.panel)?stored.panel:'MASTER',tab:'monitor',busy:null,overrides:{},playing:false,dense:false,radius:12,alerts:clone(alertDefaults),savedAlerts:clone(alertDefaults),alertExample:'failure',alertNotice:'',alertTested:false,alertPreviewPanel:'MASTER'};
+      const timers = new Set();
+      let playbackVersion = 0;
+      let lastSavedSnapshot = '';
+      const $ = s => root.querySelector(s);
+      const text = (s,v) => { $(s).textContent=v; };
+      const statusLabels = {healthy:'Работает',unstable:'Нестабильно',failed:'Ошибка',suspect:'Подтверждаем',pending:'В очереди'};
+      function later(fn, ms) { const timer=setTimeout(()=>{timers.delete(timer);fn();},ms);timers.add(timer);return timer; }
+      function cancelTimers() { timers.forEach(clearTimeout);timers.clear();state.busy=null;playbackVersion++; }
+      function save() { const snapshot={modelContent:{scenario:state.scenario,selected:state.selected,filter:state.filter,panel:state.panel,alertExample:state.alertExample,alertPreviewPanel:state.alertPreviewPanel},privateContent:{tab:state.tab,dense:state.dense,radius:state.radius,panelLayoutVersion:1,alertsVersion:1,alerts:state.alerts,savedAlerts:state.savedAlerts}};lastSavedSnapshot=JSON.stringify(snapshot);window.openai?.setWidgetState?.(snapshot)?.catch(()=>{}); }
+      function parseAlerts(value) {
+        const result=clone(alertDefaults);if(!value||typeof value!=='object')return result;
+        for(const key of ['enabled','group'])if(typeof value[key]==='boolean')result[key]=value[key];
+        for(const key of Object.keys(result.events))if(typeof value.events?.[key]==='boolean')result.events[key]=value.events[key];
+        for(const key of Object.keys(result.panels))if(typeof value.panels?.[key]==='boolean')result.panels[key]=value.panels[key];
+        if(['all','router','iphone'].includes(value.source))result.source=value.source;
+        if(['1','5','15'].includes(value.window))result.window=value.window;
+        return result;
+      }
+      function renderAlerts() {
+        const a=state.alerts, example=state.alertExample, dirty=JSON.stringify(a)!==JSON.stringify(state.savedAlerts);
+        $('[data-alert-enabled]').checked=a.enabled;
+        root.querySelectorAll('[data-alert-event]').forEach(el=>{el.checked=a.events[el.dataset.alertEvent];});
+        root.querySelectorAll('[data-alert-panel]').forEach(el=>{el.checked=a.panels[el.dataset.alertPanel];});
+        $('[data-alert-source]').value=a.source;$('[data-alert-group]').checked=a.group;$('[data-alert-window]').value=a.window;$('[data-alert-window]').disabled=!a.group;$('[data-alert-example]').value=example;
+        text('[data-alert-settings-status]',dirty?'Есть несохранённые изменения':state.alertNotice?'Сохранено в примере':'Настройки примера');
+        $('[data-alert-save]').disabled=!dirty;text('[data-alert-save-note]',state.alertNotice||'Изменения действуют только в макете');
+        $('[data-alert-preview-panel]').value=state.alertPreviewPanel;$('[data-alert-preview-panel-field]').hidden=example!=='failure';
+        const selected=base.filter(n=>['de','jp','al'].includes(n.id)&&n.panel===state.alertPreviewPanel&&a.panels[n.panel]);
+        let title='',body='',summary='';
+        if(example==='failure') {
+          const shown=a.group?selected:selected.slice(0,1);title=`${state.alertPreviewPanel} · ошибки проверок`;
+          body='Источник: LTE-роутер · сеанс 17\n\n'+shown.map(n=>`${n.flag} ${n.name} · ${n.panel}\nTCP отвечает; Xray-запрос — таймаут`).join('\n\n')+'\n\nПричина не установлена. Блокировка провайдером не доказана.';
+          summary=a.group?`${state.alertPreviewPanel} · сводка за ${a.window} мин · привязок: ${shown.length}`:`${state.alertPreviewPanel} · отдельное сообщение на привязку`;
+        } else if(example==='recovery') {title='Привязка восстановилась';body='🇩🇪 Германия (T1) · MASTER\nИсточник: LTE-роутер · сеанс 18\n\nXray URL-test успешен: HTTP 200, ожидаемый ответ.\nЗавершён прежний эпизод ошибок.';summary='После успешного теста, не после возврата сети';}
+        else if(example==='network') {title='Сеть проверок недоступна';body='Источник: LTE-роутер\nLAN доступен, внешние контрольные запросы не проходят.\n\nПроверки привязок приостановлены.\nМассовое падение серверов не зафиксировано.\n\nЕсли канал Telegram недоступен, сообщение останется в очереди.';summary='Одно сетевое событие · отдельно от ошибок нод';}
+        else if(example==='ip') {title='Нода сменила IP';body='🇩🇪 Германия (T1) · MASTER\n192.0.2.11 → 192.0.2.41\n\nЭто адрес сервера, не мобильный IP наблюдателя.\nДоступность нового адреса ещё проверяется.';summary='Замена адреса не означает успешную починку';}
+        else {title='Конфигурация изменилась';body='🇩🇪 Германия (T1) · MASTER\nИсточник: LTE-роутер\n\nИзменилась ревизия параметров подключения.\nIP сервера остался прежним.\nНовая конфигурация ожидает проверки.';summary='Отдельно от замены IP';}
+        const needsMaster=['recovery','ip','config'].includes(example);
+        const blocked=!a.enabled?'Доставка выключена':!a.events[example]?'Этот тип события выключен':a.source==='iphone'?'Событие LTE-роутера не входит в выбранный источник':example==='failure'&&!a.panels[state.alertPreviewPanel]?`Панель ${state.alertPreviewPanel} исключена`:example==='failure'&&!selected.length?`В ${state.alertPreviewPanel} нет подтверждённых ошибок в этом примере`:needsMaster&&!a.panels.MASTER?'Панель MASTER исключена':'';
+        text('[data-alert-preview-state]',blocked||summary);text('[data-alert-message-title]',title);text('[data-alert-message-body]',body);$('[data-alert-message]').classList.toggle('ml-muted-setting',Boolean(blocked));
+        $('[data-alert-test]').disabled=Boolean(blocked);text('[data-alert-test-note]',state.alertTested?'Пример проверен локально. В Telegram ничего не отправлено.':'Внешние запросы не выполняются.');
+      }
+      function nodes() {
+        return base.map(n=>{
+          let kind=n.id==='s24'?'unstable':'healthy';
+          if(['wave','outage'].includes(state.scenario)) {
+            if(['de','jp','al'].includes(n.id)) kind='failed';
+            if(n.id==='tr') kind='suspect';
+          }
+          if(state.scenario==='recovery' && ['de','s24','jp','al','tr'].includes(n.id)) kind='pending';
+          return {...n,kind,...state.overrides[n.id]};
+        });
+      }
+      function scopeNodes(list) {return list.filter(n=>state.panel==='all'||n.panel===state.panel);}
+      function countNodes(list) {const c={healthy:0,unstable:0,failed:0,pending:0};list.forEach(n=>c[n.kind==='suspect'?'pending':n.kind]++);return c;}
+      function queueState(list) {
+        if(state.scenario==='outage')return {active:[],waiting:['de','jp','al','tr','s24','nl']};
+        if(state.scenario==='wave')return {active:['de','al'],waiting:['jp','tr','s24','nl']};
+        if(state.scenario==='recovery'){const pending=list.filter(n=>n.kind==='pending').map(n=>n.id);return {active:pending.slice(0,1),waiting:pending.slice(1)};}
+        return {active:['at','fi'],waiting:[]};
+      }
+      function queueCount(ids,list) {return ids.filter(id=>list.some(n=>n.id===id)).length;}
+      function choosePanel(panel) {
+        state.panel=panel;state.filter='all';const first=base.find(n=>panel==='all'||n.panel===panel);if(first)state.selected=first.id;
+        state.alertPreviewPanel=panel==='all'?'MASTER':panel;render();save();
+      }
+      function renderPanelOverview(list) {
+        const parent=$('[data-panel-overview]');parent.replaceChildren();const paused=state.scenario==='outage';const q=queueState(list);
+        panels.forEach(panel=>{
+          const group=list.filter(n=>n.panel===panel),c=countNodes(group),jobs=queueCount([...q.active,...q.waiting],group);
+          const tone=paused?'paused':c.failed?'failed':c.unstable||group.some(n=>n.kind==='suspect')?'attention':c.pending?'pending':'healthy';
+          const status=paused?'Пауза измерений':c.failed?`${c.failed} с ошибками`:c.unstable?'Есть нестабильность':group.some(n=>n.kind==='suspect')?'Подтверждаем сбой':c.pending?'Новый сеанс':'Без ошибок';
+          const button=document.createElement('button');button.type='button';button.className='ml-panel-card cursor-interaction';button.dataset.panelCard=panel;button.setAttribute('aria-pressed',String(state.panel===panel));button.setAttribute('aria-controls','ml-panel-workspace');
+          button.innerHTML='<span class="ml-row"><span class="ml-panel-name"></span><span class="ml-panel-health"><span class="ml-dot"></span><span data-health-label></span></span></span><span class="ml-panel-numbers"></span><span class="ml-panel-foot" data-card-queue></span><span class="ml-panel-foot" data-card-time></span>';
+          button.querySelector('.ml-panel-name').textContent=panel;button.querySelector('.ml-panel-health').dataset.tone=tone;button.querySelector('[data-health-label]').textContent=status;
+          for(const [kind,label] of [['healthy','Работают'],['failed','Ошибки'],['unstable','Нестабильны'],['pending',state.scenario==='recovery'?'Не проверены':'Подтверждаем']]){
+            const line=document.createElement('span');line.className='ml-panel-number';const name=document.createElement('span');name.textContent=label;const value=document.createElement('b');value.textContent=paused?'—':String(c[kind]);line.append(name,value);button.querySelector('.ml-panel-numbers').append(line);
+          }
+          button.querySelector('[data-card-queue]').textContent=paused?`Сохранено задач: ${jobs}`:`В работе: ${queueCount(q.active,group)} · ожидают: ${queueCount(q.waiting,group)}`;
+          button.querySelector('[data-card-time]').textContent=state.scenario==='recovery'?`Новый сеанс · проверено ${c.healthy} из ${group.length}`:`Последний полный цикл · 12:00${paused?' · история':''}`;
+          button.addEventListener('click',()=>choosePanel(panel));parent.append(button);
+        });
+      }
+      function resultText(n) {
+        if(state.busy===n.id) return 'Выполняется контрольный запрос через Xray…';
+        if(n.kind==='healthy') return `HTTP 200 · ожидаемый ответ · ${n.latency} мс`;
+        if(n.kind==='unstable') return 'Ответ получен со второй попытки · 4,31 с';
+        if(n.kind==='pending') return 'Новый сеанс сети · ожидает свежего измерения';
+        if(n.kind==='suspect') return 'Первая TCP-ошибка · ждём подтверждения';
+        if(n.id==='de') return 'TCP доступен · Xray-запрос завершился по таймауту';
+        return 'Входной TCP доступен · запрос через туннель не прошёл';
+      }
+      function evidence(n) {
+        if(state.scenario==='outage') return [
+          ['Контроль мобильной сети не проходит','Новые тесты остановлены'],
+          ['Последнее измерение сохранено',`${statusLabels[n.kind]} · прежний сеанс`],
+          ['Перепроверка отложена','Ошибка сети не добавляется к ошибкам привязки']
+        ];
+        if(state.busy===n.id) return [['Проверка запущена','Демонстрационный запрос'],['Контекст зафиксирован','router-mobile / текущий сеанс'],['Ждём результат','Повторный запуск пока недоступен']];
+        if(n.kind==='healthy') return [['Мобильный маршрут доступен','Контроль интернета и DNS успешны'],['Xray-соединение использовано','Проверка выполнена через эту привязку'],['Ожидаемый ответ получен',`HTTP 200 · ${n.latency} мс`]];
+        if(n.kind==='unstable') return [['Первая попытка не уложилась в срок','Быстрый тест: таймаут'],['Повторный запрос успешен','HTTP 200 · 4,31 с'],['Доступность подтверждена','Задержка и повторы требуют наблюдения']];
+        if(n.kind==='pending') return [['Маршрут восстановлен','Контрольные запросы снова успешны'],['Начался новый сеанс','Прежний внешний IP не означает прежний контекст'],['Ожидает очереди','Старый результат не выдаётся за свежий']];
+        if(n.kind==='suspect') return [['Контроль интернета успешен','Проблема не общая для источника'],['Прямая TCP-проба не прошла','Одна ошибка ещё не означает блокировку'],['Назначена повторная проверка','Затем — end-to-end запрос через Xray']];
+        return [['Контроль интернета успешен','Источник измерений доступен'],['TCP-соединение установлено','Порт отвечает, но этого недостаточно'],['Xray URL-test: таймаут','2 повторных запроса не дали ожидаемый ответ']];
+      }
+      function diagnosis(n) {
+        if(state.scenario==='outage') return 'Сейчас наблюдатель без мобильного интернета. Доступность этой привязки заново не оценивалась.';
+        if(n.kind==='failed') return 'Подтверждена ошибка проверки туннеля. Причина ещё не установлена; блокировка провайдером не доказана.';
+        if(n.kind==='suspect') return 'Предварительное наблюдение. До повторного теста не объявляем привязку неработающей.';
+        if(n.kind==='pending') return 'Новый сеанс: проверяем постепенно, не запускаем всю подписку одновременно.';
+        if(n.kind==='unstable') return 'Привязка работает, но быстрый тест не всегда укладывается в таймаут.';
+        return 'Работоспособность подтверждена реальным запросом через Xray. Один успешный тест не гарантирует отсутствие будущих сбоев.';
+      }
+      function renderAside(list) {
+        $('[data-aside]').hidden=!list.length;if(!list.length)return;
+        const n=list.find(n=>n.id===state.selected)||list[0];
+        const aside=$('[data-aside]');aside.replaceChildren();
+        const make=(tag,cls,value)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(value)el.textContent=value;return el;};
+        aside.append(make('p','ml-small','Выбранная привязка'),make('div','ml-aside-name',`${n.flag} ${n.name}`),make('p','ml-small',`${n.panel} · VLESS / REALITY`),make('div','ml-diagnosis',diagnosis(n)));
+        aside.append(make('h3','',state.scenario==='outage'?'Последние наблюдения':'Что известно'));
+        const ul=make('ul','ml-evidence');
+        evidence(n).forEach(([title,detail])=>{const li=make('li');li.append(make('span','ml-dot'));const body=make('div','',title);body.append(make('small','',detail));li.append(body);ul.append(li);});
+        aside.append(ul,make('p','ml-aside-footer',`Источник: LTE-роутер · ${state.scenario==='recovery'?'сеанс 18':'сеанс 17'}${state.scenario==='outage'?' · измерения приостановлены':''}`));
+      }
+      function renderGrid(list) {
+        const filtered=list.filter(n=>(state.panel==='all'||n.panel===state.panel)&&(state.filter==='all'||['unstable','failed','suspect'].includes(n.kind)));
+        const grid=$('[data-grid]'); grid.replaceChildren();
+        if(!filtered.length) {const p=document.createElement('p');p.className='ml-empty';p.textContent=state.scenario==='recovery'?'Для нового сеанса пока нет подтверждённых ошибок. Непроверенные привязки видны в «Все».':'По выбранному фильтру привязок нет.';grid.append(p);return filtered;}
+        const destinations={};
+        if(state.panel==='all')panels.forEach(panel=>{
+          const group=filtered.filter(n=>n.panel===panel);if(!group.length)return;
+          const section=document.createElement('section');section.className='ml-panel-group';section.dataset.panelGroup=panel;
+          const header=document.createElement('div');header.className='ml-group-header';const title=document.createElement('h3');title.textContent=panel;
+          const info=document.createElement('span');info.className='ml-small';info.textContent=`${group.length} из ${list.filter(n=>n.panel===panel).length} привязок`;
+          header.append(title,info);const cards=document.createElement('div');cards.className='ml-grid';section.append(header,cards);grid.append(section);destinations[panel]=cards;
+        });
+        filtered.forEach(n=>{
+          const article=document.createElement('article');article.className='ml-node';article.dataset.node=n.id;article.dataset.selected=String(state.selected===n.id);
+          article.innerHTML='<div class="ml-node-head"><div><button type="button" class="ml-node-title cursor-interaction" data-open-node></button><div class="ml-meta"></div></div><span class="ml-status"><span class="ml-dot"></span><span data-status-label></span></span></div><div class="ml-endpoint"></div><p class="ml-node-result"></p><div class="ml-node-bottom"><span></span><button type="button" class="cursor-interaction" data-recheck>Перепроверить</button></div>';
+          const b=article.querySelector('[data-open-node]');b.textContent=`${n.flag} ${n.name}`;b.addEventListener('click',()=>{state.selected=n.id;render();save();});
+          article.querySelector('.ml-meta').textContent=`${n.panel} · VLESS / REALITY`;
+          const badge=article.querySelector('.ml-status');badge.dataset.kind=state.scenario==='outage'?'pending':n.kind;
+          article.querySelector('[data-status-label]').textContent=state.scenario==='outage'?'История':statusLabels[n.kind];
+          article.querySelector('.ml-endpoint').textContent=n.ip;
+          article.querySelector('.ml-node-result').textContent=resultText(n);
+          article.querySelector('.ml-node-bottom span').textContent=state.scenario==='outage'?'Последнее: до потери сети':n.justChecked?'Только что · демо':n.kind==='pending'?'Свежего результата нет':'Обновлено 12 с назад';
+          const recheck=article.querySelector('[data-recheck]');recheck.disabled=state.scenario==='outage'||Boolean(state.busy)||state.playing;recheck.textContent=state.busy===n.id?'Проверяем…':'Перепроверить';recheck.addEventListener('click',()=>recheckNode(n.id));
+          (state.panel==='all'?destinations[n.panel]:grid).append(article);
+        });
+        return filtered;
+      }
+      function renderEvents() {
+        const entries=[['12:00:00','Источник готов','LTE-роутер · контроль интернета и DNS успешны']];
+        if(state.scenario!=='normal') {
+          const panelEvents={MASTER:'2 привязки: повторные ошибки Xray-запросов',LETO:'Албания: ошибка туннеля; Турция: сбой ожидает подтверждения','220':'Германия (S24t): ответ получен со второй попытки'};
+          panels.filter(p=>state.panel==='all'||p===state.panel).forEach(p=>entries.push(['12:03:10',`${p} · наблюдения привязок`,panelEvents[p]]));
+        }
+        if(['outage','recovery'].includes(state.scenario)) entries.push(['12:04:00','Мобильная сеть недоступна','Измерения приостановлены; массовые node-down не созданы']);
+        if(state.scenario==='recovery') entries.push(['12:05:20','Маршрут восстановлен · новый сеанс','Ограниченный прогрев очереди; старые ответы не применяются']);
+        scopeNodes(base).filter(n=>state.overrides[n.id]).forEach(n=>entries.push(['12:05:24',`${n.panel} · перепроверка завершена`,`${n.name} · демонстрационный результат текущего сеанса`]));
+        const ul=$('[data-events]');ul.replaceChildren();entries.reverse().forEach(([t,title,body])=>{const li=document.createElement('li');const time=document.createElement('time');time.textContent=t;const div=document.createElement('div');div.textContent=title;const small=document.createElement('small');small.textContent=body;div.append(small);li.append(time,div);ul.append(li);});
+      }
+      function render() {
+        const list=nodes(), paused=state.scenario==='outage', recovery=state.scenario==='recovery', wave=state.scenario==='wave';
+        const scoped=scopeNodes(list),counts=countNodes(scoped);renderPanelOverview(list);
+        const visible=scoped.filter(n=>state.filter==='all'||['unstable','failed','suspect'].includes(n.kind));
+        if(visible.length&&!visible.some(n=>n.id===state.selected))state.selected=visible[0].id;
+        text('[data-panel-heading]',state.panel==='all'?'Все панели · отдельные разделы':`${state.panel} · рабочая область`);
+        text('[data-panel-description]',state.panel==='all'?'Общая сводка ниже; карточки остаются сгруппированы по панелям':'Счётчики, очередь и выбранная привязка относятся только к этой панели');
+        text('[data-panel-scope-label]',state.panel==='all'?'Группировка по панелям':`Панель ${state.panel}`);
+        $('[data-all-panels]').setAttribute('aria-pressed',String(state.panel==='all'));
+        $('[data-scope-stats]').setAttribute('aria-label',state.panel==='all'?'Результаты всех панелей':`Результаты панели ${state.panel}`);
+        root.classList.toggle('ml-dense',state.dense);root.style.setProperty('--ml-radius',state.radius+'px');
+        $('[data-scenario]').value=state.scenario;text('[data-play]',state.playing?'Остановить показ':'Проиграть сценарий');
+        text('[data-source-label]',paused?'LTE-роутер · нет интернета':'LTE-роутер · доступен');$('[data-source-dot]').style.color=paused?'var(--ml-amber)':'var(--ml-green)';
+        text('[data-context]',paused?'Пауза измерений · ниже сохранённые результаты, не текущая доступность':'Измерения из сети LTE-роутера · IPv4');
+        text('[data-session]',recovery?'Сеанс 18 · источник router-mobile':'Сеанс 17 · источник router-mobile');
+        const title=paused?'Наблюдатель потерял мобильную сеть':recovery?'Сеть восстановилась. Возвращаем проверки постепенно':wave?'Несколько привязок ошибаются — мониторинг продолжает работу':'Плановые проверки продолжаются';
+        const detail=paused?'LAN роутера доступен, внешние контрольные запросы не проходят. Не объявляем все ноды упавшими.':recovery?'Новый сеанс даже при прежнем внешнем IP. Старые результаты остаются в истории.':wave?'Сначала подтверждаем ошибки; оставляем места для здоровых и новых привязок. Причина блокировки не установлена.':'Ошибки подтверждаются отдельно, здоровые привязки не теряются в очереди.';
+        text('[data-banner-title]',title);text('[data-banner-text]',detail);$('[data-banner]').dataset.tone=paused||wave?'warn':'info';
+        Object.entries(counts).forEach(([kind,value])=>text(`[data-count="${kind}"]`,paused?'—':String(value)));
+        text('[data-pending-label]',recovery?'Ожидают измерения':'На подтверждении');
+        const queue=queueState(list),active=queueCount(queue.active,scoped),waiting=queueCount(queue.waiting,scoped),sharedActive=queue.active.length;
+        text('[data-queue-title]',paused?'Очередь приостановлена':`${state.panel==='all'?'Все панели':state.panel} · очередь проверок`);
+        text('[data-queue-count]',paused?`Сохранено задач: ${waiting}`:`В работе ${active} · ожидают ${waiting}`);
+        text('[data-queue-policy]',paused?'Задачи сохранены до восстановления источника':recovery?'Приоритет: повторная проверка после восстановления':wave?'Подтверждения → плановые → новые · диагностика в фоне':'Плановые и новые привязки проверяются по очереди');
+        text('[data-budget-text]',`Общий бюджет ${sharedActive} / 10`);$('[data-budget]').setAttribute('aria-valuenow',String(sharedActive));$('[data-budget-fill]').style.width=(sharedActive*10)+'%';
+        text('[data-attention-count]',paused?'—':String(scoped.filter(n=>['unstable','failed','suspect'].includes(n.kind)).length));text('[data-all-count]',String(scoped.length));
+        root.querySelectorAll('[data-filter]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.filter===state.filter)));
+        const shown=renderGrid(list);renderAside(shown);renderEvents();renderAlerts();
+        text('[data-results-age]',paused?'Свежесть потеряна · карточки содержат исторические наблюдения':'Показаны последние измерения текущего сеанса');
+        text('[data-network-title]',paused?'LAN есть · внешний контроль не проходит':'Маршрут доступен');text('[data-network-session]',recovery?'Сеанс 18':'Сеанс 17');
+        text('[data-public-ip]',paused?'Нет свежего наблюдения':'203.0.113.42');text('[data-network-controls]',paused?'0 из 2 успешны':'2 из 2 успешны');text('[data-network-dns]',paused?'Локальный DNS отвечает':'Отвечает');
+        root.querySelectorAll('[data-tab]').forEach(b=>{const chosen=b.dataset.tab===state.tab;b.setAttribute('aria-selected',String(chosen));document.getElementById('ml-'+b.dataset.tab).hidden=!chosen;});
+      }
+      function chooseScenario(value) {cancelTimers();state.playing=false;state.scenario=value;state.overrides={};render();save();}
+      function recheckNode(id) {
+        if(state.scenario==='outage'||state.busy||state.playing)return;
+        state.selected=id;state.busy=id;render();
+        later(()=>{state.overrides[id]={kind:state.scenario==='recovery'?'healthy':nodes().find(n=>n.id===id).kind,justChecked:true};state.busy=null;render();save();},1000);
+      }
+      $('[data-scenario]').addEventListener('change',e=>chooseScenario(e.target.value));
+      $('[data-all-panels]').addEventListener('click',()=>choosePanel('all'));
+      root.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>{state.filter=b.dataset.filter;render();save();}));
+      root.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{state.tab=b.dataset.tab;render();save();}));
+      $('[data-source-button]').addEventListener('click',()=>{state.tab='network';render();save();});
+      function alertChanged() {state.alertNotice='';state.alertTested=false;renderAlerts();save();}
+      $('[data-alert-enabled]').addEventListener('change',e=>{state.alerts.enabled=e.target.checked;alertChanged();});
+      root.querySelectorAll('[data-alert-event]').forEach(el=>el.addEventListener('change',()=>{state.alerts.events[el.dataset.alertEvent]=el.checked;alertChanged();}));
+      root.querySelectorAll('[data-alert-panel]').forEach(el=>el.addEventListener('change',()=>{state.alerts.panels[el.dataset.alertPanel]=el.checked;alertChanged();}));
+      $('[data-alert-source]').addEventListener('change',e=>{state.alerts.source=e.target.value;alertChanged();});
+      $('[data-alert-group]').addEventListener('change',e=>{state.alerts.group=e.target.checked;alertChanged();});
+      $('[data-alert-window]').addEventListener('change',e=>{state.alerts.window=e.target.value;alertChanged();});
+      $('[data-alert-example]').addEventListener('change',e=>{state.alertExample=e.target.value;state.alertTested=false;renderAlerts();save();});
+      $('[data-alert-preview-panel]').addEventListener('change',e=>{state.alertPreviewPanel=e.target.value;state.alertTested=false;renderAlerts();save();});
+      $('[data-alert-save]').addEventListener('click',()=>{state.savedAlerts=clone(state.alerts);state.alertNotice='Настройки сохранены только в макете';renderAlerts();save();});
+      $('[data-alert-test]').addEventListener('click',()=>{state.alertTested=true;renderAlerts();});
+      $('[data-play]').addEventListener('click',()=>{
+        if(state.playing){cancelTimers();state.playing=false;render();return;}
+        cancelTimers();state.playing=true;state.scenario='normal';state.overrides={};state.tab='monitor';state.filter='all';state.panel='all';render();save();
+        const version=playbackVersion;
+        ['wave','outage','recovery'].forEach((scenario,index)=>later(()=>{if(version!==playbackVersion)return;state.scenario=scenario;state.overrides={};if(index===2)state.playing=false;render();save();},(index+1)*3500));
+      });
+      window.addEventListener('openai:set_globals',event=>{
+        const saved=event.detail?.globals?.widgetState;if(!saved)return;
+        if(saved.privateContent?.panelLayoutVersion!==1)return;
+        if(JSON.stringify({modelContent:saved.modelContent,privateContent:saved.privateContent})===lastSavedSnapshot)return;
+        cancelTimers();state.playing=false;state.overrides={};
+        const m=saved.modelContent||{},p=saved.privateContent||{};
+        if(scenarios.includes(m.scenario))state.scenario=m.scenario;
+        if(base.some(n=>n.id===m.selected))state.selected=m.selected;
+        if(['all','attention'].includes(m.filter))state.filter=m.filter;
+        if(['all','MASTER','LETO','220'].includes(m.panel))state.panel=m.panel;
+        if(p.panelLayoutVersion===1&&['monitor','network','events','alerts'].includes(p.tab))state.tab=p.tab;
+        if(p.alertsVersion===1){state.alerts=parseAlerts(p.alerts);state.savedAlerts=parseAlerts(p.savedAlerts);}
+        if(['failure','recovery','network','ip','config'].includes(m.alertExample))state.alertExample=m.alertExample;
+        if(panels.includes(m.alertPreviewPanel))state.alertPreviewPanel=m.alertPreviewPanel;
+        if(typeof p.dense==='boolean')state.dense=p.dense;
+        if(Number.isFinite(p.radius))state.radius=Math.min(18,Math.max(6,p.radius));
+        render();
+      });
+      const initialUI=window.openai?.widgetState?.privateContent||{};
+      if(initialUI.panelLayoutVersion===1&&['monitor','network','events','alerts'].includes(initialUI.tab))state.tab=initialUI.tab;
+      if(initialUI.alertsVersion===1){state.alerts=parseAlerts(initialUI.alerts);state.savedAlerts=parseAlerts(initialUI.savedAlerts);}
+      if(['failure','recovery','network','ip','config'].includes(stored.alertExample))state.alertExample=stored.alertExample;
+      if(panels.includes(stored.alertPreviewPanel))state.alertPreviewPanel=stored.alertPreviewPanel;
+      if(typeof initialUI.dense==='boolean')state.dense=initialUI.dense;
+      if(Number.isFinite(initialUI.radius))state.radius=Math.min(18,Math.max(6,initialUI.radius));
+      render();
+      if(globalThis.Tweak) {const tweak=new Tweak({container:root,onChange:()=>{render();save();}});tweak.addToggle(state,'dense',{label:'Компактные карточки'});tweak.addSlider(state,'radius',{label:'Скругление карточек',min:6,max:18,unit:'px'});}
+      window.addEventListener('pagehide',cancelTimers,{once:true});
+    })();
+  </script>
+</div>

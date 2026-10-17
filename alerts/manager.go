@@ -773,7 +773,7 @@ func (m *Manager) collectNodes() []nodeSnapshot {
 			group.NewIPFailed = true
 			group.allGood = false
 			group.affected[name] = true
-		case checker.NodeIPChanged, checker.NodeVerifyingNewIP:
+		case checker.NodeIPChanged, checker.NodeVerifyingNewIP, checker.NodeConfigChanged:
 			group.verify = true
 			group.allGood = false
 			group.affected[name] = true

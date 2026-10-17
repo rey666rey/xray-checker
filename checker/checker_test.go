@@ -149,18 +149,18 @@ func TestPersistentCompletedResultsSurviveRestart(t *testing.T) {
 		t.Fatalf("expected only the new proxy to need a first pass, got %#v", pending)
 	}
 
-	// Some panels rotate connection fields (and therefore stable_id) while keeping
-	// the node's unique display identity. That must not blank a completed snapshot.
+	// A matching display name cannot certify a replacement endpoint. Preserve
+	// the archive, but require a fresh check of the new connection revision.
 	rotatedA := mkProxy("9.9.9.9", "A", "rotated-id")
 	rotated := NewProxyChecker([]*models.ProxyConfig{rotatedA}, 10000, "", 3, "", "", 5, 1, "ip", 20)
 	if err := rotated.SetResultsFile(resultsFile); err != nil {
 		t.Fatal(err)
 	}
-	if !rotated.HasCompleteResults() {
-		t.Fatal("unique display identity should restore a completed result after endpoint rotation")
+	if rotated.HasCompleteResults() {
+		t.Fatal("changed endpoint must not inherit a completed result")
 	}
-	if online, latency, _, found := rotated.GetProxyResultByStableID("rotated-id"); !found || !online || latency != 125*time.Millisecond {
-		t.Fatalf("unexpected result restored after endpoint rotation: online=%t latency=%s found=%t", online, latency, found)
+	if online, _, _, found := rotated.GetProxyResultByStableID("rotated-id"); found || online {
+		t.Fatal("unchecked replacement inherited the old endpoint's Online status")
 	}
 }
 

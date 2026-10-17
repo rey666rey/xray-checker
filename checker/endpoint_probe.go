@@ -2,7 +2,6 @@ package checker
 
 import (
 	"context"
-	"errors"
 	"hash/fnv"
 	"net"
 	"sort"
@@ -129,10 +128,25 @@ func (pc *ProxyChecker) checkDueEndpointProbes(now time.Time) {
 	if len(failed) == 0 {
 		return
 	}
-	logger.Info("TCP endpoint probe confirmed %d unreachable binding(s); running end-to-end validation", len(failed))
-	if err := pc.checkProxySet(failed, CheckReasonTCPProbe); err != nil && !errors.Is(err, ErrDiagnosisPriority) {
-		logger.Warn("TCP-triggered proxy validation skipped: %v", err)
+	logger.Info("TCP endpoint probe confirmed %d unreachable binding(s); queued bounded end-to-end validation", len(failed))
+	pc.queueEndpointValidation(failed, now)
+	pc.CheckDueProxies()
+}
+
+func (pc *ProxyChecker) queueEndpointValidation(proxies []*models.ProxyConfig, now time.Time) {
+	pc.monitorMu.Lock()
+	for _, proxy := range proxies {
+		if node := pc.monitor[proxy.LogicalID]; node != nil {
+			if node.EndpointSuspectedAt == 0 {
+				node.EndpointSuspectedAt = now.Unix()
+			}
+			if node.NextCheck <= 0 || node.NextCheck > now.Unix() {
+				node.NextCheck = now.Unix()
+			}
+		}
 	}
+	pc.monitorMu.Unlock()
+	pc.scheduleMonitorPersist()
 }
 
 func (pc *ProxyChecker) currentEndpointProbeProxies(proxies []*models.ProxyConfig) []*models.ProxyConfig {
@@ -222,13 +236,21 @@ func (pc *ProxyChecker) confirmFailedEndpointProbes(targets []endpointProbeTarge
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, config.concurrency)
 	confirmed := make(chan endpointProbeTarget, len(targets))
+	probe := func(target endpointProbeTarget) error {
+		release, err := pc.probeBudget.acquire(context.Background(), false)
+		if err != nil {
+			return err
+		}
+		defer release()
+		return dial(context.Background(), interfaceName, target.address, config.timeout)
+	}
 	for _, target := range targets {
 		wg.Add(1)
 		go func(target endpointProbeTarget) {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			if dial(context.Background(), interfaceName, target.address, config.timeout) == nil {
+			if probe(target) == nil {
 				return
 			}
 			if config.confirmDelay > 0 {
@@ -237,7 +259,7 @@ func (pc *ProxyChecker) confirmFailedEndpointProbes(targets []endpointProbeTarge
 			if !pc.GetNetworkStatus().Ready {
 				return
 			}
-			if dial(context.Background(), interfaceName, target.address, config.timeout) != nil {
+			if probe(target) != nil {
 				confirmed <- target
 			}
 		}(target)

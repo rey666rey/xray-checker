@@ -571,7 +571,7 @@ func APIStatusHandler(proxyChecker *checker.ProxyChecker) http.HandlerFunc {
 			switch monitor.State {
 			case checker.NodeNeedsReplacement, checker.NodeNewIPFailed:
 				needsReplacement++
-			case checker.NodeIPChanged, checker.NodeVerifyingNewIP:
+			case checker.NodeIPChanged, checker.NodeVerifyingNewIP, checker.NodeConfigChanged:
 				verifying++
 			}
 			if status {
@@ -602,6 +602,16 @@ func APIStatusHandler(proxyChecker *checker.ProxyChecker) http.HandlerFunc {
 			NeedsReplacement: needsReplacement,
 			Verifying:        verifying,
 		})
+	}
+}
+
+func APIMonitoringHandler(proxyChecker *checker.ProxyChecker) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			writeError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		writeJSON(w, proxyChecker.GetMonitoringStatus())
 	}
 }
 

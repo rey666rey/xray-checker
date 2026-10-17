@@ -2230,6 +2230,15 @@
       </div>
 
       <!-- Proxy Grid -->
+	  {{ if not .IsPublic }}
+	  <div x-cloak x-show="monitoring && !badgeMode" class="card-flat rounded-lg px-3 py-2 mb-3 text-xs text-muted flex flex-wrap items-center gap-x-4 gap-y-1" aria-live="polite">
+		<span class="font-medium" x-text="monitoringModeLabel"></span>
+		<span x-text="'Pending checks: ' + (monitoring?.pendingChecks || 0)"></span>
+		<span x-text="'Oldest delay: ' + (monitoring?.oldestDelaySeconds || 0) + 's'"></span>
+		<span x-text="'Diagnostics: ' + (monitoring?.queuedDiagnoses || 0) + ' queued' + (monitoring?.diagnosisRunning ? ', 1 running' : '')"></span>
+		<span x-text="'Last 15 min: ' + (monitoring?.recentFailures || 0) + ' newly failing, ' + (monitoring?.recentRecoveries || 0) + ' recovered'"></span>
+	  </div>
+	  {{ end }}
       <div
         x-show="showProxies"
         class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 mb-4"
@@ -3249,6 +3258,8 @@
           refreshSeconds: 5,
           countdown: 5,
           countdownInterval: null,
+		  refreshInFlight: false,
+		  monitoring: null,
           search: '',
           searchOpen: false,
           filter: localStorage.getItem('filter') || 'all',
@@ -3484,14 +3495,18 @@
             return {
               healthy: 'Healthy', unstable: 'Unstable', suspected: 'Suspected',
               needs_replacement: 'Needs replacement', ip_changed: 'IP changed',
+              config_changed: 'Verifying config',
               verifying_new_ip: 'Verifying new IP', fixed: 'Fixed',
               new_ip_failed: 'New IP failed', missing: 'Missing from subscription', unknown: 'Waiting for check',
             }[state] || 'Waiting for check';
           },
+		  get monitoringModeLabel() {
+			return { normal: 'Monitoring', failure_wave: 'Failure wave', catching_up: 'Catching up', network_waiting: 'Waiting for network' }[this.monitoring?.mode] || 'Monitoring';
+		  },
 
           stateClass(state) {
             if (['needs_replacement', 'new_ip_failed', 'suspected', 'missing'].includes(state)) return 'state-attention';
-            if (['ip_changed', 'verifying_new_ip', 'unstable'].includes(state)) return 'state-verifying';
+            if (['ip_changed', 'config_changed', 'verifying_new_ip', 'unstable'].includes(state)) return 'state-verifying';
             if (['healthy', 'fixed'].includes(state)) return 'state-fixed';
             return '';
           },
@@ -3510,13 +3525,20 @@
 
 		  isChecking(proxy) {
 			if (!proxy || this.isEffectivelyOnline(proxy)) return false;
+			if (this.hasConfirmedFailure(proxy)) return false;
+			if (!proxy.lastCheck) return true;
 			if (proxy.rechecking) return true;
 			const diagnosis = this.currentDiagnosis(proxy);
 			if (diagnosis) {
 			  if (['queued', 'running'].includes(diagnosis.state)) return true;
 			  if (diagnosis.state === 'completed') return diagnosis.verdict === 'inconclusive';
 			}
-			return ['unknown', 'suspected', 'ip_changed', 'verifying_new_ip'].includes(proxy.monitorState);
+			return ['unknown', 'suspected', 'ip_changed', 'config_changed', 'verifying_new_ip'].includes(proxy.monitorState);
+		  },
+
+		  hasConfirmedFailure(proxy) {
+			return !!proxy && !proxy.status && proxy.failures >= 2 &&
+			  !['unknown', 'ip_changed', 'config_changed', 'verifying_new_ip'].includes(proxy.monitorState);
 		  },
 
 		  isConfirmedOffline(proxy) {
@@ -3558,6 +3580,7 @@
 			}
 			if (this.isChecking(proxy)) return 'status-unstable pulse';
 			const diagnosis = this.cardDiagnosis(proxy);
+			if (this.hasConfirmedFailure(proxy) && (!diagnosis || ['queued', 'running'].includes(diagnosis.state))) return 'status-offline';
 			if (!diagnosis) return 'status-offline';
 			if (['queued', 'running'].includes(diagnosis.state)) return 'status-unstable pulse';
 			if (diagnosis.verdict === 'healthy') return 'status-online pulse';
@@ -3739,7 +3762,7 @@
 			else if (this.filter === 'offline') r = r.filter(p => this.isConfirmedOffline(p));
 			else if (this.filter === 'checking') r = r.filter(p => this.isChecking(p));
             else if (this.filter === 'repair') r = r.filter(p => ['needs_replacement', 'new_ip_failed'].includes(p.monitorState));
-            else if (this.filter === 'changed') r = r.filter(p => ['ip_changed', 'verifying_new_ip', 'fixed'].includes(p.monitorState));
+            else if (this.filter === 'changed') r = r.filter(p => ['ip_changed', 'config_changed', 'verifying_new_ip', 'fixed'].includes(p.monitorState));
             else if (this.filter === 'unstable') r = r.filter(p => p.monitorState === 'unstable');
 
             return [...r].sort((a, b) => {
@@ -3824,6 +3847,7 @@
             const params = new URLSearchParams(window.location.search);
 
             this.refreshNetworkStatus();
+			this.refreshMonitoringStatus();
 			this.refreshNodeDiagnoses();
             this.networkStatusInterval = setInterval(() => this.refreshNetworkStatus(), 3000);
 			{{ if not .IsPublic }}
@@ -4021,6 +4045,8 @@
 		  },
 
           async refreshData() {
+			if (this.refreshInFlight) return;
+			this.refreshInFlight = true;
             try {
               const privateDashboard = {{ if .IsPublic }}false{{ else }}true{{ end }};
               const res = await fetch(privateDashboard ? './api/v1/proxies' : './api/v1/public/proxies');
@@ -4069,12 +4095,28 @@
                   }
                 }
               }
+			  await this.refreshMonitoringStatus();
+			  await this.refreshNodeDiagnoses();
             } catch (e) {
               console.error('Failed to refresh:', e);
+			} finally {
+			  this.countdown = this.refreshSeconds;
+			  this.refreshInFlight = false;
             }
-			await this.refreshNodeDiagnoses();
-            this.countdown = this.refreshSeconds;
           },
+
+		  async refreshMonitoringStatus() {
+			const privateDashboard = {{ if .IsPublic }}false{{ else }}true{{ end }};
+			if (!privateDashboard) return;
+			try {
+			  const response = await fetch('./api/v1/monitoring');
+			  if (!response.ok) return;
+			  const json = await response.json();
+			  if (json.success) this.monitoring = json.data;
+			} catch (e) {
+			  console.error('Failed to refresh monitoring status:', e);
+			}
+		  },
 
 		  async refreshNodeDiagnoses() {
 			const privateDashboard = {{ if .IsPublic }}false{{ else }}true{{ end }};

@@ -143,6 +143,7 @@ func TestMonitorConfirmsFailureAndNewAddressRepair(t *testing.T) {
 
 	failed := proxyResult{status: false, lastCheck: time.Now(), lastError: "timeout"}
 	for round := 1; round <= 3; round++ {
+		failed.lastCheck = time.Now().Add(time.Duration(round))
 		pc.results.Store(proxyMetricKey(oldProxy), failed)
 		reason := CheckReasonScheduled
 		if round == 1 {
@@ -172,6 +173,7 @@ func TestMonitorConfirmsFailureAndNewAddressRepair(t *testing.T) {
 	if node.State != NodeVerifyingNewIP {
 		t.Fatalf("first success state = %s", node.State)
 	}
+	success.lastCheck = time.Now()
 	pc.results.Store(proxyMetricKey(newProxy), success)
 	pc.recordMonitorResults([]*models.ProxyConfig{newProxy}, CheckReasonScheduled)
 	node, _ = pc.GetNodeMonitorByStableID(newProxy.StableID)

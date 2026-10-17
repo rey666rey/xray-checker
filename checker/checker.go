@@ -35,6 +35,7 @@ type ProxyChecker struct {
 	downloadMinSize     int64
 	checkMethod         string
 	checkConcurrency    int // max proxies checked in parallel per cycle; 0 = unlimited
+	probeBudget         *probeBudget
 	urlTestURL          string
 	urlTestExpected     string
 	urlTestAttempts     int
@@ -51,12 +52,14 @@ type ProxyChecker struct {
 	resultsFile         string
 	persistSignal       chan struct{}
 	resultsComplete     atomic.Bool
+	initialSweepRunning atomic.Bool
 	resumeFromSnapshot  atomic.Bool
 	resumeWasComplete   atomic.Bool
 	persistMu           sync.Mutex
 	checkCycleMu        sync.Mutex
 	runtimeMu           sync.RWMutex
 	manualPriorityMu    sync.RWMutex
+	backgroundPaused    atomic.Int64
 	proxyCheckLocks     sync.Map // stable ID -> *sync.Mutex
 	monitorMu           sync.RWMutex
 	monitorFile         string
@@ -66,6 +69,9 @@ type ProxyChecker struct {
 	diagnosisMu         sync.RWMutex
 	diagnosisHistory    map[string][]NodeDiagnosis
 	diagnosisRunning    bool
+	diagnosisContext    context.Context
+	diagnosisCancel     context.CancelFunc
+	diagnosisAutomatic  bool
 	diagnosisQueue      chan string
 	diagnosisQueued     map[string]int64
 	diagnosisWorkerOnce sync.Once
@@ -109,6 +115,7 @@ func NewProxyChecker(proxies []*models.ProxyConfig, startPort int, ipCheckURL st
 		downloadMinSize:     downloadMinSize,
 		checkMethod:         checkMethod,
 		checkConcurrency:    checkConcurrency,
+		probeBudget:         newProbeBudget(checkConcurrency),
 		diagnosisHistory:    make(map[string][]NodeDiagnosis),
 		diagnosisQueue:      make(chan string, automaticDiagnosisQueueSize),
 		diagnosisQueued:     make(map[string]int64),
@@ -206,6 +213,10 @@ func (pc *ProxyChecker) checkProxyInternal(proxy *models.ProxyConfig) {
 }
 
 func (pc *ProxyChecker) checkProxyInternalWithOptions(proxy *models.ProxyConfig, timeout int, retryPhase bool) {
+	pc.checkProxyInternalWithAttempts(proxy, timeout, retryPhase, pc.urlTestAttempts)
+}
+
+func (pc *ProxyChecker) checkProxyInternalWithAttempts(proxy *models.ProxyConfig, timeout int, retryPhase bool, attempts int) {
 	lockKey := proxy.StableID
 	if lockKey == "" {
 		lockKey = proxy.GenerateStableID()
@@ -215,18 +226,22 @@ func (pc *ProxyChecker) checkProxyInternalWithOptions(proxy *models.ProxyConfig,
 	proxyLock.Lock()
 	defer proxyLock.Unlock()
 
-	for {
-		pc.waitForNetwork()
-		if !pc.checkProxyAttempt(proxy, timeout, retryPhase) {
-			return
-		}
+	// An unavailable route leaves the target due. Never retain a runtime lock
+	// indefinitely while waiting for a cable/network recovery.
+	if !pc.GetNetworkStatus().Ready {
+		return
 	}
+	pc.checkProxyAttemptWithAttempts(proxy, timeout, retryPhase, attempts)
 }
 
 // checkProxyAttempt performs one proxy request. It returns true only when the
-// attempt failed during a confirmed mobile-network outage and must be repeated
-// after waitForNetwork observes recovery. Ordinary proxy failures are retained.
+// attempt failed during a confirmed mobile-network outage and should remain due
+// for the scheduler after recovery. Ordinary proxy failures are retained.
 func (pc *ProxyChecker) checkProxyAttempt(proxy *models.ProxyConfig, timeout int, retryPhase bool) bool {
+	return pc.checkProxyAttemptWithAttempts(proxy, timeout, retryPhase, pc.urlTestAttempts)
+}
+
+func (pc *ProxyChecker) checkProxyAttemptWithAttempts(proxy *models.ProxyConfig, timeout int, retryPhase bool, attempts int) bool {
 	if proxy.StableID == "" {
 		proxy.StableID = proxy.GenerateStableID()
 	}
@@ -234,6 +249,9 @@ func (pc *ProxyChecker) checkProxyAttempt(proxy *models.ProxyConfig, timeout int
 	metricKey := proxyMetricKey(proxy)
 
 	storeResult := func(status bool, unstable bool, latency time.Duration, lastError, exitIP string) {
+		if !pc.GetNetworkStatus().Ready {
+			return
+		}
 		pc.storeResult(metricKey, proxyResult{
 			status:    status,
 			unstable:  unstable,
@@ -271,11 +289,19 @@ func (pc *ProxyChecker) checkProxyAttempt(proxy *models.ProxyConfig, timeout int
 	var latency time.Duration
 	var unstable bool
 	var exitIP string
+	release, err := pc.probeBudget.acquire(context.Background(), false)
+	if err != nil {
+		return false
+	}
+	defer release()
+	if !pc.GetNetworkStatus().Ready {
+		return true
+	}
 
 	if pc.checkMethod == "ip" {
 		checkSuccess, logMessage, latency, exitIP, checkErr = pc.checkByIPDetailed(client)
 	} else if pc.checkMethod == "urltest" {
-		checkSuccess, logMessage, latency, unstable, checkErr = pc.checkByURLTest(client)
+		checkSuccess, logMessage, latency, unstable, checkErr = pc.checkByURLTestAttempts(client, attempts)
 	} else if pc.checkMethod == "status" {
 		checkSuccess, logMessage, latency, checkErr = pc.checkByGen(client)
 	} else if pc.checkMethod == "download" {
@@ -284,6 +310,7 @@ func (pc *ProxyChecker) checkProxyAttempt(proxy *models.ProxyConfig, timeout int
 		logger.Error("Invalid check method: %s", pc.checkMethod)
 		return false
 	}
+	release()
 
 	if checkErr != nil {
 		if pc.retryAfterNetworkOutage() {
@@ -297,6 +324,9 @@ func (pc *ProxyChecker) checkProxyAttempt(proxy *models.ProxyConfig, timeout int
 	}
 
 	if !checkSuccess {
+		if pc.retryAfterNetworkOutage() {
+			return true
+		}
 		logger.Error("%s | Failed | %s | Latency: %s", proxy.Name, logMessage, latency)
 		setFailed(logMessage)
 	} else {
@@ -309,11 +339,14 @@ func (pc *ProxyChecker) checkProxyAttempt(proxy *models.ProxyConfig, timeout int
 }
 
 func (pc *ProxyChecker) checkByURLTest(client *http.Client) (bool, string, time.Duration, bool, error) {
+	return pc.checkByURLTestAttempts(client, pc.urlTestAttempts)
+}
+
+func (pc *ProxyChecker) checkByURLTestAttempts(client *http.Client, attempts int) (bool, string, time.Duration, bool, error) {
 	if pc.urlTestURL == "" {
 		return false, "", 0, false, fmt.Errorf("URL test endpoint is not configured")
 	}
 
-	attempts := pc.urlTestAttempts
 	if attempts < 1 {
 		attempts = 1
 	}
@@ -350,14 +383,18 @@ func (pc *ProxyChecker) checkByURLTest(client *http.Client) (bool, string, time.
 }
 
 func timedProxyGET(client *http.Client, target string, maxBody int64) (int, string, time.Duration, error) {
-	req, err := http.NewRequest("GET", target, nil)
+	return timedProxyGETContext(context.Background(), client, target, maxBody)
+}
+
+func timedProxyGETContext(ctx context.Context, client *http.Client, target string, maxBody int64) (int, string, time.Duration, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", target, nil)
 	if err != nil {
 		return 0, "", 0, err
 	}
 	var ttfb time.Duration
 	start := time.Now()
 	trace := &httptrace.ClientTrace{GotFirstResponseByte: func() { ttfb = time.Since(start) }}
-	req = req.WithContext(httptrace.WithClientTrace(context.Background(), trace))
+	req = req.WithContext(httptrace.WithClientTrace(ctx, trace))
 	resp, err := client.Do(req)
 	if err != nil {
 		return 0, "", 0, err
@@ -572,22 +609,20 @@ func (pc *ProxyChecker) MetricsSnapshot() []metrics.ProxyMetric {
 }
 
 func (pc *ProxyChecker) CheckAllProxies() {
-	pc.checkCycleMu.Lock()
-	defer pc.checkCycleMu.Unlock()
-	pc.runtimeMu.RLock()
-	defer pc.runtimeMu.RUnlock()
-	if pc.diagnosisPending() {
-		logger.Info("Full proxy check deferred for deep node diagnosis")
+	if !pc.initialSweepRunning.CompareAndSwap(false, true) {
+		return
+	}
+	defer func() {
+		pc.initialSweepRunning.Store(false)
+		if pc.currentProxySetHasResults() {
+			pc.markResultsComplete(true)
+		}
+	}()
+	pc.waitForNetwork()
+	if !pc.GetNetworkStatus().Ready {
 		return
 	}
 	pc.markResultsComplete(false)
-	pc.waitForNetwork()
-	if pc.checkMethod == "ip" {
-		if _, err := pc.GetCurrentIP(); err != nil {
-			logger.Warn("Error getting current IP: %v", err)
-			return
-		}
-	}
 
 	pc.mu.RLock()
 	proxiesToCheck := make([]*models.ProxyConfig, len(pc.proxies))
@@ -601,7 +636,10 @@ func (pc *ProxyChecker) CheckAllProxies() {
 		firstPass = pc.uncheckedProxies(proxiesToCheck)
 		logger.Info("Resuming interrupted check: %d unchecked proxies remain", len(firstPass))
 	}
-	runBoundedChecks(firstPass, pc.checkConcurrency, pc.checkProxyInternal)
+	if err := pc.checkBatches(firstPass, CheckReasonInitial); err != nil {
+		logger.Info("Initial check deferred: %v", err)
+		return
+	}
 
 	// Mobile links occasionally reset otherwise healthy proxy connections during
 	// a large sweep. Match app-style URL tests by retrying only first-pass failures;
@@ -629,13 +667,27 @@ func (pc *ProxyChecker) CheckAllProxies() {
 				retryTimeout = pc.ipCheckTimeout
 			}
 			logger.Info("Retrying %d first-pass failures with concurrency %d and timeout %ds", len(failed), retryConcurrency, retryTimeout)
-			runBoundedChecks(failed, retryConcurrency, func(proxy *models.ProxyConfig) {
-				pc.checkProxyInternalWithOptions(proxy, retryTimeout, true)
-			})
+			if err := pc.checkBatches(failed, CheckReasonInitialRetry); err != nil {
+				logger.Info("Initial retry deferred: %v", err)
+				return
+			}
 		}
 	}
-	pc.recordMonitorResults(proxiesToCheck, CheckReasonInitial)
-	pc.markResultsComplete(true)
+}
+
+func (pc *ProxyChecker) checkBatches(proxies []*models.ProxyConfig, reason CheckReason) error {
+	for start := 0; start < len(proxies); start += maxTargetedBatch {
+		end := start + maxTargetedBatch
+		if end > len(proxies) {
+			end = len(proxies)
+		}
+		// Release cycle/runtime locks between batches so subscription updates and
+		// fair scheduled checks can run during a large initial failure wave.
+		if err := pc.checkProxySet(proxies[start:end], reason); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (pc *ProxyChecker) uncheckedProxies(proxies []*models.ProxyConfig) []*models.ProxyConfig {
@@ -665,23 +717,27 @@ func (pc *ProxyChecker) failedProxies(proxies []*models.ProxyConfig) []*models.P
 // connections in one burst. Local socks ports are unchanged — each check still
 // dials its own fixed port; this only throttles how many run at a time.
 func runBoundedChecks(proxies []*models.ProxyConfig, concurrency int, check func(*models.ProxyConfig)) {
-	var sem chan struct{}
-	if concurrency > 0 {
-		sem = make(chan struct{}, concurrency)
+	if len(proxies) == 0 {
+		return
 	}
-
+	if concurrency <= 0 || concurrency > len(proxies) {
+		concurrency = len(proxies)
+	}
+	jobs := make(chan *models.ProxyConfig)
 	var wg sync.WaitGroup
-	for _, proxy := range proxies {
+	for i := 0; i < concurrency; i++ {
 		wg.Add(1)
-		go func(p *models.ProxyConfig) {
+		go func() {
 			defer wg.Done()
-			if sem != nil {
-				sem <- struct{}{}
-				defer func() { <-sem }()
+			for proxy := range jobs {
+				check(proxy)
 			}
-			check(p)
-		}(proxy)
+		}()
 	}
+	for _, proxy := range proxies {
+		jobs <- proxy
+	}
+	close(jobs)
 	wg.Wait()
 }
 

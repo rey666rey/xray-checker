@@ -26,6 +26,7 @@ type persistedProxyResult struct {
 	Name      string `json:"name"`
 	SubName   string `json:"subName"`
 	StableID  string `json:"stableId"`
+	Revision  string `json:"revision,omitempty"`
 	GroupName string `json:"groupName"`
 	Online    bool   `json:"online"`
 	Unstable  bool   `json:"unstable,omitempty"`
@@ -44,12 +45,10 @@ func (pc *ProxyChecker) SetResultsFile(path string) error {
 		return nil
 	}
 
-	if err := pc.loadResults(); err != nil {
-		return err
-	}
+	loadErr := pc.loadResults()
 	pc.persistSignal = make(chan struct{}, 1)
 	go pc.resultsPersistLoop()
-	return nil
+	return loadErr
 }
 
 func (pc *ProxyChecker) loadResults() error {
@@ -103,6 +102,11 @@ func (pc *ProxyChecker) loadResults() error {
 			if !exists {
 				continue
 			}
+		}
+		// A previous success belongs to the tested connection revision, not its
+		// display name. Legacy snapshots cannot attest rotated credentials.
+		if item.Revision == "" || item.Revision != proxy.GenerateRevisionID() {
+			continue
 		}
 		pc.results.Store(proxyMetricKey(proxy), proxyResult{
 			status:    item.Online,
@@ -205,11 +209,14 @@ func (pc *ProxyChecker) persistResults() error {
 	}
 	pc.mu.RLock()
 	proxies := make([]proxyMetricLabels, 0, len(pc.proxies))
+	revisions := make(map[proxyMetricLabels]string, len(pc.proxies))
 	for _, proxy := range pc.proxies {
 		if proxy.StableID == "" {
 			proxy.StableID = proxy.GenerateStableID()
 		}
-		proxies = append(proxies, proxyMetricKey(proxy))
+		key := proxyMetricKey(proxy)
+		proxies = append(proxies, key)
+		revisions[key] = proxy.GenerateRevisionID()
 	}
 	pc.mu.RUnlock()
 	for _, key := range proxies {
@@ -224,6 +231,7 @@ func (pc *ProxyChecker) persistResults() error {
 			Name:      key.name,
 			SubName:   key.subName,
 			StableID:  key.stableID,
+			Revision:  revisions[key],
 			GroupName: key.groupName,
 			Online:    result.status,
 			Unstable:  result.unstable,

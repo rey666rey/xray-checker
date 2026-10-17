@@ -434,9 +434,15 @@ func (pc *ProxyChecker) runAccessRoute(request AccessCheckRequest, route accessR
 	}
 	for attempt := 0; attempt < attempts; attempt++ {
 		result.Attempts++
+		release, err := pc.probeBudget.acquire(context.Background(), false)
+		if err != nil {
+			result.LastError = err.Error()
+			break
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), accessAttemptTimeout)
 		probe := runAccessProbe(ctx, dialer, request)
 		cancel()
+		release()
 		result.TCPConnected = result.TCPConnected || probe.TCPConnected
 		result.ProtocolMatched = result.ProtocolMatched || probe.ProtocolMatched
 		result.StatusCode = probe.StatusCode

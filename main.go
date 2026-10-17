@@ -265,6 +265,7 @@ func main() {
 	protectedHandler.Handle("/api/v1/access-checks/", web.APIAccessChecksHandler(proxyChecker))
 	protectedHandler.Handle("/api/v1/config", web.APIConfigHandler(proxyChecker))
 	protectedHandler.Handle("/api/v1/status", web.APIStatusHandler(proxyChecker))
+	protectedHandler.Handle("/api/v1/monitoring", web.APIMonitoringHandler(proxyChecker))
 	protectedHandler.Handle("/api/v1/system/info", web.APISystemInfoHandler(version, startTime))
 	protectedHandler.Handle("/api/v1/system/ip", web.APISystemIPHandler(proxyChecker))
 	protectedHandler.Handle("/api/v1/network", web.APINetworkStatusHandler(proxyChecker))

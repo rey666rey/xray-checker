@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -24,6 +25,7 @@ const (
 	NodeSuspected        NodeState = "suspected"
 	NodeNeedsReplacement NodeState = "needs_replacement"
 	NodeIPChanged        NodeState = "ip_changed"
+	NodeConfigChanged    NodeState = "config_changed"
 	NodeVerifyingNewIP   NodeState = "verifying_new_ip"
 	NodeFixed            NodeState = "fixed"
 	NodeNewIPFailed      NodeState = "new_ip_failed"
@@ -32,12 +34,13 @@ const (
 type CheckReason string
 
 const (
-	CheckReasonInitial   CheckReason = "initial"
-	CheckReasonScheduled CheckReason = "scheduled"
-	CheckReasonChanged   CheckReason = "configuration_changed"
-	CheckReasonManual    CheckReason = "manual"
-	CheckReasonTCPProbe  CheckReason = "tcp_probe_failed"
-	CheckReasonDiagnosis CheckReason = "deep_diagnosis"
+	CheckReasonInitial      CheckReason = "initial"
+	CheckReasonInitialRetry CheckReason = "initial_retry"
+	CheckReasonScheduled    CheckReason = "scheduled"
+	CheckReasonChanged      CheckReason = "configuration_changed"
+	CheckReasonManual       CheckReason = "manual"
+	CheckReasonTCPProbe     CheckReason = "tcp_probe_failed"
+	CheckReasonDiagnosis    CheckReason = "deep_diagnosis"
 )
 
 type NodeEvent struct {
@@ -65,6 +68,11 @@ type NodeMonitorState struct {
 	ConsecutiveSuccesses int         `json:"consecutiveSuccesses"`
 	LastCheck            int64       `json:"lastCheck,omitempty"`
 	LastSuccess          int64       `json:"lastSuccess,omitempty"`
+	LastResultAt         int64       `json:"lastResultAt,omitempty"`
+	FailureEpisode       uint64      `json:"failureEpisode,omitempty"`
+	FailureStartedAt     int64       `json:"failureStartedAt,omitempty"`
+	RecoveredAt          int64       `json:"recoveredAt,omitempty"`
+	EndpointSuspectedAt  int64       `json:"endpointSuspectedAt,omitempty"`
 	LastError            string      `json:"lastError,omitempty"`
 	ExitIP               string      `json:"exitIp,omitempty"`
 	NextCheck            int64       `json:"nextCheck,omitempty"`
@@ -82,8 +90,8 @@ const (
 	monitorRevisionVersion = 2
 	monitorHistoryLimit    = 40
 	maxTargetedBatch       = 50
-	healthyRecheckMin      = 12 * time.Minute
-	healthyRecheckSpread   = 6 * time.Minute
+	healthyRecheckMin      = 3 * time.Minute
+	healthyRecheckSpread   = 2 * time.Minute
 )
 
 func (pc *ProxyChecker) SetMonitorFile(path string) error {
@@ -145,6 +153,7 @@ func (pc *ProxyChecker) reconcileMonitorWithCurrentProxies() {
 				Revision:        proxy.GenerateRevisionID(),
 				RevisionVersion: monitorRevisionVersion,
 				ResolvedIPs:     literalServerIPs(proxy.Server),
+				NextCheck:       now.Unix(),
 				UpdatedAt:       now.Unix(),
 			}
 			if result, ok := pc.results.Load(proxyMetricKey(proxy)); ok {
@@ -152,6 +161,26 @@ func (pc *ProxyChecker) reconcileMonitorWithCurrentProxies() {
 			}
 			pc.monitor[proxy.LogicalID] = node
 			continue
+		}
+		if _, found := pc.results.Load(proxyMetricKey(proxy)); !found && (node.State == NodeHealthy || node.State == NodeFixed) {
+			// History can outlive the attested result snapshot. An unchecked
+			// connection must render as waiting, not as a false Offline card.
+			node.State = NodeUnknown
+			node.NextCheck = now.Unix()
+		}
+		// Older builds called every private-config revision an IP replacement.
+		// Preserve actual DNS changes, but repair same-address artifacts.
+		if node.RevisionVersion >= monitorRevisionVersion && node.PreviousAddress == node.CurrentAddress && node.PreviousAddress != "" &&
+			equalStrings(node.PreviousResolvedIPs, node.ResolvedIPs) {
+			node.PreviousAddress = ""
+			node.AddressChangedAt = 0
+			switch node.State {
+			case NodeIPChanged, NodeVerifyingNewIP, NodeNewIPFailed:
+				node.State = NodeConfigChanged
+				node.NextCheck = now.Unix()
+			case NodeFixed:
+				node.State = NodeHealthy
+			}
 		}
 		currentRevision := proxy.GenerateRevisionID()
 		if node.RevisionVersion < monitorRevisionVersion {
@@ -200,6 +229,7 @@ func (pc *ProxyChecker) reconcileMonitorWithCurrentProxies() {
 }
 
 func (pc *ProxyChecker) initializeNodeFromResult(node *NodeMonitorState, result proxyResult, now time.Time) {
+	node.LastResultAt = result.lastCheck.UnixNano()
 	node.LastCheck = result.lastCheck.Unix()
 	node.LastError = result.lastError
 	node.ExitIP = result.exitIP
@@ -214,6 +244,8 @@ func (pc *ProxyChecker) initializeNodeFromResult(node *NodeMonitorState, result 
 			node.NextCheck = nextHealthyCheck(node.LogicalID, now).Unix()
 		}
 	} else {
+		node.FailureEpisode++
+		node.FailureStartedAt = result.lastCheck.Unix()
 		node.State = NodeSuspected
 		node.ConsecutiveFailures = 1
 		node.NextCheck = now.Add(failedRecheckDelay(node.ConsecutiveFailures)).Unix()
@@ -313,21 +345,33 @@ func markNodeRevisionChanged(node *NodeMonitorState, proxy *models.ProxyConfig, 
 	if previous == "" {
 		previous = proxyAddress(proxy)
 	}
-	node.PreviousAddress = previous
-	node.CurrentAddress = proxyAddress(proxy)
-	node.AddressChangedAt = now.Unix()
-	node.PreviousResolvedIPs = append([]string(nil), node.ResolvedIPs...)
-	node.ResolvedIPs = literalServerIPs(proxy.Server)
+	current := proxyAddress(proxy)
+	wasReplacement := node.State == NodeIPChanged || node.State == NodeVerifyingNewIP || node.State == NodeNewIPFailed
+	node.State = NodeConfigChanged
+	if previous != current {
+		node.PreviousAddress = previous
+		node.AddressChangedAt = now.Unix()
+		node.PreviousResolvedIPs = append([]string(nil), node.ResolvedIPs...)
+		node.ResolvedIPs = literalServerIPs(proxy.Server)
+		node.State = NodeIPChanged
+	} else if wasReplacement && ((node.PreviousAddress != "" && node.PreviousAddress != current) || !equalStrings(node.PreviousResolvedIPs, node.ResolvedIPs)) {
+		// A parameter edit during a real address/DNS replacement must not
+		// accidentally waive the second confirmation of the replacement.
+		node.State = NodeIPChanged
+	}
+	node.CurrentAddress = current
+	if len(node.ResolvedIPs) == 0 {
+		node.ResolvedIPs = literalServerIPs(proxy.Server)
+	}
 	node.Revision = proxy.GenerateRevisionID()
 	node.RevisionVersion = monitorRevisionVersion
-	node.State = NodeIPChanged
 	node.ConsecutiveFailures = 0
 	node.ConsecutiveSuccesses = 0
 	node.LastError = ""
 	node.ExitIP = ""
 	node.NextCheck = now.Unix()
 	node.UpdatedAt = now.Unix()
-	appendNodeEvent(node, NodeEvent{At: now.Unix(), Type: "revision_changed", State: NodeIPChanged,
+	appendNodeEvent(node, NodeEvent{At: now.Unix(), Type: "revision_changed", State: node.State,
 		FromAddress: previous, ToAddress: node.CurrentAddress})
 }
 
@@ -367,9 +411,15 @@ func (pc *ProxyChecker) RefreshResolvedIPs() []*models.ProxyConfig {
 
 	changed := make([]*models.ProxyConfig, 0)
 	now := time.Now()
-	pc.monitorMu.Lock()
+	// DNS can be slow. Collect outside monitorMu so API/history readers keep
+	// working while a resolver is unavailable.
+	resolvedSet := make([]resolution, 0, len(proxies))
 	for range proxies {
 		resolved := <-results
+		resolvedSet = append(resolvedSet, resolved)
+	}
+	pc.monitorMu.Lock()
+	for _, resolved := range resolvedSet {
 		if len(resolved.ips) == 0 {
 			continue
 		}
@@ -411,6 +461,7 @@ func (pc *ProxyChecker) recordMonitorResults(proxies []*models.ProxyConfig, reas
 	if pc.monitor == nil {
 		pc.monitor = make(map[string]*NodeMonitorState)
 	}
+	updated := make([]*models.ProxyConfig, 0, len(proxies))
 	for _, proxy := range proxies {
 		if proxy.LogicalID == "" {
 			proxy.LogicalID = proxy.GenerateLogicalID()
@@ -425,22 +476,35 @@ func (pc *ProxyChecker) recordMonitorResults(proxies []*models.ProxyConfig, reas
 				CurrentAddress: proxyAddress(proxy), Revision: proxy.GenerateRevisionID(), RevisionVersion: monitorRevisionVersion}
 			pc.monitor[proxy.LogicalID] = node
 		}
-		pc.applyMonitorResult(node, value.(proxyResult), reason, now)
+		result := value.(proxyResult)
+		if node.LastResultAt >= result.lastCheck.UnixNano() {
+			continue
+		}
+		pc.applyMonitorResult(node, result, reason, now)
+		updated = append(updated, proxy)
 	}
 	pc.monitorMu.Unlock()
 	pc.scheduleMonitorPersist()
-	pc.enqueueAutomaticDiagnoses(proxies)
+	pc.enqueueAutomaticDiagnoses(updated)
+	if len(updated) > 0 && !pc.initialSweepRunning.Load() && !pc.resultsComplete.Load() && pc.currentProxySetHasResults() {
+		pc.markResultsComplete(true)
+	}
 }
 
 func (pc *ProxyChecker) applyMonitorResult(node *NodeMonitorState, result proxyResult, reason CheckReason, now time.Time) {
 	wasReplacement := node.State == NodeIPChanged || node.State == NodeVerifyingNewIP ||
 		node.State == NodeNewIPFailed
 	node.LastCheck = result.lastCheck.Unix()
+	node.LastResultAt = result.lastCheck.UnixNano()
 	node.LastError = result.lastError
+	node.EndpointSuspectedAt = 0
 	node.ExitIP = result.exitIP
 	node.UpdatedAt = now.Unix()
 
 	if result.status {
+		if node.ConsecutiveFailures >= automaticDiagnosisFailureThreshold {
+			node.RecoveredAt = result.lastCheck.Unix()
+		}
 		node.LastSuccess = result.lastCheck.Unix()
 		node.ConsecutiveFailures = 0
 		if result.unstable {
@@ -471,6 +535,10 @@ func (pc *ProxyChecker) applyMonitorResult(node *NodeMonitorState, result proxyR
 			node.NextCheck = nextHealthyCheck(node.LogicalID, now).Unix()
 		}
 	} else {
+		if node.ConsecutiveFailures == 0 {
+			node.FailureEpisode++
+			node.FailureStartedAt = result.lastCheck.Unix()
+		}
 		node.ConsecutiveSuccesses = 0
 		node.ConsecutiveFailures++
 		if wasReplacement {
@@ -526,28 +594,102 @@ func (pc *ProxyChecker) CheckDueProxies() {
 	if !pc.GetNetworkStatus().Ready {
 		return
 	}
-	now := time.Now().Unix()
-	proxies := pc.GetProxies()
-	due := make([]*models.ProxyConfig, 0)
-	pc.monitorMu.RLock()
-	for _, proxy := range proxies {
-		if node := pc.monitor[proxy.LogicalID]; node != nil && node.NextCheck > 0 && node.NextCheck <= now {
-			due = append(due, proxy)
-		}
-	}
-	pc.monitorMu.RUnlock()
+	pc.checkCycleMu.Lock()
+	defer pc.checkCycleMu.Unlock()
+	due := pc.dueProxies(time.Now(), maxTargetedBatch)
 	if len(due) == 0 {
 		return
 	}
-	if len(due) > maxTargetedBatch {
-		due = due[:maxTargetedBatch]
-	}
-	if err := pc.checkProxySet(due, CheckReasonScheduled); err != nil {
-		if errors.Is(err, ErrDiagnosisPriority) {
-			return
-		}
+	if err := pc.checkProxySetInRuntime(due, CheckReasonScheduled); err != nil {
 		logger.Warn("Scheduled node checks skipped: %v", err)
 	}
+}
+
+// Keep observation and replacements moving during an outage wave. Each lane
+// gets reserved places, unused places are borrowed, and subscriptions take turns
+// within a lane instead of repeatedly checking the first cards in display order.
+func (pc *ProxyChecker) dueProxies(now time.Time, limit int) []*models.ProxyConfig {
+	if limit <= 0 {
+		return nil
+	}
+	type candidate struct {
+		proxy *models.ProxyConfig
+		due   int64
+	}
+	lanes := [3]map[string][]candidate{{}, {}, {}}
+	proxies := pc.GetProxies()
+	pc.monitorMu.RLock()
+	for _, proxy := range proxies {
+		node := pc.monitor[proxy.LogicalID]
+		if node == nil || node.NextCheck <= 0 || node.NextCheck > now.Unix() {
+			continue
+		}
+		lane := 0 // confirmations and recovery probes
+		switch node.State {
+		case NodeHealthy, NodeFixed:
+			lane = 1
+		case NodeUnknown, NodeIPChanged, NodeConfigChanged:
+			lane = 2
+		}
+		if node.EndpointSuspectedAt > 0 {
+			lane = 0
+		}
+		lanes[lane][proxy.SubName] = append(lanes[lane][proxy.SubName], candidate{proxy, node.NextCheck})
+	}
+	pc.monitorMu.RUnlock()
+	ordered := [3][]*models.ProxyConfig{}
+	for lane, groups := range lanes {
+		names := make([]string, 0, len(groups))
+		for name, group := range groups {
+			sort.Slice(group, func(i, j int) bool {
+				if group[i].due != group[j].due {
+					return group[i].due < group[j].due
+				}
+				return group[i].proxy.StableID < group[j].proxy.StableID
+			})
+			groups[name] = group
+			names = append(names, name)
+		}
+		sort.Slice(names, func(i, j int) bool {
+			if groups[names[i]][0].due != groups[names[j]][0].due {
+				return groups[names[i]][0].due < groups[names[j]][0].due
+			}
+			return names[i] < names[j]
+		})
+		for remaining := true; remaining; {
+			remaining = false
+			for _, name := range names {
+				if group := groups[name]; len(group) > 0 {
+					ordered[lane] = append(ordered[lane], group[0].proxy)
+					groups[name] = group[1:]
+					remaining = true
+				}
+			}
+		}
+	}
+	quotas := [3]int{limit / 2, limit * 3 / 10, limit - limit/2 - limit*3/10}
+	due := make([]*models.ProxyConfig, 0, limit)
+	for lane, quota := range quotas {
+		if quota > len(ordered[lane]) {
+			quota = len(ordered[lane])
+		}
+		due = append(due, ordered[lane][:quota]...)
+		ordered[lane] = ordered[lane][quota:]
+	}
+	for len(due) < limit {
+		added := false
+		for lane := range ordered {
+			if len(ordered[lane]) > 0 && len(due) < limit {
+				due = append(due, ordered[lane][0])
+				ordered[lane] = ordered[lane][1:]
+				added = true
+			}
+		}
+		if !added {
+			break
+		}
+	}
+	return due
 }
 
 func (pc *ProxyChecker) RecheckProxy(stableID string) error {
@@ -575,11 +717,12 @@ func (pc *ProxyChecker) RecheckNode(nodeID string) error {
 	return pc.checkProxySet(bindings, CheckReasonManual)
 }
 
-// WithManualPriority lets an explicit user action finish after the currently
-// running diagnosis, while preventing the automatic diagnosis worker from
-// starting another job ahead of it. Calls are serialized deliberately so a
-// burst of dashboard clicks cannot overload the mobile route.
+// WithManualPriority preempts automatic diagnosis and prevents another job
+// from starting ahead of an explicit action. Manual actions remain serialized.
 func (pc *ProxyChecker) WithManualPriority(action func() error) error {
+	pc.backgroundPaused.Add(1)
+	defer pc.backgroundPaused.Add(-1)
+	pc.cancelAutomaticDiagnosis()
 	pc.manualPriorityMu.Lock()
 	defer pc.manualPriorityMu.Unlock()
 	return action()
@@ -600,16 +743,13 @@ func (pc *ProxyChecker) CheckUpdatedProxies(proxies []*models.ProxyConfig) error
 // WithChecksPaused prevents Xray from being restarted while requests are using
 // its local SOCKS listeners.
 func (pc *ProxyChecker) WithChecksPaused(update func() error) error {
-	if pc.diagnosisPending() {
-		return ErrDiagnosisPriority
-	}
+	pc.backgroundPaused.Add(1)
+	defer pc.backgroundPaused.Add(-1)
+	pc.cancelAutomaticDiagnosis()
 	pc.checkCycleMu.Lock()
 	defer pc.checkCycleMu.Unlock()
 	pc.runtimeMu.Lock()
 	defer pc.runtimeMu.Unlock()
-	if pc.diagnosisPending() {
-		return ErrDiagnosisPriority
-	}
 	return update()
 }
 
@@ -617,17 +757,27 @@ func (pc *ProxyChecker) checkProxySet(proxies []*models.ProxyConfig, reason Chec
 	if status := pc.GetNetworkStatus(); !status.Ready {
 		return fmt.Errorf("mobile network unavailable: %s", status.Message)
 	}
-	if pc.diagnosisPending() {
-		return ErrDiagnosisPriority
-	}
 	if reason != CheckReasonManual {
 		pc.checkCycleMu.Lock()
 		defer pc.checkCycleMu.Unlock()
 	}
+	return pc.checkProxySetInRuntime(proxies, reason)
+}
+
+func (pc *ProxyChecker) checkProxySetInRuntime(proxies []*models.ProxyConfig, reason CheckReason) error {
 	pc.runtimeMu.RLock()
 	defer pc.runtimeMu.RUnlock()
-	if pc.diagnosisPending() {
-		return ErrDiagnosisPriority
+	// Resolve the targets after taking runtimeMu: a queued job must not use a
+	// SOCKS port that was reassigned by a subscription reload while it waited.
+	current := make([]*models.ProxyConfig, 0, len(proxies))
+	for _, proxy := range proxies {
+		if active, ok := pc.GetProxyByStableID(proxy.StableID); ok && active.GenerateRevisionID() == proxy.GenerateRevisionID() {
+			current = append(current, active)
+		}
+	}
+	proxies = current
+	if !pc.GetNetworkStatus().Ready {
+		return fmt.Errorf("mobile network unavailable")
 	}
 	if pc.checkMethod == "ip" {
 		if _, err := pc.GetCurrentIP(); err != nil {
@@ -635,12 +785,28 @@ func (pc *ProxyChecker) checkProxySet(proxies []*models.ProxyConfig, reason Chec
 		}
 	}
 	logger.Info("Checking %d node(s), reason=%s", len(proxies), reason)
-	timeout := pc.retryTimeout
-	if timeout <= 0 {
-		timeout = pc.ipCheckTimeout
+	concurrency := pc.checkConcurrency
+	if reason == CheckReasonManual || reason == CheckReasonInitialRetry {
+		concurrency = pc.retryConcurrency
+		if concurrency <= 0 {
+			concurrency = pc.checkConcurrency
+			if concurrency > 1 {
+				concurrency /= 2
+			}
+		}
 	}
-	runBoundedChecks(proxies, pc.retryConcurrency, func(proxy *models.ProxyConfig) {
-		pc.checkProxyInternalWithOptions(proxy, timeout, false)
+	runBoundedChecks(proxies, concurrency, func(proxy *models.ProxyConfig) {
+		timeout, attempts := pc.ipCheckTimeout, pc.urlTestAttempts
+		if reason == CheckReasonScheduled || reason == CheckReasonTCPProbe {
+			attempts = 1
+		}
+		monitor, _ := pc.GetNodeMonitorByStableID(proxy.StableID)
+		if reason == CheckReasonManual || reason == CheckReasonInitialRetry || (reason != CheckReasonInitial && monitor.ConsecutiveFailures > 0) {
+			if pc.retryTimeout > 0 {
+				timeout = pc.retryTimeout
+			}
+		}
+		pc.checkProxyInternalWithAttempts(proxy, timeout, reason == CheckReasonInitialRetry, attempts)
 	})
 	pc.recordMonitorResults(proxies, reason)
 	return nil

@@ -256,18 +256,22 @@ them with bounded concurrency.
 
 | Current state | Next check |
 | --- | --- |
-| `Healthy` / `Fixed` | 12–18 minutes, deterministically staggered by ID |
+| `Healthy` / `Fixed` | 3–5 minutes, deterministically staggered by ID |
 | `Unstable` | approximately 4:30–5:30 |
 | first consecutive failure | 1 minute |
 | second consecutive failure | 2 minutes |
 | third failure, `Needs replacement` | 5 minutes |
 | fourth and later failures | every 10 minutes |
-| first clean check after a revision change | 45 seconds |
-| partial success after a revision change | 1 minute |
+| first clean check after an address/DNS change | 45 seconds |
+| partial success after an address/DNS change | 1 minute |
 
-A previously healthy node is therefore usually discovered in less than half of
-the roughly 15-minute period and in at most about 18 minutes. `Needs replacement`
-requires the two follow-up confirmations, adding approximately three minutes.
+Healthy bindings receive a short, single-request Xray check; repeated failures
+use the longer retry timeout. Actual freshness depends on queue load. Each batch
+reserves 25 places for confirmations/recovery, 15 for healthy observation and 10
+for new/configuration-changed bindings. Unused places are borrowed. Within each
+lane, subscriptions take turns and their oldest deadlines are served first.
+Initial sweeps also release runtime locks between batches of 50, allowing
+subscription reloads and replacement checks to proceed during a large wave.
 
 ## Monitor states
 
@@ -327,9 +331,33 @@ Stages:
 
 Only one deep diagnosis can run at a time. Duplicate jobs for the same Node are
 collapsed, and the worker pauses between jobs so regular monitoring can proceed.
-A conclusive result is reused for 15 minutes unless a newer failed check or a
-configuration revision makes it stale; an inconclusive result is retried after
+Successful/partial reports remain fresh for 15 minutes; confirmed TCP, handshake
+and tunnel failures are reused for 30 minutes within the same failure episode.
+A repeated failure does not invalidate already negative evidence. Recovery
+followed by failure, a failed previously working sibling, changed symptoms/configuration
+or changed source IP requires a fresh report. Inconclusive reports expire after
 one minute. The last ten manual and automatic runs per Node are retained.
+
+Diagnostics share the configured connection limit with HTTP/TCP/access checks
+and use at most one tenth of it (1–4 concurrent diagnostic probes). They do not
+hold the ordinary check-cycle lock. Automatic work is canceled for subscription
+reloads or manual priority actions and has a one-minute overall deadline.
+Route interruptions leave targets due instead of recording false failures or
+holding runtime locks while waiting indefinitely for the iPhone to reconnect.
+
+The private dashboard displays pending checks, the oldest overdue deadline,
+diagnostic backlog, and recently failing/recovered bindings. The same information
+is available at `GET /api/v1/monitoring`. `failure_wave` means at least ten
+previously working bindings (and at least 10% of the current set) began a still
+ongoing failure episode within 15 minutes; it does not establish censorship.
+`catching_up` means at least 50 checks are due and the oldest is a minute late.
+These labels describe observed pressure; budgets and fairness apply in all modes.
+
+A same-address connection edit appears as `Verifying config`, not `IP changed`.
+Its successful check clears that state; real address replacements still require
+two clean confirmations. Saved Online results are restored only for the same
+private connection revision. Old snapshots without a revision require a fresh
+check once after upgrade; repair and diagnosis history remain available.
 
 The stored report is Node-wide because direct port probes are shared, but the
 dashboard derives a separate verdict for every binding. A failed TLS inbound can

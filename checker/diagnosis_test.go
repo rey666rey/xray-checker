@@ -118,7 +118,7 @@ func TestDiagnosisIsStale(t *testing.T) {
 	}{
 		{name: "fresh completed result", run: NodeDiagnosis{Revision: "r1", State: DiagnosisCompleted, Verdict: DiagnosisHandshakeFailed, CompletedAt: now.Add(-time.Minute).Unix()}, rev: "r1"},
 		{name: "changed configuration", run: NodeDiagnosis{Revision: "r1", State: DiagnosisCompleted, Verdict: DiagnosisHandshakeFailed, CompletedAt: now.Unix()}, rev: "r2", want: true},
-		{name: "expired completed result", run: NodeDiagnosis{Revision: "r1", State: DiagnosisCompleted, Verdict: DiagnosisHandshakeFailed, CompletedAt: now.Add(-diagnosisFreshDuration - time.Second).Unix()}, rev: "r1", want: true},
+		{name: "expired completed result", run: NodeDiagnosis{Revision: "r1", State: DiagnosisCompleted, Verdict: DiagnosisHandshakeFailed, CompletedAt: now.Add(-diagnosisFailureFreshDuration - time.Second).Unix()}, rev: "r1", want: true},
 		{name: "inconclusive expires quickly", run: NodeDiagnosis{Revision: "r1", State: DiagnosisCompleted, Verdict: DiagnosisInconclusive, CompletedAt: now.Add(-diagnosisInconclusiveFreshFor - time.Second).Unix()}, rev: "r1", want: true},
 		{name: "running result remains current", run: NodeDiagnosis{Revision: "r1", State: DiagnosisRunning, StartedAt: now.Add(-time.Hour).Unix()}, rev: "r1"},
 	}

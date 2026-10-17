@@ -339,6 +339,24 @@ paths:
                       data:
                         $ref: '#/components/schemas/StatusResponse'
 
+  /api/v1/monitoring:
+    get:
+      summary: Get monitoring pressure and failure episode counters
+      tags:
+        - Status
+      responses:
+        '200':
+          description: Current queue pressure and unique binding episodes in a 15-minute window
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/APIResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/MonitoringStatus'
+
   /api/v1/config:
     get:
       summary: Get current configuration
@@ -1001,6 +1019,34 @@ components:
           type: integer
           example: 1
 
+    MonitoringStatus:
+      type: object
+      properties:
+        mode:
+          type: string
+          enum: [normal, failure_wave, catching_up, network_waiting]
+        pendingChecks:
+          type: integer
+        oldestDelaySeconds:
+          type: integer
+          format: int64
+        queuedDiagnoses:
+          type: integer
+        diagnosisRunning:
+          type: boolean
+        activeProbes:
+          type: integer
+          format: int64
+        recentFailures:
+          type: integer
+          description: Previously working current bindings in a newly opened, ongoing failure episode
+        recentRecoveries:
+          type: integer
+          description: Current bindings recovered from confirmed failures during the window
+        windowSeconds:
+          type: integer
+          example: 900
+
     NodeState:
       type: string
       enum:
@@ -1010,6 +1056,7 @@ components:
         - suspected
         - needs_replacement
         - ip_changed
+        - config_changed
         - verifying_new_ip
         - fixed
         - new_ip_failed

@@ -1,0 +1,260 @@
+<div id="network-source-concept">
+  <style>
+    #network-source-concept {
+      --ns-bg: light-dark(#f5f8fa, #0f1114);
+      --ns-panel: light-dark(#ffffff, #1a1d21);
+      --ns-raised: light-dark(#edf1f7, #23262b);
+      --ns-border: light-dark(#d0d9e8, #2d3138);
+      --ns-ink: light-dark(#171c25, #dedfe3);
+      --ns-muted: light-dark(#535f70, #a1a8b3);
+      --ns-green: light-dark(#087c38, #3aff82);
+      --ns-green-bg: light-dark(#e7f5ed, #183027);
+      --ns-amber: light-dark(#8c5800, #ffbc54);
+      --ns-amber-bg: light-dark(#fff3db, #352b1c);
+      --ns-blue: light-dark(#294bff, #9cafff);
+      --ns-blue-bg: light-dark(#eef1ff, #232c49);
+      --ns-radius: 14px;
+      color: var(--ns-ink);
+      font: 400 14px/1.5 Inter, system-ui, sans-serif;
+    }
+    #network-source-concept * { box-sizing: border-box; }
+    #network-source-concept .ns-app { background: var(--ns-bg); border: 1px solid var(--ns-border); border-radius: 18px; overflow: clip; min-height: 760px; }
+    #network-source-concept .ns-top { min-height: 64px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 18px 110px 18px 22px; border-bottom: 1px solid var(--ns-border); }
+    #network-source-concept .ns-brand { display: flex; align-items: center; gap: 9px; font-weight: 500; }
+    #network-source-concept .ns-brand i { color: var(--ns-green); }
+    #network-source-concept .ns-demo { color: var(--ns-muted); font-size: 12px; }
+    #network-source-concept .ns-nav { display: flex; flex-wrap: wrap; gap: 20px; padding: 0 22px; border-bottom: 1px solid var(--ns-border); color: var(--ns-muted); }
+    #network-source-concept .ns-nav span { padding: 13px 0; }
+    #network-source-concept .ns-nav .ns-selected { color: var(--ns-ink); box-shadow: inset 0 -2px var(--ns-green); }
+    #network-source-concept .ns-main { padding: 24px; }
+    #network-source-concept .ns-heading { display: flex; gap: 14px; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; margin-bottom: 20px; }
+    #network-source-concept h2, #network-source-concept h3, #network-source-concept p { margin: 0; }
+    #network-source-concept h2 { font-size: 22px; line-height: 1.3; font-weight: 500; margin-bottom: 6px; }
+    #network-source-concept h3 { font-size: 15px; font-weight: 500; }
+    #network-source-concept .ns-sub { color: var(--ns-muted); font-size: 12px; }
+    #network-source-concept .ns-controls { display: flex; gap: 10px; flex-wrap: wrap; }
+    #network-source-concept label { display: grid; gap: 5px; color: var(--ns-muted); font-size: 12px; min-width: 0; }
+    #network-source-concept select, #network-source-concept button { color: var(--ns-ink); background: var(--ns-panel); border: 1px solid var(--ns-border); border-radius: 9px; padding: 8px 11px; font: inherit; max-width: 100%; }
+    #network-source-concept select { min-height: 38px; font-size: 13px; width: 100%; }
+    #network-source-concept button { min-height: 38px; font-size: 13px; }
+    #network-source-concept button.ns-primary { background: var(--ns-ink); border-color: var(--ns-ink); color: var(--ns-bg); }
+    #network-source-concept button:disabled { opacity: .5; }
+    #network-source-concept .ns-layout { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; }
+    #network-source-concept .ns-panel { background: var(--ns-panel); border: 1px solid var(--ns-border); border-radius: var(--ns-radius); padding: 20px; min-width: 0; }
+    #network-source-concept .ns-row { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+    #network-source-concept .ns-badge { display: inline-flex; align-items: center; gap: 7px; border-radius: 7px; padding: 4px 8px; font-size: 12px; background: var(--ns-raised); }
+    #network-source-concept .ns-good { color: var(--ns-green); background: var(--ns-green-bg); }
+    #network-source-concept .ns-wait { color: var(--ns-amber); background: var(--ns-amber-bg); }
+    #network-source-concept .ns-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+    #network-source-concept .ns-status { margin: 18px 0; border-radius: 10px; background: var(--ns-raised); padding: 14px; }
+    #network-source-concept .ns-status strong { display: block; font-weight: 500; margin-bottom: 5px; }
+    #network-source-concept .ns-flow { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 8px; margin: 20px 0; }
+    #network-source-concept .ns-hop { background: var(--ns-raised); border-radius: 9px; padding: 12px; overflow-wrap: anywhere; }
+    #network-source-concept .ns-hop small { display: block; margin-bottom: 5px; font-size: 11px; color: var(--ns-muted); }
+    #network-source-concept .ns-hop b { font-size: 13px; font-weight: 500; }
+    #network-source-concept .ns-list { margin: 16px 0 0; }
+    #network-source-concept .ns-item { display: flex; justify-content: space-between; align-items: baseline; gap: 15px; padding: 10px 0; border-bottom: 1px solid var(--ns-border); }
+    #network-source-concept .ns-item:last-child { border-bottom: 0; }
+    #network-source-concept .ns-item dt { color: var(--ns-muted); font-size: 12px; }
+    #network-source-concept .ns-item dd { margin: 0; text-align: right; font-size: 12px; overflow-wrap: anywhere; }
+    #network-source-concept .ns-separate { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--ns-border); }
+    #network-source-concept .ns-policy { display: flex; align-items: flex-start; gap: 9px; margin-top: 16px; color: var(--ns-muted); font-size: 12px; }
+    #network-source-concept .ns-policy i { flex-shrink: 0; margin-top: 2px; }
+    #network-source-concept .ns-actions { margin-top: 18px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    #network-source-concept .ns-footer { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 15px 20px; margin-top: 16px; border-radius: var(--ns-radius); background: var(--ns-blue-bg); color: var(--ns-blue); font-size: 12px; }
+    #network-source-concept .ns-checks { margin-top: 16px; padding-top: 15px; border-top: 1px solid var(--ns-border); }
+    #network-source-concept .ns-check-line { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; font-size: 12px; }
+    #network-source-concept .ns-check-line span:last-child { color: var(--ns-muted); text-align: right; }
+    #network-source-concept .ns-compact-network { margin: 20px 0; }
+    #network-source-concept .ns-monitor { margin-top: 18px; }
+    #network-source-concept .ns-host { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 17px 0; border-bottom: 1px solid var(--ns-border); }
+    #network-source-concept .ns-host:last-child { border-bottom: 0; }
+    #network-source-concept .ns-host-name { font-weight: 500; }
+    #network-source-concept .ns-host-state { color: var(--ns-muted); font-size: 12px; text-align: right; }
+    #network-source-concept .ns-details { margin-top: 18px; }
+    #network-source-concept [hidden] { display: none !important; }
+    @media (max-width: 700px) {
+      #network-source-concept .ns-app { min-height: 1080px; }
+      #network-source-concept .ns-layout { grid-template-columns: minmax(0,1fr); }
+      #network-source-concept .ns-main { padding: 16px; }
+      #network-source-concept .ns-panel { padding: 16px; }
+      #network-source-concept .ns-heading { display: grid; }
+      #network-source-concept .ns-controls { display: grid; grid-template-columns: 1fr 1fr; }
+      #network-source-concept .ns-nav { gap: 15px; padding: 0 16px; font-size: 12px; }
+    }
+    @media (max-width: 420px) {
+      #network-source-concept .ns-controls { grid-template-columns: 1fr; }
+      #network-source-concept .ns-top { padding-left: 16px; }
+      #network-source-concept .ns-flow { grid-template-columns: 1fr; }
+      #network-source-concept .ns-hop { display: flex; justify-content: space-between; gap: 10px; }
+      #network-source-concept .ns-hop small { margin: 0; }
+      #network-source-concept .ns-host { align-items: flex-start; }
+    }
+    @media (pointer: coarse) {
+      #network-source-concept button, #network-source-concept select { min-height: 44px; }
+      #network-source-concept select { font-size: 16px; }
+    }
+  </style>
+  <div class="viz-carousel" aria-label="Варианты интерфейса сети проверок" data-previous-label="Предыдущий вариант" data-next-label="Следующий вариант">
+    <section data-variant="Отдельный раздел" aria-label="Отдельный раздел сети проверок">
+      <div class="ns-app">
+        <header class="ns-top"><div class="ns-brand"><i data-lucide="activity" aria-hidden="true"></i>Xray Checker</div><span class="ns-demo">Макет · данные примера</span></header>
+        <nav class="ns-nav" aria-label="Разделы макета"><span>Мониторинг</span><span class="ns-selected" aria-current="page">Сеть проверок</span><span>Уведомления</span></nav>
+        <main class="ns-main">
+          <div class="ns-heading">
+            <div><h2>Сеть проверок</h2><p class="ns-sub">Один источник. Все измерения — через выбранный маршрут.</p></div>
+            <div class="ns-controls">
+              <label>Источник в примере<select data-source class="cursor-interaction" aria-label="Источник в примере"><option value="router">LTE-роутер</option><option value="iphone">iPhone USB</option></select></label>
+              <label>Сценарий макета<select data-scenario class="cursor-interaction" aria-label="Сценарий макета"><option value="ready">Маршрут доступен</option><option value="link">Кабель отключён</option><option value="wan">LAN есть, интернета нет</option><option value="identity">WAN не подтверждён</option><option value="switching">Переключение источника</option></select></label>
+            </div>
+          </div>
+          <div class="ns-layout">
+            <section class="ns-panel" aria-label="Состояние активного источника">
+              <div class="ns-row"><h3 data-source-label>LTE-роутер</h3><span class="ns-badge ns-good" data-badge><span class="ns-dot"></span><span data-badge-label>Маршрут доступен</span></span></div>
+              <div class="ns-status" aria-live="polite"><strong data-title>Можно запускать проверки</strong><p class="ns-sub" data-reason>Контрольные запросы и DNS проходят через мобильный сегмент.</p></div>
+              <div class="ns-flow" aria-label="Путь измерений">
+                <div class="ns-hop"><small>Mac · адаптер</small><b data-host>Ethernet · en8</b></div>
+                <div class="ns-hop"><small>Colima · интерфейс</small><b>col0</b></div>
+                <div class="ns-hop"><small>Шлюз источника</small><b data-gateway>192.168.8.1</b></div>
+              </div>
+              <dl class="ns-list">
+                <div class="ns-item"><dt>Прямой публичный IPv4</dt><dd data-ip>203.0.113.42 · 12 с назад</dd></div>
+                <div class="ns-item"><dt>Контроль интернета</dt><dd data-controls>2 из 2 ответили</dd></div>
+                <div class="ns-item"><dt>DNS выбранной сети</dt><dd data-dns>Ответ получен</dd></div>
+                <div class="ns-item"><dt>Мобильный WAN</dt><dd data-identity>LTE-only сегмент · задано вручную</dd></div>
+              </dl>
+              <div class="ns-actions"><button type="button" class="ns-primary cursor-interaction" data-check>Проверить маршрут</button><span class="ns-sub" data-check-status aria-live="polite">В макете запросы не отправляются</span></div>
+              <div class="ns-checks" data-check-report hidden aria-live="polite"><h3>Контроль маршрута · пример</h3><div class="ns-check-line"><span>Источник → внешний контроль</span><span data-report-control>Успешно</span></div><div class="ns-check-line"><span>Измерительные сокеты</span><span>Привязаны к col0</span></div><div class="ns-check-line"><span>Подтверждение оператора через API</span><span>Не настроено</span></div></div>
+            </section>
+            <aside class="ns-panel" aria-label="Профиль и политика измерений">
+              <h3>Профиль источника</h3><p class="ns-sub" style="margin-top:6px">Настройка пути, а не управление модемом.</p>
+              <dl class="ns-list">
+                <div class="ns-item"><dt>Тип подключения</dt><dd data-type>Роутер → Ethernet</dd></div>
+                <div class="ns-item"><dt>Локальный адрес VM</dt><dd data-local>192.168.8.30</dd></div>
+                <div class="ns-item"><dt>Семейство адресов</dt><dd>IPv4 · первая версия</dd></div>
+                <div class="ns-item"><dt>Резервная сеть</dt><dd>Не используется</dd></div>
+              </dl>
+              <div class="ns-policy"><i data-lucide="shield-check" aria-hidden="true"></i><span>При обрыве маршрута проверки встают на паузу, а не уходят через домашний Wi-Fi.</span></div>
+              <div class="ns-separate"><h3>Другой профиль</h3><p class="ns-sub" style="margin-top:8px" data-other>iPhone USB · сохранён, не активен</p><p class="ns-sub" style="margin-top:8px">Применение другого адаптера может временно отключить панель.</p></div>
+              <div class="ns-separate" data-technical hidden><h3>Контекст измерения</h3><dl class="ns-list"><div class="ns-item"><dt>sourceId</dt><dd data-source-id>router-mobile</dd></div><div class="ns-item"><dt>epoch</dt><dd>demo-session</dd></div><div class="ns-item"><dt>Binding</dt><dd>Go + Xray + DNS</dd></div></dl></div>
+            </aside>
+          </div>
+          <div class="ns-footer"><i data-lucide="history" aria-hidden="true"></i><span data-history>Новый источник: привязки ещё не проверены. Результаты iPhone остаются в истории.</span></div>
+        </main>
+      </div>
+    </section>
+    <section data-variant="Карточка в панели" aria-label="Компактная карточка сети в мониторинге" hidden>
+      <div class="ns-app">
+        <header class="ns-top"><div class="ns-brand"><i data-lucide="activity" aria-hidden="true"></i>Xray Checker</div><span class="ns-demo">Макет · данные примера</span></header>
+        <nav class="ns-nav" aria-label="Разделы макета"><span class="ns-selected" aria-current="page">Мониторинг</span><span>Уведомления</span></nav>
+        <main class="ns-main">
+          <div class="ns-heading"><div><h2>Мониторинг</h2><p class="ns-sub">Состояние привязок в выбранной сети.</p></div><div class="ns-controls"><label>Источник в примере<select data-source class="cursor-interaction" aria-label="Источник в примере компактного варианта"><option value="router">LTE-роутер</option><option value="iphone">iPhone USB</option></select></label><label>Сценарий макета<select data-scenario class="cursor-interaction" aria-label="Сценарий компактного варианта"><option value="ready">Маршрут доступен</option><option value="link">Кабель отключён</option><option value="wan">LAN есть, интернета нет</option><option value="identity">WAN не подтверждён</option><option value="switching">Переключение источника</option></select></label></div></div>
+          <section class="ns-panel ns-compact-network" aria-label="Сеть измерений">
+            <div class="ns-row"><h3>Сеть проверок · <span data-source-label>LTE-роутер</span></h3><span class="ns-badge ns-good" data-badge><span class="ns-dot"></span><span data-badge-label>Маршрут доступен</span></span></div>
+            <div class="ns-status" aria-live="polite"><strong data-title>Можно запускать проверки</strong><p class="ns-sub" data-reason>Контрольные запросы и DNS проходят через мобильный сегмент.</p></div>
+            <div class="ns-row"><span class="ns-sub">Прямой IPv4 · <span data-ip>203.0.113.42 · 12 с назад</span></span><button type="button" data-details-button aria-expanded="false" class="cursor-interaction">Маршрут и настройки</button></div>
+            <div class="ns-details" data-details hidden>
+              <div class="ns-flow"><div class="ns-hop"><small>Mac</small><b data-host>Ethernet · en8</b></div><div class="ns-hop"><small>Colima</small><b>col0</b></div><div class="ns-hop"><small>Шлюз</small><b data-gateway>192.168.8.1</b></div></div>
+              <dl class="ns-list"><div class="ns-item"><dt>Контроль интернета</dt><dd data-controls>2 из 2 ответили</dd></div><div class="ns-item"><dt>DNS</dt><dd data-dns>Ответ получен</dd></div><div class="ns-item"><dt>Мобильный WAN</dt><dd data-identity>LTE-only сегмент · задано вручную</dd></div></dl>
+              <div class="ns-policy"><i data-lucide="shield-check" aria-hidden="true"></i><span>Домашняя сеть не подхватывает измерения. Данные предыдущего сеанса не становятся свежими.</span></div>
+              <div class="ns-actions"><button type="button" class="ns-primary cursor-interaction" data-check>Проверить маршрут</button><span class="ns-sub" data-check-status aria-live="polite">В макете запросы не отправляются</span></div>
+              <div data-check-report class="ns-checks" hidden><div class="ns-check-line"><span>Контроль маршрута · пример</span><span data-report-control>Успешно</span></div></div>
+              <div data-technical class="ns-separate" hidden><p class="ns-sub">Контекст · <span data-source-id>router-mobile</span> / demo-session</p></div>
+            </div>
+          </section>
+          <div class="ns-footer"><i data-lucide="history" aria-hidden="true"></i><span data-history>Новый источник: привязки ещё не проверены. Результаты iPhone остаются в истории.</span></div>
+          <section class="ns-panel ns-monitor" aria-label="Примеры привязок, ожидающих измерения">
+            <div class="ns-row"><h3>Привязки</h3><span class="ns-sub">Демонстрационные состояния</span></div>
+            <div class="ns-host"><div><div class="ns-host-name">🇩🇪 Германия (T1)</div><div class="ns-sub">MASTER · VLESS / REALITY</div></div><div class="ns-host-state" data-node-state>Ещё не проверено<br>в этой сети</div></div>
+            <div class="ns-host"><div><div class="ns-host-name">🇦🇹 Австрия (T1)</div><div class="ns-sub">MASTER · VLESS / REALITY</div></div><div class="ns-host-state" data-node-state>Ещё не проверено<br>в этой сети</div></div>
+          </section>
+        </main>
+      </div>
+    </section>
+  </div>
+  <script>
+    (() => {
+      const root = document.getElementById('network-source-concept');
+      const validSources = ['router', 'iphone'];
+      const validScenarios = ['ready', 'link', 'wan', 'identity', 'switching'];
+      const initial = window.openai?.widgetState?.modelContent || {};
+      const state = {
+        source: validSources.includes(initial.source) ? initial.source : 'router',
+        scenario: validScenarios.includes(initial.scenario) ? initial.scenario : 'ready',
+        checked: false,
+        technical: false,
+        details: false
+      };
+      const texts = {
+        ready: ['Маршрут доступен', 'Можно запускать проверки', 'Контрольные запросы и DNS проходят через выбранный сегмент.'],
+        link: ['Нет подключения', 'Проверки на паузе', 'Выбранный адаптер не подключён. Через домашний Wi-Fi измерения не выполняются.'],
+        wan: ['Нет внешнего доступа', 'Роутер доступен, контроль интернета не проходит', 'LAN-соединение есть. Это проблема источника измерений, а не установленный отказ всех нод.'],
+        identity: ['WAN не подтверждён', 'Проверки на паузе: источник не подтверждён', 'Интернет доступен, но профиль требует подтверждения мобильного WAN. Ответ API роутера отсутствует.'],
+        switching: ['Переключение', 'Меняем измерительный маршрут', 'Новые тесты приостановлены. Панель может временно потерять связь при перезапуске bridge.']
+      };
+      function each(selector, fn) { root.querySelectorAll(selector).forEach(fn); }
+      function textAll(selector, value) { each(selector, el => { el.textContent = value; }); }
+      function save() {
+        window.openai?.setWidgetState?.({
+          modelContent: {source: state.source, scenario: state.scenario},
+          privateContent: {details: state.details, technical: state.technical}
+        })?.catch(() => {});
+      }
+      function render() {
+        const router = state.source === 'router';
+        const ready = state.scenario === 'ready';
+        const noPath = ['link', 'switching'].includes(state.scenario);
+        const values = texts[state.scenario];
+        each('[data-source]', el => { el.value = state.source; });
+        each('[data-scenario]', el => { el.value = state.scenario; });
+        textAll('[data-source-label]', router ? 'LTE-роутер' : 'iPhone USB');
+        textAll('[data-source-id]', router ? 'router-mobile' : 'iphone-mobile');
+        textAll('[data-badge-label]', values[0]);
+        each('[data-badge]', el => { el.classList.toggle('ns-good', ready); el.classList.toggle('ns-wait', !ready); });
+        textAll('[data-title]', values[1]);
+        textAll('[data-reason]', values[2]);
+        textAll('[data-host]', router ? 'Ethernet · en8' : 'iPhone USB · en7');
+        textAll('[data-gateway]', noPath ? 'Не определён' : router ? '192.168.8.1' : '172.20.10.1');
+        textAll('[data-local]', noPath ? 'Нет адреса' : router ? '192.168.8.30' : '172.20.10.12');
+        textAll('[data-type]', router ? 'Роутер → Ethernet' : 'Телефон → USB');
+        textAll('[data-other]', router ? 'iPhone USB · сохранён, не активен' : 'LTE-роутер · сохранён, не активен');
+        textAll('[data-ip]', noPath || state.scenario === 'wan' ? 'Нет свежего наблюдения' : (router ? '203.0.113.42' : '198.51.100.18') + ' · 12 с назад');
+        textAll('[data-controls]', noPath ? 'Ожидаем подключение' : state.scenario === 'wan' ? '0 из 2 ответили' : '2 из 2 ответили');
+        textAll('[data-dns]', noPath ? 'Ещё не проверен' : state.scenario === 'wan' ? 'Локальный DNS ответил' : 'Ответ получен');
+        textAll('[data-identity]', state.scenario === 'identity' ? 'Не подтверждён · требуется API' : router ? 'LTE-only сегмент · задано вручную' : 'USB телефона · задано вручную');
+        textAll('[data-history]', ready ? 'Новый сеанс: привязки ждут измерения. История предыдущего источника хранится отдельно.' : 'Результаты сохранены как история. Сетевая пауза не переводит все ноды в offline.');
+        textAll('[data-node-state]', ready ? 'Ожидает проверки в этой сети' : 'Пауза · нет свежего измерения');
+        each('[data-check]', el => { el.disabled = state.scenario === 'switching'; });
+        each('[data-check-report]', el => { el.hidden = !state.checked; });
+        textAll('[data-check-status]', state.checked ? 'Показан результат сценария · демо' : 'В макете запросы не отправляются');
+        textAll('[data-report-control]', ready ? 'Успешно' : values[0]);
+        each('[data-details]', el => { el.hidden = !state.details; });
+        each('[data-details-button]', el => { el.setAttribute('aria-expanded', String(state.details)); el.textContent = state.details ? 'Свернуть маршрут' : 'Маршрут и настройки'; });
+        each('[data-technical]', el => { el.hidden = !state.technical; });
+      }
+      each('[data-source]', el => el.addEventListener('change', () => { state.source = el.value; state.checked = false; render(); save(); }));
+      each('[data-scenario]', el => el.addEventListener('change', () => { state.scenario = el.value; state.checked = false; render(); save(); }));
+      each('[data-check]', el => el.addEventListener('click', () => { state.checked = true; render(); }));
+      each('[data-details-button]', el => el.addEventListener('click', () => { state.details = !state.details; render(); save(); }));
+      window.addEventListener('openai:set_globals', event => {
+        const saved = event.detail?.globals?.widgetState;
+        const model = saved?.modelContent;
+        const ui = saved?.privateContent;
+        if (validSources.includes(model?.source)) state.source = model.source;
+        if (validScenarios.includes(model?.scenario)) state.scenario = model.scenario;
+        if (typeof ui?.details === 'boolean') state.details = ui.details;
+        if (typeof ui?.technical === 'boolean') state.technical = ui.technical;
+        state.checked = false;
+        render();
+      });
+      const initialUI = window.openai?.widgetState?.privateContent;
+      if (typeof initialUI?.details === 'boolean') state.details = initialUI.details;
+      if (typeof initialUI?.technical === 'boolean') state.technical = initialUI.technical;
+      render();
+      if (globalThis.Tweak) {
+        const tweak = new Tweak({container: root, onChange: () => { render(); save(); }});
+        tweak.addToggle(state, 'technical', {label: 'Технический контекст'});
+      }
+    })();
+  </script>
+</div>
