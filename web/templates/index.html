@@ -2024,6 +2024,19 @@
       @media(max-width:640px) { .monitor-workspace .monitor-panel-hosts { grid-template-columns:minmax(0,1fr); } .monitor-local-search { flex-basis:100%; } .monitor-host-bottom { flex-wrap:wrap; } }
       @media(max-width:520px) { .monitor-workspace::before { inset:0 -12px; } .monitor-workspace .monitor-panel-head { padding:14px; } .monitor-panel-summary { gap:7px; } .monitor-workspace .monitor-panel-tools { padding:12px; } .monitor-workspace .monitor-panel-hosts { padding:12px; } }
 
+      /* Direct node recheck: a visible action without opening node details. */
+      .monitor-recheck { display:grid; place-items:center; width:24px; height:24px; flex:none; padding:0; border:1px solid #2b3945; border-radius:6px; background:#19232b; color:#b9c7d5; }
+      .monitor-recheck:hover:not(:disabled) { color:#79e9b4; border-color:#32664e; background:#182c24; }
+      .monitor-recheck:focus-visible { outline:2px solid #4edba0; outline-offset:3px; }
+      .monitor-recheck:disabled { opacity:.5; cursor:not-allowed; }
+      .monitor-recheck[aria-busy="true"] { opacity:.8; cursor:wait; }
+      .monitor-recheck[aria-busy="true"] svg { animation:monitor-recheck-spin 1s linear infinite; }
+      .light .monitor-recheck { background:#edf3f8; color:#405970; border-color:#c5d1de; }
+      .light .monitor-recheck:hover:not(:disabled) { color:#176044; background:#e5f5ed; border-color:#78b59c; }
+      @keyframes monitor-recheck-spin { to { transform:rotate(360deg); } }
+      @media(max-width:520px) { .monitor-recheck { width:28px; height:28px; } }
+      @media(prefers-reduced-motion:reduce) { .monitor-recheck[aria-busy="true"] svg { animation:none; } }
+
       /* Finishing controls: quick IP copy, persistent per-panel collapse, reference footer. */
       .monitor-workspace .monitor-panels { margin-bottom:0; }
       .monitor-panel-collapse { display:grid; place-items:center; flex:none; width:26px; height:26px; padding:0; border:1px solid transparent; border-radius:6px; background:transparent; color:#8994a3; }
@@ -2031,7 +2044,7 @@
       .monitor-panel-collapse svg { transition:transform .15s ease; }
       .is-collapsed .monitor-panel-collapse svg { transform:rotate(-90deg); }
       .monitor-workspace .monitor-panel.is-collapsed .monitor-panel-head { border-bottom-color:transparent; }
-      .monitor-host-address-row { display:flex; align-items:center; gap:7px; margin:7px 0; min-width:0; }
+      .monitor-host-address-row { display:flex; justify-content:flex-end; align-items:center; gap:7px; margin:7px 0; min-width:0; }
       .monitor-workspace .monitor-host-address-row .monitor-host-address { flex:1; min-width:0; margin:0; }
       .monitor-copy-ip { display:grid; place-items:center; width:24px; height:24px; flex:none; border:1px solid #27313a; border-radius:6px; color:#8e9baa; background:transparent; padding:0; }
       .monitor-copy-ip:hover { color:#edf2f7; background:#202a34; border-color:#41505f; }
@@ -2242,7 +2255,7 @@
                     {{ if .IsPublic }}<span class="monitor-host-title" :title="proxy.name" x-text="proxy.name"></span>{{ else }}<button type="button" class="monitor-host-title" @click.stop="copyHostName(proxy)" :title="'Скопировать название: ' + proxy.name" x-text="proxy.name"></button>{{ end }}
                     <span class="monitor-host-protocol" x-show="proxy.protocol" x-text="protoLabel(proxy.protocol)"></span>
                   </div>
-                  {{ if .ShowServerDetails }}<div class="monitor-host-address-row"><div class="monitor-host-address" :title="proxy.serverInfo" x-text="proxy.serverInfo"></div>{{ if not .IsPublic }}<button type="button" class="monitor-copy-ip" :disabled="!ipForProxy(proxy)" @click.stop="copyIp(proxy)" :aria-label="'Скопировать IP узла ' + proxy.name" :title="'Скопировать IP без порта: ' + ipForProxy(proxy)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button>{{ end }}</div>{{ end }}
+                  {{ if or .ShowServerDetails (not .IsPublic) }}<div class="monitor-host-address-row">{{ if .ShowServerDetails }}<div class="monitor-host-address" :title="proxy.serverInfo" x-text="proxy.serverInfo"></div>{{ end }}{{ if not .IsPublic }}{{ if .ShowServerDetails }}<button type="button" class="monitor-copy-ip" :disabled="!ipForProxy(proxy)" @click.stop="copyIp(proxy)" :aria-label="'Скопировать IP узла ' + proxy.name" :title="'Скопировать IP без порта: ' + ipForProxy(proxy)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button>{{ end }}<button type="button" class="monitor-recheck" @click.stop="recheckProxy(proxy)" :disabled="!canRecheckProxy(proxy)" :aria-busy="proxy.rechecking" :aria-label="'Перепроверить узел ' + proxy.name" :title="proxy.rechecking ? 'Идёт перепроверка узла' : ((networkStatus.managed && !networkStatus.ready) ? 'Перепроверка доступна после восстановления сети проверок' : 'Обновить подписку и перепроверить узел')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 4v5h5M20 20v-5h-5M5.5 15a7 7 0 0 0 11.5 2M18.5 9A7 7 0 0 0 7 7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>{{ end }}</div>{{ end }}
                   <div class="monitor-host-bottom">
                     <button type="button" class="monitor-host-status" @click="openMonitorDetails(proxy, $event)" :aria-label="'Детали узла: ' + proxy.name" :title="monitorHostView(proxy).label + ' · Открыть детали узла'" x-text="monitorHostView(proxy).label"></button>
                     <span class="monitor-host-metric" x-show="monitorHostView(proxy).online && proxy.latencyMs > 0"><strong x-text="proxy.latencyMs"></strong> ms</span>
@@ -5229,8 +5242,12 @@
 			}
 		  },
 
+          canRecheckProxy(proxy) {
+            return !!proxy?.stableId && !proxy.rechecking && !(this.networkStatus.managed && !this.networkStatus.ready);
+          },
+
           async recheckProxy(proxy) {
-			if (!proxy || proxy.rechecking) return;
+			if (!this.canRecheckProxy(proxy)) return;
 			const stableId = proxy.stableId;
 			proxy.rechecking = true;
             try {
@@ -5240,20 +5257,20 @@
 			  const result = json.data;
 			  await this.refreshData();
 			  if (result.state === 'verified') {
-				this.showToast('Replacement verified · ' + result.currentAddress);
+				this.showToast('Замена проверена · ' + result.currentAddress);
 			  } else if (result.state === 'current_verified') {
-				this.showToast('Recheck complete · Online');
+				this.showToast('Перепроверка завершена · узел работает');
 			  } else if (result.state === 'unstable') {
-				this.showToast('Replacement is unstable · retry recommended');
+				this.showToast('Соединение нестабильно · повторите проверку');
 			  } else if (result.state === 'failed') {
-				this.showToast('Replacement verification failed');
+				this.showToast('Узел не прошёл перепроверку');
 			  } else if (result.state === 'ambiguous') {
-				this.showToast('Several new servers found · choose the new card');
+				this.showToast('Найдено несколько новых серверов · выберите новую карточку');
 			  } else {
-				this.showToast('Replacement not received from the panel yet');
+				this.showToast('Новый сервер ещё не получен от панели');
 			  }
             } catch (e) {
-			  this.showToast(e.message || 'Could not verify replacement');
+			  this.showToast(e.message || 'Ошибка перепроверки узла');
 			} finally {
 			  const current = this.proxies.find(p => p.stableId === stableId);
 			  if (current) current.rechecking = false;
