@@ -598,7 +598,7 @@ func (pc *ProxyChecker) executeNodeDiagnosis(run NodeDiagnosis, bindings []*mode
 	pc.monitorMu.RUnlock()
 	run.State = DiagnosisRunning
 	run.Stage = "network_control"
-	run.Summary = "Checking the iPhone route and control endpoint"
+	run.Summary = "Checking the measurement route and control endpoint"
 	pc.replaceDiagnosis(run)
 
 	status := pc.GetNetworkStatus()
@@ -1162,6 +1162,9 @@ func nodeDiagnosisRevision(bindings []*models.ProxyConfig) string {
 }
 
 func diagnosisProbeID(status NetworkStatus) string {
+	if status.SourceID != "" {
+		return "local:" + status.SourceID + ":" + status.Epoch
+	}
 	if strings.TrimSpace(status.Interface) != "" {
 		return "local:" + strings.TrimSpace(status.Interface)
 	}

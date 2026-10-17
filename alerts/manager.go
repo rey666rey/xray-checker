@@ -180,7 +180,7 @@ func DefaultPreferences() Preferences {
 	}
 }
 
-func NewManager(proxyChecker *checker.ProxyChecker, startPort int, settingsFile, envToken string, envChatID int64, envProxy string) (*Manager, error) {
+func NewManager(proxyChecker *checker.ProxyChecker, startPort int, settingsFile, envToken string, envChatID int64, envProxy string, stateFiles ...string) (*Manager, error) {
 	settingsFile = strings.TrimSpace(settingsFile)
 	manager := &Manager{
 		checker:      proxyChecker,
@@ -206,6 +206,9 @@ func NewManager(proxyChecker *checker.ProxyChecker, startPort int, settingsFile,
 	manager.tokenFile = base + ".token"
 	manager.proxyFile = base + ".proxy"
 	manager.stateFile = base + ".state.json"
+	if len(stateFiles) > 0 && strings.TrimSpace(stateFiles[0]) != "" {
+		manager.stateFile = stateFiles[0]
+	}
 	if err := manager.load(); err != nil {
 		return nil, err
 	}
@@ -468,12 +471,12 @@ func (m *Manager) SendTest(ctx context.Context) error {
 	networkLabel := "доступен"
 	if network.Managed {
 		if network.Ready {
-			networkLabel = "iPhone подключён"
+			networkLabel = "сеть проверок подключена"
 			if network.PublicIP != "" {
 				networkLabel += " · <code>" + escapeHTML(network.PublicIP) + "</code>"
 			}
 		} else {
-			networkLabel = "соединение с iPhone недоступно"
+			networkLabel = "сеть проверок недоступна"
 		}
 	}
 	message := fmt.Sprintf("🧪 <b>Тестовый алерт</b>\n\n🟢 <b>Telegram подключён</b>\nНод в мониторинге: %d\nТребуют внимания: %d\nМаршрут: %s\n\n<i>Так будут выглядеть уведомления Xray Checker.</i>",
@@ -843,7 +846,7 @@ func formatNotifications(items []notification) []string {
 		{title: "🟠 <b>Работают нестабильно</b>", kinds: map[string]bool{"unstable": true}},
 		{title: "🔵 <b>Изменился IP</b>", kinds: map[string]bool{"ip_changed": true}},
 		{title: "🟢 <b>Работают снова</b>", kinds: map[string]bool{"recovered": true, "new_ip_verified": true}},
-		{title: "📶 <b>Соединение с iPhone</b>", kinds: map[string]bool{"network_recovered": true}},
+		{title: "📶 <b>Сеть проверок</b>", kinds: map[string]bool{"network_recovered": true}},
 	}
 
 	used := make(map[int]bool, len(items))
@@ -872,7 +875,7 @@ func formatNotifications(items []notification) []string {
 func formatNotification(item notification) string {
 	if item.Kind == "network_recovered" {
 		duration := humanAlertDuration(item.CreatedAt - item.NetworkDownAt)
-		return fmt.Sprintf("📶 <b>Соединение с iPhone восстановлено</b>\n\nМобильный маршрут был недоступен %s.\n\n<i>Проверки нод продолжены.</i>", duration)
+		return fmt.Sprintf("📶 <b>Сеть проверок восстановлена</b>\n\nМобильный маршрут был недоступен %s.\n\n<i>Проверки нод продолжены.</i>", duration)
 	}
 	title := map[string]string{
 		"critical":        "🔴 <b>Нода не проходит проверку</b>",
@@ -1333,7 +1336,7 @@ func humanAlertReason(value string) string {
 	case strings.Contains(lower, "no route"):
 		return "нет маршрута до IP"
 	case strings.Contains(lower, "network unavailable"), strings.Contains(lower, "mobile network unavailable"):
-		return "сеть iPhone недоступна"
+		return "сеть проверок недоступна"
 	case lower == "eof" || strings.HasSuffix(lower, ": eof"):
 		return "соединение закрыто сервером"
 	default:

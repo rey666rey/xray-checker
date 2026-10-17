@@ -46,6 +46,9 @@ type ProxyChecker struct {
 	endpointProbeNext   map[string]time.Time
 	endpointProbeDial   endpointProbeDialFunc
 	networkStatusFile   string
+	networkSourceDir    string
+	networkSourceID     string
+	networkSourceEpoch  string
 	networkStatusMaxAge time.Duration
 	networkLogMu        sync.Mutex
 	networkWaiting      bool
@@ -155,6 +158,9 @@ func (pc *ProxyChecker) GetCurrentIP() (string, error) {
 	if status.Ready && status.PublicIP != "" {
 		pc.setCurrentIP(status.PublicIP)
 		return status.PublicIP, nil
+	}
+	if status.Managed {
+		return "", fmt.Errorf("measurement source IP is unavailable: %s", status.Message)
 	}
 
 	pc.ipMu.RLock()

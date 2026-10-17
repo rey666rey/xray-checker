@@ -50,6 +50,9 @@ services:
       PROXY_TCP_PROBE_CONCURRENCY: "30"
       # Xray and direct diagnostics must fail closed with the iPhone route.
       XRAY_OUTBOUND_INTERFACE: "col0"
+      NETWORK_SOURCE_ID: "${NETWORK_SOURCE_ID:-iphone}"
+      NETWORK_SOURCE_EPOCH: "${NETWORK_SOURCE_EPOCH:-legacy}"
+      NETWORK_SOURCE_CONTROL_DIR: "/app/host-control/network-sources"
       # Lima auto-forwards listeners on 127.0.0.1. With one SOCKS listener per
       # node that exhausts its SSH forwarder, taking down the Docker socket and
       # localhost dashboard. 127.0.0.2 remains container-local and avoids that.
@@ -61,13 +64,14 @@ services:
       NETWORK_STATUS_MAX_AGE: "15"
       NETWORK_RECOVERY_REQUEST_FILE: "/app/host-control/iphone-recovery.request"
       NETWORK_RECOVERY_STATUS_FILE: "/app/host-control/iphone-recovery-status.json"
-      RESULTS_FILE: "/app/data/results.json"
+      RESULTS_FILE: "/app/data/network-sources/${NETWORK_SOURCE_ID:-iphone}/${NETWORK_SOURCE_EPOCH:-legacy}/results.json"
       # Deliberately not cleared by start.sh: IP replacement history survives runs.
-      NODE_HISTORY_FILE: "/app/data/node-history.json"
-      NODE_DIAGNOSIS_FILE: "/app/data/node-diagnostics.json"
-      ACCESS_CHECK_FILE: "/app/data/access-checks.json"
+      NODE_HISTORY_FILE: "/app/data/network-sources/${NETWORK_SOURCE_ID:-iphone}/${NETWORK_SOURCE_EPOCH:-legacy}/node-history.json"
+      NODE_DIAGNOSIS_FILE: "/app/data/network-sources/${NETWORK_SOURCE_ID:-iphone}/${NETWORK_SOURCE_EPOCH:-legacy}/node-diagnostics.json"
+      ACCESS_CHECK_FILE: "/app/data/network-sources/${NETWORK_SOURCE_ID:-iphone}/${NETWORK_SOURCE_EPOCH:-legacy}/access-checks.json"
       HEALTH_MIN_FREE_MB: "256"
       ALERTS_SETTINGS_FILE: "/app/data/telegram-settings.json"
+      ALERTS_STATE_FILE: "/app/data/network-sources/${NETWORK_SOURCE_ID:-iphone}/${NETWORK_SOURCE_EPOCH:-legacy}/telegram-state.json"
       TELEGRAM_BOT_TOKEN: "${TELEGRAM_BOT_TOKEN:-}"
       TELEGRAM_CHAT_ID: "${TELEGRAM_CHAT_ID:-0}"
       TELEGRAM_PROXY_URL: "${TELEGRAM_PROXY_URL:-}"
@@ -114,6 +118,9 @@ services:
     entrypoint: ["/bin/sh", "/app/network-watch.sh"]
     environment:
       NETWORK_INTERFACE: "col0"
+      NETWORK_SOURCE_ID: "${NETWORK_SOURCE_ID:-iphone}"
+      NETWORK_SOURCE_LABEL: "${NETWORK_SOURCE_LABEL:-iPhone USB}"
+      NETWORK_SOURCE_EPOCH: "${NETWORK_SOURCE_EPOCH:-legacy}"
       # IP-based probe avoids treating a DNS or single-host outage as a dead route.
       NETWORK_CHECK_URL: "https://1.1.1.1/cdn-cgi/trace"
       NETWORK_CHECK_EXPECTED: "ip="

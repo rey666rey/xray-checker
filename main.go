@@ -12,6 +12,7 @@ import (
 	"xray-checker/logger"
 	"xray-checker/metrics"
 	"xray-checker/models"
+	"xray-checker/networksource"
 	"xray-checker/subscription"
 	"xray-checker/web"
 	"xray-checker/xray"
@@ -99,6 +100,10 @@ func main() {
 		config.CLIConfig.Proxy.CheckConcurrency,
 	)
 	proxyChecker.SetInboundHost(config.CLIConfig.Xray.InboundHost)
+	if err := networksource.PruneSessions(config.CLIConfig.ResultsFile, 5); err != nil {
+		logger.Warn("Could not prune old measurement sessions: %v", err)
+	}
+	proxyChecker.SetNetworkSource(config.CLIConfig.NetworkSourceControlDir, config.CLIConfig.NetworkSourceID, config.CLIConfig.NetworkSourceEpoch)
 	proxyChecker.SetEndpointPool(endpointPool)
 	proxyChecker.SetNetworkStatusFile(
 		config.CLIConfig.NetworkStatusFile,
@@ -137,6 +142,7 @@ func main() {
 		config.CLIConfig.Alerts.TelegramToken,
 		config.CLIConfig.Alerts.TelegramChat,
 		config.CLIConfig.Alerts.TelegramProxy,
+		config.CLIConfig.Alerts.StateFile,
 	)
 	if err != nil {
 		logger.Fatal("Could not initialize Telegram alerts: %v", err)
@@ -269,9 +275,11 @@ func main() {
 	protectedHandler.Handle("/api/v1/system/info", web.APISystemInfoHandler(version, startTime))
 	protectedHandler.Handle("/api/v1/system/ip", web.APISystemIPHandler(proxyChecker))
 	protectedHandler.Handle("/api/v1/network", web.APINetworkStatusHandler(proxyChecker))
+	protectedHandler.Handle("/api/v1/network/sources", web.APINetworkSourcesHandler(config.CLIConfig.NetworkSourceControlDir, config.CLIConfig.NetworkRecoveryRequestFile, config.CLIConfig.NetworkRecoveryStatusFile))
 	protectedHandler.Handle("/api/v1/network/reconnect", web.APINetworkRecoveryHandler(
 		config.CLIConfig.NetworkRecoveryRequestFile,
 		config.CLIConfig.NetworkRecoveryStatusFile,
+		config.CLIConfig.NetworkSourceControlDir,
 	))
 	protectedHandler.Handle("/api/v1/alerts/telegram", web.TelegramAlertsHandler(alertManager))
 	protectedHandler.Handle("/api/v1/alerts/telegram/", web.TelegramAlertsHandler(alertManager))

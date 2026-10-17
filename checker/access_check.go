@@ -303,7 +303,7 @@ func (pc *ProxyChecker) StartAccessCheck(input AccessCheckRequest) (AccessCheck,
 		ExpectedStatus: request.ExpectedStatus, ExpectedText: request.ExpectedText,
 		State: AccessCheckQueued, Stage: "queued", Summary: "Waiting to check the direct route",
 		SourceIP: status.PublicIP, Interface: status.Interface, StartedAt: now.Unix(),
-		Direct: AccessRouteResult{Route: "direct", Name: "iPhone direct"},
+		Direct: AccessRouteResult{Route: "direct", Name: "Mobile direct"},
 	}
 	pc.accessMu.Lock()
 	if pc.accessRunning {
@@ -353,26 +353,26 @@ func (pc *ProxyChecker) executeAccessCheck(run AccessCheck, request AccessCheckR
 
 	status := pc.GetNetworkStatus()
 	if !status.Ready {
-		pc.completeAccessCheck(run, AccessVerdictInterrupted, "The iPhone route became unavailable before the check started")
+		pc.completeAccessCheck(run, AccessVerdictInterrupted, "The measurement route became unavailable before the check started")
 		return
 	}
 	run.State = AccessCheckRunning
 	run.Stage = "direct"
 	run.SourceIP = status.PublicIP
 	run.Interface = status.Interface
-	run.Summary = "Checking the target directly through the iPhone route"
+	run.Summary = "Checking the target directly through the measurement route"
 	pc.replaceAccessCheck(run)
 
-	direct := accessRoute{kind: "direct", name: "iPhone direct", exitIP: status.PublicIP, interfaceName: status.Interface}
+	direct := accessRoute{kind: "direct", name: "Mobile direct", exitIP: status.PublicIP, interfaceName: status.Interface}
 	run.Direct = pc.runAccessRoute(request, direct, accessDirectAttempts)
 	pc.replaceAccessCheck(run)
 	if status = pc.GetNetworkStatus(); !status.Ready {
-		pc.completeAccessCheck(run, AccessVerdictInterrupted, "The iPhone route was interrupted during the direct check")
+		pc.completeAccessCheck(run, AccessVerdictInterrupted, "The measurement route was interrupted during the direct check")
 		return
 	}
 	if run.Direct.Successes > 0 {
 		verdict := AccessVerdictAvailable
-		summary := fmt.Sprintf("%s is available directly through the iPhone route", accessMethodLabel(request.Method))
+		summary := fmt.Sprintf("%s is available directly through the measurement route", accessMethodLabel(request.Method))
 		if run.Direct.Successes < run.Direct.Attempts {
 			verdict = AccessVerdictAvailableUnstable
 			summary = fmt.Sprintf("%s is available directly, but the result is unstable", accessMethodLabel(request.Method))
@@ -406,7 +406,7 @@ func (pc *ProxyChecker) executeAccessCheck(run AccessCheck, request AccessCheckR
 	pc.runtimeMu.RUnlock()
 	run.VPN = results
 	if status = pc.GetNetworkStatus(); !status.Ready {
-		pc.completeAccessCheck(run, AccessVerdictInterrupted, "The iPhone route was interrupted during the VPN comparison")
+		pc.completeAccessCheck(run, AccessVerdictInterrupted, "The measurement route was interrupted during the VPN comparison")
 		return
 	}
 	vpnSuccesses := 0
@@ -417,7 +417,7 @@ func (pc *ProxyChecker) executeAccessCheck(run AccessCheck, request AccessCheckR
 	}
 	if vpnSuccesses > 0 {
 		pc.completeAccessCheck(run, AccessVerdictBlocked,
-			fmt.Sprintf("%s is unavailable directly through iPhone but available through %d VPN route(s)", accessMethodLabel(request.Method), vpnSuccesses))
+			fmt.Sprintf("%s is unavailable directly through the measurement source but available through %d VPN route(s)", accessMethodLabel(request.Method), vpnSuccesses))
 		return
 	}
 	pc.completeAccessCheck(run, AccessVerdictUnavailable,
