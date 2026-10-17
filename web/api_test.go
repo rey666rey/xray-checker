@@ -29,8 +29,7 @@ func TestRenderIndexIncludesSubscriptionName(t *testing.T) {
 	if !strings.Contains(out.String(), `subName: "LETO"`) {
 		t.Fatal("rendered dashboard does not include the subscription name")
 	}
-	if !strings.Contains(out.String(), `diagnoseNode(item.block.nodeId`) ||
-		!strings.Contains(out.String(), `diagnoseNode(item.proxy.nodeId`) ||
+	if !strings.Contains(out.String(), `diagnoseNode(focusedProxy.nodeId`) ||
 		!strings.Contains(out.String(), `Node diagnosis`) {
 		t.Fatal("rendered private dashboard does not include node diagnosis controls")
 	}
@@ -43,26 +42,26 @@ func TestRenderIndexIncludesSubscriptionName(t *testing.T) {
 		!strings.Contains(out.String(), `proxy.diagnosis`) {
 		t.Fatal("rendered private dashboard does not visually separate diagnosis causes")
 	}
-	if !strings.Contains(out.String(), `cardStatusLabel(item.proxy)`) ||
-		!strings.Contains(out.String(), `proxy-card-cause`) ||
+	if !strings.Contains(out.String(), `hostResultText(item.proxy)`) ||
+		!strings.Contains(out.String(), `ws-host-card`) ||
 		!strings.Contains(out.String(), `diagnosis: updated.diagnosis || null`) {
 		t.Fatal("rendered private dashboard does not show automatic per-binding diagnosis on cards")
 	}
-	if !strings.Contains(out.String(), `@click.stop="copyHostName(item.proxy)"`) ||
+	if !strings.Contains(out.String(), `@click="copyHostName(focusedProxy)"`) ||
 		!strings.Contains(out.String(), `Host name copied:`) {
 		t.Fatal("rendered private dashboard does not copy host names")
 	}
-	if !strings.Contains(out.String(), `class="proxy-card-heading"`) ||
-		!strings.Contains(out.String(), `class="proxy-card-title`) {
+	if !strings.Contains(out.String(), `class="ws-host-head"`) ||
+		!strings.Contains(out.String(), `class="ws-host-name`) {
 		t.Fatal("rendered dashboard does not give the host title its own full-width row")
 	}
 	if strings.Contains(out.String(), `:href="item.proxy.url"`) {
 		t.Fatal("rendered private dashboard still links host names to config pages")
 	}
-	if !strings.Contains(out.String(), "Telegram alerts") ||
-		!strings.Contains(out.String(), "Alert center") ||
-		!strings.Contains(out.String(), "Quick setup") ||
-		!strings.Contains(out.String(), "Save changes") ||
+	if !strings.Contains(out.String(), "Telegram-алерты") ||
+		!strings.Contains(out.String(), `id="telegram-title"`) ||
+		!strings.Contains(out.String(), "Подключите уведомления") ||
+		!strings.Contains(out.String(), "Сохранить настройки") ||
 		!strings.Contains(out.String(), "./api/v1/alerts/telegram") ||
 		!strings.Contains(out.String(), "discoverTelegramChats") {
 		t.Fatal("rendered private dashboard does not include Telegram alert setup")
@@ -84,7 +83,7 @@ func TestRenderIndexIncludesSubscriptionName(t *testing.T) {
 	}
 	if strings.Contains(out.String(), "setViewMode(") ||
 		strings.Contains(out.String(), ">Nodes</button>") ||
-		!strings.Contains(out.String(), `<h2 class="text-base font-semibold text-primary">Hosts</h2>`) {
+		!strings.Contains(out.String(), `id="monitor-title"`) {
 		t.Fatal("rendered dashboard must expose Hosts as its only view")
 	}
 }

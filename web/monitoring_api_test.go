@@ -39,7 +39,7 @@ func TestMonitoringBarIsPrivate(t *testing.T) {
 		if err := RenderIndex(&output, PageData{IsPublic: public, Endpoints: []EndpointInfo{{Name: "Test binding"}}}); err != nil {
 			t.Fatal(err)
 		}
-		contains := strings.Contains(output.String(), "Pending checks:")
+		contains := strings.Contains(output.String(), `aria-label="Общая очередь всех панелей"`)
 		if contains == public {
 			t.Fatalf("monitoring bar public=%v, present=%v", public, contains)
 		}

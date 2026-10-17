@@ -1,0 +1,81 @@
+{{ define "workspace" }}
+<div class="workspace-app" x-show="!badgeMode">
+  <header class="ws-header" x-show="showHeader">
+    <a class="ws-brand" href="./" aria-label="Xray Checker — главная"><span class="ws-brand-mark" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-8 4 16 3-8h4" /></svg></span><span>Xray Checker<small>Мобильная точка наблюдения</small></span></a>
+    <div class="ws-header-actions">
+      <button type="button" class="ws-source-pill" :data-tone="routeTone" @click="openNetworkSources()" aria-label="Открыть сеть проверок"><span class="ws-dot"></span><span x-text="activeSourceLabel"></span><span class="ws-pill-detail" x-text="routeStateLabel"></span><span aria-hidden="true">↗</span></button>
+      <button type="button" class="ws-icon-button" @click="toggleAutoRefresh()" :aria-pressed="autoRefresh" :title="autoRefresh ? 'Приостановить обновление экрана' : 'Возобновить обновление экрана'" aria-label="Автообновление экрана"><span aria-hidden="true">↻</span><span class="ws-countdown" x-text="autoRefresh ? countdown + 'с' : 'пауза'"></span></button>
+      <button type="button" class="ws-icon-button" @click="toggleDarkMode()" aria-label="Сменить тему"><span x-text="darkMode ? '☼' : '☾'" aria-hidden="true"></span></button>
+    </div>
+  </header>
+  <nav class="ws-nav" aria-label="Разделы панели">
+    <button type="button" :aria-current="activeView === 'monitor' ? 'page' : null" @click="setActiveView('monitor')">Мониторинг</button>
+    <button type="button" :aria-current="activeView === 'network' ? 'page' : null" @click="openNetworkSources()">Сеть проверок</button>
+    <button type="button" :aria-current="activeView === 'alerts' ? 'page' : null" @click="openAlerts()">Telegram-алерты<span class="ws-dot" :class="alertsStatusDotClass"></span></button>
+  </nav>
+  <main class="ws-main">
+    <section x-show="activeView === 'monitor'" aria-labelledby="monitor-title">
+      <div class="ws-title-row"><div><div class="ws-eyebrow">Обзор инфраструктуры</div><h1 id="monitor-title">Мониторинг</h1><p>Панели отдельно. Один измерительный маршрут для всех проверок.</p></div><span class="ws-live-label"><span class="ws-dot" :data-tone="dashboardConnected ? routeTone : 'muted'"></span><span x-text="dashboardConnected ? (autoRefresh ? 'Данные обновляются' : 'Обновление экрана на паузе') : 'Связь с панелью потеряна'"></span></span></div>
+      <div class="ws-banner" x-cloak x-show="!dashboardConnected || (networkStatus.managed && !networkStatus.ready)" data-tone="warn" role="status"><span class="ws-banner-icon" aria-hidden="true">Ⅱ</span><div><strong x-text="dashboardConnected ? 'Измерения приостановлены' : 'Нет свежих данных мониторинга'"></strong><p x-text="dashboardConnected ? networkStatus.message : 'Не удалось обновить данные. Ниже — сохранённый снимок, а не текущая доступность.'"></p><p>Общий сбой сети не означает падение всех панелей. Старые результаты не становятся свежими.</p></div><button type="button" class="ws-button" @click="openNetworkSources()">К сети проверок →</button></div>
+      <div class="ws-panel-overview" aria-label="Панели подписок">
+        <template x-for="panel in panelSummaries" :key="panel.name">
+          <button type="button" class="ws-panel-card" :aria-pressed="selectedPanel === panel.name" @click="choosePanel(panel.name)" :data-panel="panel.name">
+            <span class="ws-row"><span class="ws-panel-name" x-text="panel.name"></span><span class="ws-chip" :data-tone="panelTone(panel)"><span class="ws-dot"></span><span x-text="panelHealthLabel(panel)"></span></span></span>
+            <span class="ws-panel-counts"><span>Работают <b x-text="measurementsCurrent ? panel.online : '—'"></b></span><span>Ошибки <b :class="measurementsCurrent && panel.offline && 'text-offline'" x-text="measurementsCurrent ? panel.offline : '—'"></b></span><span>Нестабильны <b x-text="measurementsCurrent ? panel.unstable : '—'"></b></span><span>Проверяются <b x-text="measurementsCurrent ? panel.checking : '—'"></b></span></span>
+            <span class="ws-panel-foot" x-text="'Привязок: ' + panel.total + ' · последняя проверка: ' + (panel.lastCheck ? formatCheckTime(panel.lastCheck) : 'ожидается')"></span>
+          </button>
+        </template>
+      </div>
+      <div class="ws-section-heading"><div><h2 x-text="selectedPanel ? 'Панель ' + selectedPanel : 'Все панели'"></h2><p x-text="selectedPanel ? 'Счётчики и привязки только выбранной панели.' : 'Привязки сгруппированы по панелям, не перемешаны.'"></p></div><button type="button" class="ws-button" :aria-pressed="!selectedPanel" @click="choosePanel('')">Все панели</button></div>
+      <div class="ws-stats" x-show="showStats" aria-label="Сводка выбранной панели">
+        <div><span>Привязки</span><strong x-text="stats.total"></strong></div><div><span>Работают</span><strong class="text-online" x-text="measurementsCurrent ? stats.online : '—'"></strong></div><div><span>Ошибки</span><strong class="text-offline" x-text="measurementsCurrent ? stats.offline : '—'"></strong></div><div><span>Проверяются</span><strong x-text="measurementsCurrent ? stats.checking : '—'"></strong></div><div><span>Средний отклик</span><strong x-text="measurementsCurrent && stats.avgLatency ? stats.avgLatency + ' мс' : '—'"></strong></div>
+      </div>
+      <div class="ws-queue" x-show="monitoring" aria-label="Общая очередь всех панелей">
+        <div class="ws-row"><div><strong x-text="monitoringModeLabel"></strong><span class="ws-muted"> · общая очередь всех панелей</span></div><span class="ws-chip" :data-tone="monitoring?.mode === 'failure_wave' ? 'warn' : 'muted'" x-text="'Ожидают: ' + (monitoring?.pendingChecks || 0)"></span></div>
+        <div class="ws-queue-metrics"><span x-text="'Задержка старейшей: ' + (monitoring?.oldestDelaySeconds || 0) + ' с'"></span><span x-text="'Диагностики: ' + (monitoring?.queuedDiagnoses || 0) + ' в очереди' + (monitoring?.diagnosisRunning ? ' · 1 выполняется' : '')"></span><span x-text="'За 15 мин: ' + (monitoring?.recentFailures || 0) + ' новых ошибок · ' + (monitoring?.recentRecoveries || 0) + ' восстановлений'"></span></div>
+      </div>
+      <div class="ws-toolbar" x-show="showControls">
+        <label class="ws-search"><span aria-hidden="true">⌕</span><input type="search" x-model.debounce.150ms="search" placeholder="Найти хост или IP…" aria-label="Поиск хоста или IP" /></label>
+        <div class="ws-filters" aria-label="Состояние привязок"><template x-for="option in workspaceFilters" :key="option.id"><button type="button" :aria-pressed="filter === option.id" @click="setFilter(option.id)" x-text="option.label"></button></template></div>
+        <label class="ws-sort"><span class="sr-only">Сортировка</span><select x-model="sort" @change="saveSort()" aria-label="Сортировка привязок"><option value="default">По подписке</option><option value="name">По имени</option><option value="latency-asc">Отклик ↑</option><option value="latency-desc">Отклик ↓</option><option value="status">По состоянию</option></select></label>
+      </div>
+      <div class="ws-workspace" x-show="showProxies">
+        <div>
+          <div class="ws-host-grid" x-effect="syncInspectorFocus()">
+            <template x-for="item in displayItems" :key="item.key">
+              <div :class="item.type === 'header' ? 'ws-group-heading' : 'ws-host-slot'">
+                <template x-if="item.type === 'header'"><div class="ws-row"><button type="button" @click="toggleGroup(item.block.key)" :aria-expanded="!collapsedGroups[item.block.key]"><span aria-hidden="true" x-text="collapsedGroups[item.block.key] ? '▸' : '▾'"></span> <span x-text="item.block.group"></span></button><span class="ws-muted" x-text="item.block.total + ' привязок'"></span></div></template>
+                <template x-if="item.type === 'proxy'">
+                  <article class="ws-host-card" :data-selected="inspectedProxyId === item.proxy.stableId" :data-tone="hostTone(item.proxy)" :data-host-id="item.proxy.stableId">
+                    <div class="ws-host-head"><button type="button" class="ws-host-name" @click="inspectProxy(item.proxy)" :aria-pressed="inspectedProxyId === item.proxy.stableId" x-text="item.proxy.name"></button><span class="ws-chip" :data-tone="hostTone(item.proxy)" x-text="hostStateLabel(item.proxy)"></span></div>
+                    <p class="ws-host-meta"><span x-text="item.proxy.subName || item.proxy.groupName || 'Без панели'"></span><span> · </span><span x-text="protoLabel(item.proxy.protocol)"></span></p>
+                    {{ if .ShowServerDetails }}<p class="ws-endpoint" x-text="item.proxy.serverInfo || 'Адрес не определён'"></p>{{ end }}
+                    <p class="ws-host-result" x-text="hostResultText(item.proxy)"></p>
+                    <div class="ws-host-footer"><span x-text="'Проверка: ' + formatCheckTime(cardStatusTime(item.proxy))"></span><div><button type="button" @click="inspectProxy(item.proxy)" :aria-label="'Подробнее: ' + item.proxy.name">Подробнее</button><button type="button" @click="recheckProxy(item.proxy)" :disabled="item.proxy.rechecking || !measurementsCurrent" :aria-label="'Перепроверить: ' + item.proxy.name" x-text="item.proxy.rechecking ? 'В очереди…' : 'Перепроверить'"></button></div></div>
+                  </article>
+                </template>
+              </div>
+            </template>
+          </div>
+          <div class="ws-empty" x-show="!filteredProxies.length"><h3>Привязки не найдены</h3><p x-text="activeProxies.length ? 'Измените поиск или фильтр состояния.' : 'Ожидаем загрузку подписок и первые измерения.'"></p><button type="button" class="ws-button" x-show="activeProxies.length" @click="search = ''; setFilter('all')">Сбросить фильтры</button></div>
+        </div>
+        <aside class="ws-inspector" aria-label="Подробности привязки">
+          <template x-if="focusedProxy"><div>
+            <div class="ws-eyebrow">Выбранная привязка</div><h3 x-text="focusedProxy.name"></h3><p class="ws-muted" x-text="(focusedProxy.subName || 'Без панели') + ' · ' + protoLabel(focusedProxy.protocol)"></p>
+            <div class="ws-inspector-summary" :data-tone="hostTone(focusedProxy)"><span class="ws-chip" :data-tone="hostTone(focusedProxy)" x-text="hostStateLabel(focusedProxy)"></span><p x-text="hostResultText(focusedProxy)"></p></div>
+            <dl class="ws-properties">{{ if .ShowServerDetails }}<div><dt>Endpoint</dt><dd x-text="focusedProxy.serverInfo || '—'"></dd></div>{{ end }}<div><dt>Последнее измерение</dt><dd x-text="formatCheckTime(cardStatusTime(focusedProxy))"></dd></div><div><dt>Отклик Xray</dt><dd x-text="measurementsCurrent && isEffectivelyOnline(focusedProxy) && focusedProxy.latencyMs ? focusedProxy.latencyMs + ' мс' : '—'"></dd></div><div><dt>Ошибок подряд</dt><dd x-text="focusedProxy.failures || 0"></dd></div><div><dt>Источник</dt><dd x-text="activeSourceLabel"></dd></div></dl>
+            <div class="ws-inspector-actions"><button type="button" class="ws-button ws-primary" @click="diagnoseNode(focusedProxy.nodeId, $event)" :disabled="!focusedProxy.nodeId || !measurementsCurrent">Диагностика узла</button><button type="button" class="ws-button" @click="recheckProxy(focusedProxy)" :disabled="focusedProxy.rechecking || !measurementsCurrent">Перепроверить привязку</button>{{ if .ShowServerDetails }}<button type="button" class="ws-text-button" @click="copyIp(focusedProxy)">Копировать IP</button>{{ end }}<button type="button" class="ws-text-button" @click="copyHostName(focusedProxy)">Копировать имя</button></div>
+            <div class="ws-note" x-show="focusedProxy.previousAddress && focusedProxy.addressChangedAt"><strong>Адрес изменился</strong><p x-text="focusedProxy.previousAddress + ' → ' + (focusedProxy.currentResolved || focusedProxy.serverInfo)"></p><p x-text="formatTimestamp(focusedProxy.addressChangedAt)"></p></div>
+            <p class="ws-inspector-note">Ошибка проверки сама по себе не доказывает блокировку. Диагностика разделяет маршрут, TCP, TLS и Xray.</p>
+          </div></template>
+          <div x-show="!focusedProxy" class="ws-muted">Выберите привязку, чтобы посмотреть результат и запустить диагностику.</div>
+        </aside>
+      </div>
+      <div class="ws-bottom" x-show="showStatusInfo"><span x-text="'Показано ' + filteredProxies.length + ' из ' + scopedProxies.length + ' привязок'"></span><div><button type="button" class="ws-text-button" x-ref="accessButton" @click="openAccessCheck($event)">Проверка адреса</button><a href="./metrics" target="_blank" rel="noopener">Метрики ↗</a><a href="./api/v1/docs" target="_blank" rel="noopener">API ↗</a></div></div>
+    </section>
+    {{ template "network-page" . }}
+    {{ template "telegram-page" . }}
+  </main>
+  <footer class="ws-footer" x-show="showFooter"><span>Xray Checker{{ if .Version }} · {{.Version}}{{ end }}</span><span>Проверка: {{.CheckMethod}} · таймаут {{.Timeout}} с · <a href="./health" target="_blank" rel="noopener">Health ↗</a></span></footer>
+</div>
+{{ end }}

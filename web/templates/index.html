@@ -1,6 +1,6 @@
 {{ define "index.html" }}
 <!DOCTYPE html>
-<html lang="en" x-data="dashboard()" :class="{ 'light': !darkMode, 'no-bg': hideBackground }" x-cloak>
+<html lang="ru" x-data="dashboard()" :class="{ 'light': !darkMode, 'no-bg': hideBackground }" x-cloak>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -1744,6 +1744,7 @@
         background: transparent;
       }
     </style>
+    {{ if not .IsPublic }}<link rel="stylesheet" href="./static/workspace.css?v=2621038d740b" />{{ end }}
   </head>
 
   <body
@@ -1799,763 +1800,7 @@
       </template>
     </div>
 
-    <div x-show="!badgeMode" class="max-w-screen-2xl mx-auto px-4 lg:px-6 py-6">
-      <!-- Header -->
-      <header
-        x-show="showHeader"
-        class="flex flex-wrap gap-3 items-center justify-between mb-6"
-      >
-        <div class="flex items-center gap-3">
-          <div
-            class="w-9 h-9 rounded-lg card-flat flex items-center justify-center overflow-hidden"
-          >
-            <img
-              x-show="darkMode"
-              src="./static/logo-dark.svg"
-              alt="Logo"
-              class="w-7 h-7"
-            />
-            <img
-              x-show="!darkMode"
-              src="./static/logo-light.svg"
-              alt="Logo"
-              class="w-7 h-7"
-            />
-          </div>
-          <div>
-            <h1 class="text-base font-semibold text-primary">
-              {{ if and .IsPublic .SubscriptionName }}{{ .SubscriptionName }}{{
-              else }}Xray Checker{{ end }}
-            </h1>
-            {{ if .ShowServerDetails }}
-            <p class="text-xs text-muted">
-              {{.Host}}:{{.Port}}{{ if .Instance }} · {{.Instance}}{{ end }}
-            </p>
-            {{ end }}
-          </div>
-        </div>
-
-        <div class="source-header-controls">
-          <div
-            x-show="networkStatus.managed"
-			class="connection-control h-9 card-flat"
-			:class="networkStatusClass"
-          >
-			<div
-			  class="connection-pill connection-status-segment px-3 text-xs flex items-center gap-2"
-			  :title="networkStatus.message || networkStatusLabel"
-			>
-			  <span class="connection-dot" :class="networkStatus.ready && !networkRecovery.active && 'pulse'"></span>
-			  <span class="truncate" x-text="networkStatusLabel"></span>
-			</div>
-			{{ if not .IsPublic }}
-			<button
-			  type="button"
-			  class="network-reconnect-button flex items-center justify-center"
-			  :class="{ 'is-active': networkRecovery.active, 'is-offline': !networkStatus.ready && !networkRecovery.active }"
-			  :disabled="networkRecovery.active || networkRecoverySubmitting || !networkRecovery.enabled || sourceActionBusy || networkSources.activeSourceId === 'router'"
-			  :title="networkRecovery.active ? (networkRecovery.message || 'Reconnecting iPhone bridge…') : 'Reconnect the Colima iPhone bridge'"
-			  aria-label="Reconnect iPhone bridge"
-			  @click="reconnectNetwork()"
-			>
-			  <svg class="w-3.5 h-3.5" :class="networkRecovery.active && 'animate-spin'" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M5.5 15a7 7 0 0011.5 2M18.5 9A7 7 0 007 7" />
-			  </svg>
-			</button>
-			{{ end }}
-          </div>
-
-		  {{ if and (not .IsPublic) .Version }}
-          <span
-            class="h-9 px-3 text-xs rounded-lg card-flat text-muted flex items-center"
-            >{{.Version}}</span
-          >
-          {{ end }}
-
-          <button
-            @click="toggleAutoRefresh()"
-            class="btn h-9 px-3 rounded-lg text-xs font-medium flex items-center gap-1.5"
-            :class="autoRefresh && 'btn-active'"
-          >
-            <svg
-              class="w-3.5 h-3.5"
-              :class="autoRefresh && 'animate-spin'"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
-            <span
-              class="inline-block min-w-[2.5rem] text-right tabular-nums"
-              x-text="autoRefresh ? countdown + 's' : 'Auto'"
-            ></span>
-          </button>
-
-          {{ if not .IsPublic }}
-          <button
-            x-ref="alertsButton"
-            @click="openAlerts($event)"
-            class="btn alerts-button h-9 w-9 rounded-lg flex items-center justify-center"
-            title="Telegram alerts"
-            aria-label="Telegram alerts"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 3L3.8 10.1c-.9.37-.86 1.67.06 1.98l4.37 1.48 1.48 4.37c.31.92 1.61.96 1.98.06L21 3Zm0 0L8.23 13.56" />
-            </svg>
-            <span class="alerts-status-dot" :class="alertsStatusClass"></span>
-          </button>
-          {{ end }}
-
-          <button
-            @click="toggleDarkMode()"
-            class="btn h-9 w-9 rounded-lg flex items-center justify-center"
-          >
-            <svg
-              x-show="darkMode"
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-              />
-            </svg>
-            <svg
-              x-show="!darkMode"
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-              />
-            </svg>
-          </button>
-        </div>
-      </header>
-
-      {{ if not .IsPublic }}
-      <nav class="flex flex-wrap gap-2 mb-5" aria-label="Разделы панели">
-        <button type="button" class="btn px-4 py-2 rounded-lg text-sm" :class="activeView === 'monitor' && 'btn-active'" @click="setActiveView('monitor')">Мониторинг</button>
-        <button type="button" class="btn px-4 py-2 rounded-lg text-sm" :class="activeView === 'network' && 'btn-active'" @click="openNetworkSources()">Сеть проверок</button>
-        <button type="button" class="btn px-4 py-2 rounded-lg text-sm" @click="openAlerts($event)">Telegram-алерты</button>
-      </nav>
-      <section x-cloak x-show="activeView === 'network'" aria-label="Сеть проверок" class="mb-6">
-        <h2 class="text-base font-semibold text-primary mb-2">Сеть проверок</h2>
-        <p class="text-sm text-muted mb-4">Выберите LTE-роутер или iPhone в режиме модема. Автоматического перехода между источниками нет.</p>
-        <div class="source-status text-sm" aria-live="polite">
-          <span x-text="networkSources.message || 'Активный источник: ' + sourceName(networkSources.activeSourceId)"></span>
-          <p class="text-xs text-muted mt-2" x-show="!networkSources.enabled">Источник подключается через локальный supervisor. После обновления запустите start.sh; текущая сеть сама не переключится.</p>
-        </div>
-        <div class="source-status text-sm" x-show="networkSources.job?.id || networkSources.job?.message" aria-live="polite">
-          <span x-text="sourceJobLabel"></span>
-          <p class="text-xs text-muted mt-2" x-text="networkSources.job?.message || ''"></p>
-        </div>
-        <div class="source-status text-sm text-offline" x-show="networkSourceError" x-text="networkSourceError" role="alert"></div>
-        <div class="source-layout">
-          <template x-for="profile in networkProfiles" :key="profile.id">
-            <article class="source-card card" :class="networkSources.activeSourceId === profile.id && 'source-selected'">
-              <div class="flex flex-wrap justify-between gap-2 items-center">
-                <h3 class="text-sm font-semibold text-primary" x-text="sourceName(profile.id)"></h3>
-                <span class="text-xs text-online" x-show="networkSources.activeSourceId === profile.id" x-text="networkStatus.ready ? 'Сейчас используется' : 'Выбран · проверки на паузе'"></span>
-              </div>
-              <p class="text-xs text-muted mt-2" x-text="profile.id === 'router' ? 'Модем → роутер → отдельный Ethernet / Wi-Fi адаптер Mac' : 'Включите режим модема на iPhone и подключите телефон по USB'"></p>
-              <label class="text-xs text-muted block mt-4" :for="'source-interface-' + profile.id">Адаптер на Mac</label>
-              <select :id="'source-interface-' + profile.id" x-model="networkSourceDraft[profile.id]" :disabled="sourceActionBusy || !networkSources.enabled">
-                <option value="">Выберите адаптер</option>
-                <template x-for="adapter in (networkSources.interfaces || [])" :key="adapter.name">
-                  <option :value="adapter.name" x-text="adapter.label + ' · ' + adapter.name + (adapter.address ? ' · ' + adapter.address : ' · без IPv4')"></option>
-                </template>
-              </select>
-              <p class="text-xs text-muted" x-text="profile.available ? 'Адаптер подключён · ' + profile.address : 'Сохранённый адаптер не подключён или не получил IPv4'"></p>
-              <div class="flex flex-wrap gap-2 mt-4">
-                <button type="button" class="btn px-3 py-2 rounded-lg text-xs" :disabled="sourceActionBusy || !networkSources.enabled || !networkSourceDraft[profile.id]" @click="submitSourceAction('validate', profile.id)">Проверить адаптер</button>
-                <button type="button" class="btn px-3 py-2 rounded-lg text-xs" x-show="profile.id !== networkSources.activeSourceId" :disabled="sourceActionBusy || !networkSources.enabled || !networkSourceDraft[profile.id]" @click="submitSourceAction('configure', profile.id)">Сохранить адаптер</button>
-                <button type="button" class="btn btn-active px-3 py-2 rounded-lg text-xs" :disabled="sourceActionBusy || !networkSources.enabled || !networkSourceDraft[profile.id] || (networkStatus.ready && profile.id === networkSources.activeSourceId && profile.interface === networkSourceDraft[profile.id])" @click="networkSourceConfirm = profile.id">Использовать эту сеть</button>
-              </div>
-              <div class="source-status text-xs mt-4" x-show="networkSourceConfirm === profile.id">
-                <p>Проверки будут приостановлены. Bridge перезапустится, панель временно потеряет связь. При неудаче supervisor попробует вернуть прежнее подключение.</p>
-                <div class="flex flex-wrap gap-2 mt-3"><button type="button" class="btn btn-active px-3 py-2 rounded-lg" :disabled="sourceActionBusy" @click="submitSourceAction('activate', profile.id)">Переключить</button><button type="button" class="btn px-3 py-2 rounded-lg" @click="networkSourceConfirm = ''">Отмена</button></div>
-              </div>
-            </article>
-          </template>
-        </div>
-        <details class="card source-card mt-4 text-xs text-muted">
-          <summary>Подробности измерительного маршрута</summary>
-          <p class="mt-3" x-text="'Интерфейс VM: ' + (networkStatus.interface || '—') + ' · прямой IP: ' + (networkStatus.ready && networkStatus.publicIp ? networkStatus.publicIp : 'нет свежих данных')"></p>
-          <p class="mt-2" x-text="networkStatus.message || 'Ожидаем монитор маршрута'"></p>
-          <p class="mt-2">Сегмент роутера должен использовать только мобильный WAN. Панель не включает режим модема на телефоне и не меняет настройки SIM/APN.</p>
-        </details>
-      </section>
-      {{ end }}
-
-      <section x-show="activeView === 'monitor'">
-      {{ if not .IsPublic }}
-      <div class="source-status text-sm" x-cloak x-show="networkStatus.managed && !networkStatus.ready" aria-live="polite"><strong>Измерения приостановлены</strong><p class="text-xs text-muted mt-2" x-text="networkStatus.message"></p><p class="text-xs text-muted mt-2">Ниже — последние сохранённые результаты, не текущая доступность серверов. Общий сбой сети не означает падение всех панелей.</p></div>
-      <div class="source-panel-overview" x-show="panelSummaries.length > 1" aria-label="Панели подписок">
-        <template x-for="panel in panelSummaries" :key="panel.name">
-          <button type="button" class="card source-card text-left" :class="selectedPanel === panel.name && 'source-selected'" :aria-pressed="selectedPanel === panel.name" @click="selectedPanel = panel.name; filter = 'all'">
-            <span class="block text-sm font-semibold text-primary" x-text="panel.name"></span>
-            <span class="block text-xs mt-2" :class="panel.offline ? 'text-offline' : 'text-muted'" x-text="networkStatus.managed && !networkStatus.ready ? 'Измерения приостановлены' : 'Работают: ' + panel.online + ' · ошибки: ' + panel.offline + ' · проверяются: ' + panel.checking"></span>
-            <span class="block text-xs text-muted mt-2" x-text="'Последняя проверка: ' + (panel.lastCheck ? formatCheckTime(panel.lastCheck) : 'ожидается')"></span>
-          </button>
-        </template>
-      </div>
-      <div class="flex flex-wrap items-center justify-between gap-2 mb-4" x-show="panelSummaries.length > 1"><h2 class="text-sm font-semibold text-primary" x-text="selectedPanel || 'Все панели · отдельные разделы'"></h2><button type="button" class="btn px-3 py-2 rounded-lg text-xs" @click="selectedPanel = ''">Все панели</button></div>
-      {{ end }}
-      <!-- Stats -->
-      <div x-show="showStats" class="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 mb-6">
-        <div class="card rounded-lg p-2 sm:p-4 text-center">
-          <div
-            class="text-base sm:text-xl font-semibold text-primary"
-            x-text="stats.total"
-          >
-            0
-          </div>
-          <div class="text-xs text-muted mt-0.5">Hosts</div>
-        </div>
-        <div class="card rounded-lg p-2 sm:p-4 text-center">
-          <div
-            class="text-base sm:text-xl font-semibold text-online"
-            x-text="stats.online"
-          >
-            0
-          </div>
-          <div class="text-xs text-muted mt-0.5">Online</div>
-        </div>
-        <div class="card rounded-lg p-2 sm:p-4 text-center">
-          <div
-            class="text-base sm:text-xl font-semibold text-offline"
-            x-text="stats.offline"
-          >
-            0
-          </div>
-          <div class="text-xs text-muted mt-0.5">Offline</div>
-        </div>
-        <div class="card rounded-lg p-2 sm:p-4 text-center">
-          <div
-            class="text-base sm:text-xl font-semibold text-unstable"
-            x-text="stats.checking"
-          >
-            0
-          </div>
-          <div class="text-xs text-muted mt-0.5">Checking</div>
-        </div>
-        <div class="card rounded-lg p-2 sm:p-4 text-center">
-          <div class="text-base sm:text-xl font-semibold text-primary">
-            <span x-text="stats.avgLatency">0</span
-            ><span class="text-xs sm:text-sm text-muted ml-0.5">ms</span>
-          </div>
-          <div class="text-xs text-muted mt-0.5">Avg Latency</div>
-        </div>
-      </div>
-
-      <!-- Servers header -->
-      <div
-        x-show="showServersHeader"
-        class="flex flex-wrap items-center justify-between gap-3 mb-4"
-      >
-        <h2 class="text-base font-semibold text-primary">Hosts</h2>
-        {{ if not .IsPublic }}
-        <div class="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-			x-ref="accessButton"
-            @click="openAccessCheck($event)"
-            class="btn access-launch px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"
-          >
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 12h3l2-5 4 10 2-5h5M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" />
-            </svg>
-            Check access
-          </button>
-          <a
-            href="./metrics"
-            target="_blank"
-            class="btn px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"
-          >
-            <svg
-              class="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-              />
-            </svg>
-            Metrics
-          </a>
-          <a
-            href="./health"
-            target="_blank"
-            class="btn px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"
-          >
-            <svg
-              class="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-              />
-            </svg>
-            Health
-          </a>
-          <a
-            href="./api/v1/docs"
-            target="_blank"
-            class="btn px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"
-          >
-            <svg
-              class="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
-              />
-            </svg>
-            API
-          </a>
-          <a
-            href="https://xray-checker.kutovoy.dev"
-            target="_blank"
-            class="btn px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"
-          >
-            <svg
-              class="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-              />
-            </svg>
-            Docs
-          </a>
-        </div>
-        {{ end }}
-      </div>
-
-      {{ if .Endpoints }}
-      <!-- Controls -->
-      <div x-show="showControls" class="flex flex-col gap-2 mb-4">
-        <!-- Mobile expanded search (separate row) -->
-        <div
-          x-show="searchOpen"
-          x-transition
-          class="sm:hidden relative"
-          @click.outside="if (!search) searchOpen = false"
-        >
-          <svg
-            class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
-          <input
-            type="text"
-            x-ref="searchInput"
-            x-model="search"
-            placeholder="Search..."
-            class="w-full pl-9 pr-4 py-2 rounded-lg text-sm"
-            @keydown.escape="search = ''; searchOpen = false"
-          />
-        </div>
-
-        <!-- Main controls row -->
-        <div class="flex items-center gap-2 sm:gap-3">
-          <!-- Mobile search icon button -->
-          <button
-            x-show="!searchOpen"
-            @click="searchOpen = true; $nextTick(() => $refs.searchInput.focus())"
-            class="sm:hidden btn h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0"
-          >
-            <svg
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-          </button>
-
-          <!-- Desktop search (always visible) -->
-          <div class="hidden sm:block relative flex-1">
-            <svg
-              class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-            <input
-              type="text"
-              x-model="search"
-              placeholder="Search..."
-              class="w-full pl-9 pr-4 py-2 rounded-lg text-sm"
-            />
-          </div>
-
-          <div class="flex gap-2 sm:gap-3 flex-1 sm:flex-none justify-end">
-            <div class="flex gap-1 p-1 rounded-lg card-flat">
-              <button
-                @click="setFilter('all')"
-                :class="filter === 'all' ? 'filter-all' : 'text-muted hover:text-secondary'"
-                class="px-3 py-1 rounded text-xs font-medium"
-              >
-                All
-              </button>
-              <button
-                @click="setFilter('online')"
-                :class="filter === 'online' ? 'filter-online' : 'text-muted hover:text-secondary'"
-                class="px-3 py-1 rounded text-xs font-medium"
-              >
-                Online
-              </button>
-              <button
-                @click="setFilter('offline')"
-                :class="filter === 'offline' ? 'filter-offline' : 'text-muted hover:text-secondary'"
-                class="px-3 py-1 rounded text-xs font-medium"
-              >
-                Offline
-              </button>
-              <button
-                @click="setFilter('checking')"
-                :class="filter === 'checking' ? 'filter-all' : 'text-muted hover:text-secondary'"
-                class="hidden md:block px-3 py-1 rounded text-xs font-medium"
-              >
-                Checking
-              </button>
-              <button
-                @click="setFilter('repair')"
-                :class="filter === 'repair' ? 'filter-offline' : 'text-muted hover:text-secondary'"
-                class="hidden md:block px-3 py-1 rounded text-xs font-medium"
-              >Repair</button>
-              <button
-                @click="setFilter('changed')"
-                :class="filter === 'changed' ? 'filter-all' : 'text-muted hover:text-secondary'"
-                class="hidden lg:block px-3 py-1 rounded text-xs font-medium"
-              >Changed</button>
-              <button
-                @click="setFilter('unstable')"
-                :class="filter === 'unstable' ? 'filter-all' : 'text-muted hover:text-secondary'"
-                class="hidden xl:block px-3 py-1 rounded text-xs font-medium"
-              >Unstable</button>
-            </div>
-
-            <select
-              x-model="sort"
-              @change="saveSort()"
-              class="pl-3 pr-8 py-2 rounded-lg text-xs cursor-pointer min-w-[110px]"
-            >
-              <option value="default">Default</option>
-              <option value="name">Name</option>
-              <option value="latency-asc">Latency ↑</option>
-              <option value="latency-desc">Latency ↓</option>
-              <option value="status">Status</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <!-- Proxy Grid -->
-	  {{ if not .IsPublic }}
-	  <div x-cloak x-show="monitoring && !badgeMode" class="card-flat rounded-lg px-3 py-2 mb-3 text-xs text-muted flex flex-wrap items-center gap-x-4 gap-y-1" aria-live="polite">
-		<span>Общая очередь всех панелей</span>
-		<span class="font-medium" x-text="monitoringModeLabel"></span>
-		<span x-text="'Pending checks: ' + (monitoring?.pendingChecks || 0)"></span>
-		<span x-text="'Oldest delay: ' + (monitoring?.oldestDelaySeconds || 0) + 's'"></span>
-		<span x-text="'Diagnostics: ' + (monitoring?.queuedDiagnoses || 0) + ' queued' + (monitoring?.diagnosisRunning ? ', 1 running' : '')"></span>
-		<span x-text="'Last 15 min: ' + (monitoring?.recentFailures || 0) + ' newly failing, ' + (monitoring?.recentRecoveries || 0) + ' recovered'"></span>
-	  </div>
-	  {{ end }}
-      <div
-        x-show="showProxies"
-        class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 mb-4"
-      >
-        <template x-for="item in displayItems" :key="item.key">
-          <div :style="item.type === 'header' ? 'grid-column: 1 / -1' : ''">
-            <!-- Group header (balancer groups) -->
-            <template x-if="item.type === 'header'">
-			  <div class="group-header card-flat w-full flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors">
-				<button @click="toggleGroup(item.block.key)" class="flex items-center gap-2 text-left flex-1 min-w-0">
-				  <svg
-					class="w-3.5 h-3.5 text-muted transition-transform flex-shrink-0"
-					:class="collapsedGroups[item.block.key] && '-rotate-90'"
-					fill="none" stroke="currentColor" viewBox="0 0 24 24"
-				  >
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-				  </svg>
-				  <span class="text-sm font-medium text-primary truncate flex-1" x-text="item.block.group"></span>
-				  <span class="text-xs text-muted tabular-nums flex-shrink-0"
-					><span
-					  :class="item.block.online === item.block.total ? 'latency-good' : (item.block.online === 0 ? 'latency-bad' : '')"
-					  x-text="item.block.online"
-				  ></span>/<span x-text="item.block.total"></span
-				  ></span>
-				</button>
-				{{ if not .IsPublic }}
-				<button
-				  x-show="item.block.diagnosis"
-				  @click.stop="openDiagnosis(item.block.nodeId, false, $event)"
-				  class="state-badge flex-shrink-0"
-				  :class="diagnosisClass(item.block.diagnosis)"
-				  x-text="diagnosisLabel(item.block.diagnosis)"
-				  title="Open the latest deep diagnosis"
-				></button>
-				<template x-if="item.block.nodeId">
-				<button
-				  type="button"
-				  @click.stop="diagnoseNode(item.block.nodeId, $event)"
-				  class="diagnose-button flex-shrink-0"
-				  title="Run deep node diagnosis"
-				>
-				  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12h3l2-6 4 12 2-6h7" />
-				  </svg>
-				  <span x-text="item.block.diagnosis && ['queued', 'running'].includes(item.block.diagnosis.state) ? 'Running…' : 'Diagnose'"></span>
-				</button>
-				</template>
-				<button
-				  x-show="item.block.nodeId"
-				  @click="recheckNode(item.block.nodeId)"
-				  :disabled="recheckingNodeIds[item.block.nodeId]"
-				  class="p-1.5 rounded text-muted btn-icon transition-all flex-shrink-0"
-				  :class="recheckingNodeIds[item.block.nodeId] && 'opacity-50 cursor-wait'"
-				  :title="recheckingNodeIds[item.block.nodeId] ? 'Rechecking node…' : 'Recheck all host bindings on this node'"
-				>
-				  <svg class="w-3.5 h-3.5" :class="recheckingNodeIds[item.block.nodeId] && 'animate-spin'" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M5.5 15a7 7 0 0011.5 2M18.5 9A7 7 0 007 7" />
-				  </svg>
-				</button>
-				{{ end }}
-			  </div>
-            </template>
-
-            <!-- Proxy card -->
-			<template x-if="item.type === 'proxy'">
-			  <div
-				class="proxy-card group card rounded-lg px-3 py-2.5 transition-all duration-150"
-				:class="initialLoad && 'animate'"
-			  >
-				<div class="proxy-card-heading">
-                  {{ if .IsPublic }}
-                  <span
-                    class="proxy-card-title text-sm text-primary truncate"
-                    x-text="item.proxy.name"
-                  ></span>
-                  {{ else }}
-                  <button
-                    type="button"
-                    @click.stop="copyHostName(item.proxy)"
-                    class="proxy-card-title text-sm text-primary link-hover truncate transition-colors text-left"
-                    :title="'Copy host name: ' + item.proxy.name"
-                    x-text="item.proxy.name"
-                  ></button>
-                  {{ end }}
-                  <span
-                    x-show="item.proxy.protocol"
-                    class="proto-badge"
-                    :class="'proto-' + item.proxy.protocol"
-                    x-text="protoLabel(item.proxy.protocol)"
-                  ></span>
-				</div>
-				<div class="proxy-card-main">
-				<!-- Status dot -->
-                <div class="relative flex-shrink-0">
-                  <div
-                    class="w-2 h-2 rounded-full"
-                    :class="cardDotClass(item.proxy)"
-                  ></div>
-                </div>
-
-                <!-- Info -->
-                <div class="flex-1 min-w-0">
-                  {{ if .ShowServerDetails }}
-                  <span class="text-xs text-muted truncate block" x-text="item.proxy.serverInfo"></span>
-                  {{ end }}
-                  <div class="flex items-center gap-1.5 mt-0.5 min-w-0">
-                    <button
-                      type="button"
-                      class="state-badge proxy-card-cause"
-					  :class="cardStatusClass(item.proxy)"
-					  :title="cardStatusDescription(item.proxy)"
-					  @click.stop="cardDiagnosis(item.proxy) && openDiagnosis(item.proxy.nodeId, false, $event)"
-					  x-text="cardStatusLabel(item.proxy)"
-                    ></button>
-                  </div>
-				</div>
-
-                {{ if .IsPublic }}
-                <div class="flex flex-col items-center gap-1 flex-shrink-0">
-                  <span class="text-xs tabular-nums" :class="cardLatencyClass(item.proxy)" x-text="item.proxy.latency"></span>
-                </div>
-                {{ end }}
-                {{ if not .IsPublic }}
-				<div class="proxy-card-side">
-				  <div class="proxy-card-side-row">
-					<span class="proxy-card-latency text-xs tabular-nums" :class="cardLatencyClass(item.proxy)" x-text="item.proxy.latency"></span>
-					<button type="button" @click.stop="diagnoseNode(item.proxy.nodeId, $event)" class="p-1 rounded btn-icon diagnose-icon-button transition-all" title="Run deep diagnosis" aria-label="Run deep diagnosis">
-					  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12h3l2-6 4 12 2-6h7" /></svg>
-					</button>
-                    <button @click="recheckProxy(item.proxy)" :disabled="item.proxy.rechecking" class="p-1 rounded text-muted btn-icon transition-all" :class="item.proxy.rechecking && 'opacity-50 cursor-wait'" :title="item.proxy.rechecking ? 'Syncing and verifying…' : 'Sync subscription and verify replacement'">
-                      <svg class="w-3.5 h-3.5" :class="item.proxy.rechecking && 'animate-spin'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M5.5 15a7 7 0 0011.5 2M18.5 9A7 7 0 007 7" /></svg>
-                    </button>
-                    <button @click="copyIp(item.proxy)" class="hidden sm:block p-1 rounded text-muted btn-icon transition-all" title="Copy IP" aria-label="Copy IP without port">
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                    />
-					  </svg>
-					</button>
-				  </div>
-				  <button type="button" class="proxy-card-time" x-show="cardStatusTime(item.proxy)" @click.stop="cardDiagnosis(item.proxy) && openDiagnosis(item.proxy.nodeId, false, $event)" :title="cardStatusTimeTitle(item.proxy)" x-text="formatCheckTime(cardStatusTime(item.proxy))"></button>
-				</div>
-                {{ end }}
-				</div>
-				{{ if .ShowServerDetails }}
-				<div
-				  x-show="item.proxy.previousAddress && item.proxy.addressChangedAt"
-				  class="address-change-row"
-				  :title="'Changed ' + formatTimestamp(item.proxy.addressChangedAt)"
-				>
-				  <span class="address-change-label">IP changed</span>
-				  <span class="address-change-value">
-					<span class="address-change-address" x-text="item.proxy.previousAddress"></span>
-					<span aria-hidden="true">→</span>
-					<span class="address-change-address" x-text="item.proxy.currentResolved || item.proxy.serverInfo"></span>
-				  </span>
-				</div>
-				{{ end }}
-			  </div>
-            </template>
-          </div>
-        </template>
-      </div>
-
-      <div
-        x-show="showProxies && filteredProxies.length === 0"
-        class="text-center py-12 text-muted"
-      >
-        No proxies match your criteria
-      </div>
-
-      {{ if not .IsPublic }}
-      <div
-        x-show="showStatusInfo"
-        class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 text-xs text-muted pt-3 border-t border-default"
-      >
-        <span
-          ><span x-text="filteredProxies.length"></span> of
-          <span x-text="activeProxies.length"></span> proxies · Config URLs return
-          200/503 for monitoring</span
-        >
-        <span class="truncate max-w-full"
-          >Check: {{.CheckMethod}} · {{if .InitialCheckOnly}}Initial pass only{{else}}Interval: {{.CheckInterval}}s{{end}} · Timeout:
-          {{.Timeout}}s · {{ if eq .CheckMethod "ip" }}{{.IPCheckUrl}}{{ else if
-          eq .CheckMethod "urltest" }}{{.URLTestUrl}}{{ else if
-          eq .CheckMethod "status" }}{{.StatusCheckUrl}}{{ else if eq
-          .CheckMethod "download" }}{{.DownloadUrl}}{{ end }}</span
-        >
-      </div>
-      {{ end }} {{ end }}
-      </section>
-
-      <footer
-        x-show="showFooter"
-        class="mt-8 pt-4 border-t border-default text-center text-xs text-muted"
-      >
-        {{ if .IsPublic }}
-        <div>
-          Powered by
-          <a
-            href="https://github.com/kutovoys/xray-checker"
-            target="_blank"
-            class="hover:text-secondary"
-            >Xray Checker</a
-          >
-        </div>
-        {{ else }}
-        <div>
-          <a
-            href="https://github.com/kutovoys/xray-checker"
-            target="_blank"
-            class="hover:text-secondary"
-            >GitHub</a
-          >
-          <span class="mx-2">·</span>
-          <a
-            href="https://t.me/+Ux5gQhAY8KA2OTdi"
-            target="_blank"
-            class="hover:text-secondary"
-            >Telegram Chat</a
-          >
-        </div>
-        <div class="mt-2">
-          Made with ❤️ by
-          <a
-            href="https://github.com/kutovoys"
-            target="_blank"
-            class="hover:text-secondary"
-            >kutovoys</a
-          >
-        </div>
-        {{ end }}
-      </footer>
-    </div>
+    {{ if .IsPublic }}{{ template "public-dashboard" . }}{{ else }}{{ template "workspace" . }}{{ end }}
 
     {{ if not .IsPublic }}
     <div
@@ -2897,431 +2142,7 @@
       </div>
     </div>
 
-    <div
-      x-show="alertsModalOpen"
-      x-transition.opacity
-      @keydown.escape.window="telegramDisconnectOpen ? telegramDisconnectOpen = false : (telegramDiscardOpen ? telegramDiscardOpen = false : requestCloseAlerts())"
-      @resize.window="scheduleAlertsReposition()"
-      @click.self="requestCloseAlerts()"
-      class="diagnosis-backdrop alerts-backdrop fixed inset-0 z-50"
-      style="display: none"
-    >
-      <div
-        x-ref="alertsPopover"
-        class="diagnosis-card alerts-card"
-        @click.stop
-      >
-        <div class="diagnosis-scroll">
-          <div class="diagnosis-header flex items-center justify-between gap-4">
-            <div class="flex items-center gap-3 min-w-0">
-              <div class="alerts-icon flex-shrink-0">
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="m9.78 18.65.33-4.74 8.62-7.78c.38-.34-.08-.5-.58-.2L7.5 12.65 2.9 11.2c-.99-.3-1-1 .21-1.48L21.03 2.8c.82-.3 1.54.2 1.27 1.48l-3.05 14.37c-.21 1.02-.82 1.27-1.67.8l-4.65-3.43-2.24 2.16c-.25.25-.46.46-.91.46Z" />
-                </svg>
-              </div>
-              <div class="min-w-0">
-                <div class="alerts-kicker">Alert center</div>
-                <div class="flex items-center gap-2">
-                  <h2 class="alerts-modal-title font-semibold text-primary" x-text="(!telegramStatus.configured || telegramReplacing) ? 'Connect Telegram alerts' : 'Telegram alerts'"></h2>
-                </div>
-                <p class="alerts-modal-subtitle text-muted truncate" x-text="telegramStatus.configured ? alertsStatusLabel + ' · ' + (telegramStatus.recipient || 'Configured chat') : 'Private alerts for nodes that need attention'"></p>
-              </div>
-            </div>
-            <div class="alerts-header-status">
-              <span x-show="!alertsLoading && (!telegramStatus.configured || telegramReplacing)" class="alerts-step-badge" x-text="telegramBot ? 'Step 2 of 2' : 'Step 1 of 2'"></span>
-              <span x-show="!alertsLoading && telegramStatus.configured && !telegramReplacing" class="alerts-status-pill" :class="telegramStatus.state === 'error' ? 'latency-bad' : (telegramStatus.enabled ? 'latency-good' : 'latency-medium')">
-                <span class="w-1.5 h-1.5 rounded-full" :class="alertsStatusDotClass"></span>
-                <span x-text="alertsStatusLabel"></span>
-              </span>
-            <button type="button" @click="requestCloseAlerts()" class="diagnosis-close flex-shrink-0" title="Close" aria-label="Close Telegram settings">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-            </div>
-          </div>
 
-          <div class="alerts-content">
-          <div x-show="alertsLoading" class="flex flex-col items-center justify-center gap-3 text-xs text-muted py-14">
-            <span class="alerts-spinner"></span>
-            <span>Loading alert settings…</span>
-          </div>
-          <div x-show="telegramError && !alertsLoading && (telegramStatus.configured || telegramBot)" class="alerts-error-banner mb-3">
-            <svg class="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v4m0 4h.01M10.3 3.7 2.7 17a2 2 0 0 0 1.73 3h15.14A2 2 0 0 0 21.3 17L13.7 3.7a2 2 0 0 0-3.4 0Z"/></svg>
-            <span x-text="telegramError"></span>
-          </div>
-
-          <template x-if="!alertsLoading && (!telegramStatus.configured || telegramReplacing)">
-            <div class="alerts-setup-layout">
-              <div x-show="!telegramBot" class="alerts-setup-hero">
-                <div class="relative z-10 flex items-start justify-between gap-4">
-                  <div>
-                    <div class="alerts-kicker">Quick setup</div>
-                    <h3 class="text-sm font-semibold text-primary mt-1">Know when a node needs attention</h3>
-                    <p class="alerts-section-copy mt-1 max-w-[20rem]">Only meaningful state changes are sent. Repeated noise stays grouped and quiet.</p>
-                  </div>
-                  <span class="alerts-route-count">~2 min</span>
-                </div>
-                <div class="relative z-10 flex items-center gap-2 mt-3 text-[10px] text-muted">
-                  <svg class="w-3.5 h-3.5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m9 12 2 2 4-4"/></svg>
-                  <span>Token and proxy credentials stay on this Mac</span>
-                </div>
-              </div>
-
-              <section x-show="!telegramBot" class="alerts-step">
-                <div class="flex items-start gap-3">
-                  <span class="alerts-step-index">1</span>
-                  <div class="min-w-0 flex-1 flex items-center justify-between gap-3">
-                    <div>
-                      <h3 class="alerts-section-title">Create your bot</h3>
-                      <p class="alerts-section-copy mt-0.5">In BotFather, run <span class="text-primary">/newbot</span> and copy the token.</p>
-                    </div>
-                    <a href="https://t.me/BotFather" target="_blank" rel="noreferrer" class="btn flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-semibold">
-                      BotFather
-                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17 17 7M7 7h10v10"/></svg>
-                    </a>
-                  </div>
-                </div>
-              </section>
-
-              <section class="alerts-step active">
-                <div class="flex items-start gap-3">
-                  <span class="alerts-step-index" :class="telegramBot && 'complete'" x-text="telegramBot ? '✓' : '2'"></span>
-                  <div class="min-w-0 flex-1">
-                    <h3 class="alerts-section-title" x-text="telegramBot ? 'Bot verified' : 'Connect securely'"></h3>
-                    <p class="alerts-section-copy mt-0.5" x-text="telegramBot ? 'The token is valid and ready to use.' : 'We verify the bot before anything is saved.'"></p>
-
-                    <label x-show="!telegramBot" class="block mt-3">
-                      <span class="alerts-label"><span>Bot API token</span><span class="font-normal text-muted">Encrypted field</span></span>
-                      <span class="alerts-field block">
-                        <svg class="alerts-field-icon w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 7a4 4 0 1 1-7.9 1H2v3h3v3h3v3h3l1.4-1.4"/></svg>
-                        <input class="alerts-input with-icon pr-10" :class="telegramError && !telegramBot && 'invalid'" :type="telegramTokenVisible ? 'text' : 'password'" x-model="telegramToken" autocomplete="new-password" spellcheck="false" placeholder="123456789:AA…" :disabled="telegramStatus.managedByEnvironment" />
-                        <button type="button" @click="telegramTokenVisible = !telegramTokenVisible" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-secondary p-1" title="Show or hide token" aria-label="Show or hide token">
-                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
-                        </button>
-                      </span>
-                      <span x-show="telegramError && !telegramBot" class="alerts-field-error">
-                        <svg class="w-3.5 h-3.5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="1.8" d="M12 9v4m0 4h.01"/><circle cx="12" cy="12" r="9" stroke-width="1.8"/></svg>
-                        <span x-text="telegramError"></span>
-                      </span>
-                    </label>
-
-                    <div x-show="!telegramBot" class="alerts-route-summary mt-3">
-                      <span class="alerts-route-icon flex-shrink-0 !mb-0">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 12h14M12 5l7 7-7 7"/></svg>
-                      </span>
-                      <div class="min-w-0 flex-1">
-                        <div class="text-[10px] font-semibold text-primary truncate" x-text="telegramDeliveryLabel"></div>
-                        <div class="text-[9px] text-muted mt-0.5" x-text="telegramDeliveryMode === 'auto' ? telegramStatus.availableRoutes + ' healthy physical routes ready' : telegramDeliveryDescription"></div>
-                      </div>
-                      <button type="button" @click="telegramRouteExpanded = !telegramRouteExpanded" class="text-[10px] font-semibold text-secondary hover:text-primary" x-text="telegramRouteExpanded ? 'Done' : 'Change'"></button>
-                    </div>
-
-					<div x-show="!telegramBot && telegramRouteExpanded" x-transition.opacity class="mt-3">
-                      <div class="alerts-route-grid">
-                        <template x-for="route in telegramDeliveryOptions" :key="route.key">
-                          <button type="button" @click="telegramDeliveryMode = route.key; telegramSettingsDirty = telegramStatus.configured" class="alerts-choice alerts-route-option" :class="telegramDeliveryMode === route.key && 'selected'">
-                            <span class="alerts-route-icon" :class="'is-' + route.key">
-                              <svg x-show="route.key === 'auto'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3v5m0 8v5M5.6 6.2l3.5 3.5m5.8 5.8 3.5 3.5M3 12h5m8 0h5M5.6 17.8l3.5-3.5m5.8-5.8 3.5-3.5"/></svg>
-                              <svg x-show="route.key === 'direct'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2" stroke-width="1.8"/><path stroke-linecap="round" stroke-width="1.8" d="M10.5 5h3M11 18.5h2"/></svg>
-                              <svg x-show="route.key === 'custom'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 7h16M4 17h16M8 4v6m8 4v6"/></svg>
-                            </span>
-                            <span class="text-[10px] font-semibold text-primary block" x-text="route.shortLabel"></span>
-                            <span class="text-[8px] text-muted block mt-0.5" x-text="route.key === 'auto' ? 'Recommended' : (route.key === 'direct' ? 'No proxy' : 'Your proxy')"></span>
-                          </button>
-                        </template>
-                      </div>
-                      <p class="alerts-section-copy mt-2" x-text="telegramDeliveryDescription"></p>
-                      <div x-show="telegramDeliveryMode === 'custom'" class="mt-2">
-                        <input class="alerts-input" type="password" x-model="telegramCustomProxy" autocomplete="new-password" spellcheck="false" placeholder="socks5h://user:password@host:1080" :disabled="telegramStatus.proxyManagedByEnvironment" />
-                        <p class="text-[9px] text-muted mt-1.5" x-show="telegramStatus.customProxyConfigured && !telegramCustomProxy">Saved proxy will be kept.</p>
-                        <p class="text-[9px] text-muted mt-1.5" x-show="telegramStatus.proxyManagedByEnvironment">Managed through TELEGRAM_PROXY_URL.</p>
-                      </div>
-                    </div>
-
-                    <button x-show="!telegramBot" type="button" @click="verifyTelegramToken()" :disabled="telegramBusy || (!telegramToken && !telegramStatus.managedByEnvironment)" class="alerts-primary w-full mt-3 px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2">
-                      <span x-show="telegramBusy" class="alerts-spinner !w-3.5 !h-3.5 !border-white/30 !border-t-white"></span>
-                      <span x-text="telegramBusy ? 'Verifying securely…' : 'Verify and continue'"></span>
-                      <svg x-show="!telegramBusy" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m9 18 6-6-6-6"/></svg>
-                    </button>
-
-                    <div x-show="telegramBot" class="mt-3 alerts-success-strip">
-                      <span class="w-8 h-8 rounded-xl grid place-items-center flex-shrink-0 text-white" style="background:linear-gradient(145deg,#39b8ef,#168dcc)">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m5 12 4 4L19 6"/></svg>
-                      </span>
-                      <div class="min-w-0 flex-1">
-                        <div class="text-[9px] uppercase tracking-wide latency-good">Verified bot</div>
-                        <div class="text-xs font-semibold text-primary truncate" x-text="telegramBot ? '@' + telegramBot.username : ''"></div>
-                      </div>
-                      <a :href="telegramBot ? 'https://t.me/' + telegramBot.username : '#'" target="_blank" rel="noreferrer" class="text-[10px] font-semibold text-secondary ml-auto">Open bot ↗</a>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <section x-show="telegramBot" x-transition class="alerts-step active">
-                <div class="flex items-start gap-3">
-                  <span class="alerts-step-index" :class="telegramSelectedChatId && 'complete'" x-text="telegramSelectedChatId ? '✓' : '3'"></span>
-                  <div class="min-w-0 flex-1">
-                    <h3 class="alerts-section-title">Choose the recipient</h3>
-                    <p class="alerts-section-copy mt-0.5">Open the bot, press Start, then come back here.</p>
-                    <button type="button" @click="discoverTelegramChats()" :disabled="telegramBusy" class="btn w-full mt-3 px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2">
-                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 11a8 8 0 1 1-2.35-5.65M20 4v7h-7"/></svg>
-                      <span x-text="telegramBusy ? 'Looking for your chat…' : 'I sent /start · Find my chat'"></span>
-                    </button>
-
-                    <div x-show="telegramChats.length" class="space-y-2 mt-3">
-                      <template x-for="chat in telegramChats" :key="chat.id">
-                        <button type="button" @click="selectTelegramChat(chat)" class="alerts-choice w-full p-3 text-left flex items-center gap-3" :class="String(telegramSelectedChatId) === String(chat.id) && 'selected'">
-                          <span class="w-8 h-8 rounded-xl grid place-items-center flex-shrink-0 bg-tertiary text-muted">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z"/></svg>
-                          </span>
-                          <span class="min-w-0 flex-1">
-                            <span class="text-xs font-semibold text-primary block truncate" x-text="chat.label"></span>
-                            <span class="text-[9px] text-muted uppercase tracking-wide" x-text="chat.type"></span>
-                          </span>
-                          <span class="w-4 h-4 rounded-full border flex-shrink-0 flex items-center justify-center" :style="String(telegramSelectedChatId) === String(chat.id) ? 'border-color:#2aabee' : ''">
-                            <span x-show="String(telegramSelectedChatId) === String(chat.id)" class="w-2 h-2 rounded-full" style="background:#2aabee"></span>
-                          </span>
-                        </button>
-                      </template>
-                    </div>
-                    <div x-show="telegramChatsSearched && !telegramChats.length" class="alerts-empty mt-3">
-                      <div class="alerts-icon !w-9 !h-9 !rounded-full mx-auto">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="m9.78 18.65.33-4.74 8.62-7.78c.38-.34-.08-.5-.58-.2L7.5 12.65 2.9 11.2c-.99-.3-1-1 .21-1.48L21.03 2.8c.82-.3 1.54.2 1.27 1.48l-3.05 14.37c-.21 1.02-.82 1.27-1.67.8l-4.65-3.43-2.24 2.16c-.25.25-.46.46-.91.46Z"/></svg>
-                      </div>
-                      <div class="text-xs font-semibold text-primary mt-2">No chats found</div>
-                      <p class="text-[10px] text-muted mt-1">Send /start to the bot, then try again.</p>
-                      <div class="flex justify-center gap-2 mt-3">
-                        <a :href="telegramBot ? 'https://t.me/' + telegramBot.username : '#'" target="_blank" rel="noreferrer" class="btn px-3 py-2 rounded-lg text-[10px] font-semibold">Open bot ↗</a>
-                        <button type="button" @click="discoverTelegramChats()" :disabled="telegramBusy" class="btn px-3 py-2 rounded-lg text-[10px] font-semibold">Search again</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <button x-show="telegramBot" type="button" @click="backToTelegramToken()" :disabled="telegramBusy" class="btn px-4 py-2.5 rounded-xl text-xs">Back to token</button>
-              <button
-                x-show="telegramSelectedChatId"
-                type="button"
-                @click="saveTelegramSettings()"
-                :disabled="telegramBusy"
-                class="alerts-primary w-full px-4 py-3 rounded-xl text-sm font-semibold"
-              >
-                <span x-text="telegramBusy ? 'Finishing setup…' : 'Enable Telegram alerts'"></span>
-              </button>
-              <button x-show="telegramReplacing && telegramStatus.configured" type="button" @click="cancelTelegramReplacement()" class="btn w-full px-4 py-2.5 rounded-xl text-xs">Keep current bot</button>
-            </div>
-          </template>
-
-          <template x-if="!alertsLoading && telegramStatus.configured && !telegramReplacing">
-            <div class="alerts-configured-layout">
-              <section class="alerts-account">
-                <div class="alerts-account-grid">
-                  <div class="alerts-account-identity">
-                    <span class="alerts-account-avatar flex-shrink-0">
-                      <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="m9.78 18.65.33-4.74 8.62-7.78c.38-.34-.08-.5-.58-.2L7.5 12.65 2.9 11.2c-.99-.3-1-1 .21-1.48L21.03 2.8c.82-.3 1.54.2 1.27 1.48l-3.05 14.37c-.21 1.02-.82 1.27-1.67.8l-4.65-3.43-2.24 2.16c-.25.25-.46.46-.91.46Z"/></svg>
-                    </span>
-                    <div class="min-w-0">
-                      <div class="alerts-account-name">
-                        <h3 class="font-semibold text-primary truncate" x-text="telegramStatus.botUsername ? '@' + telegramStatus.botUsername : 'Telegram bot'"></h3>
-                        <span class="alerts-status-pill" :class="telegramStatus.connected ? 'latency-good' : (telegramStatus.state === 'error' ? 'latency-bad' : 'text-muted')">
-                          <span class="w-1.5 h-1.5 rounded-full" :class="alertsStatusDotClass"></span>
-                          <span x-text="alertsStatusLabel"></span>
-                        </span>
-                      </div>
-                      <p class="alerts-account-copy truncate" x-text="'Recipient · ' + (telegramStatus.recipient || 'Configured chat')"></p>
-                    </div>
-                  </div>
-                  <div class="alerts-account-control">
-                    <button type="button" @click="toggleTelegramEnabled()" class="alerts-toggle flex-shrink-0" :class="telegramStatus.enabled && 'on'" :aria-label="telegramStatus.enabled ? 'Disable alerts' : 'Enable alerts'"></button>
-                    <span class="alerts-account-control-copy">
-                      <strong x-text="telegramStatus.enabled ? 'Alerts enabled' : 'Alerts paused'"></strong>
-                      <span x-text="telegramStatus.enabled ? 'Sending normally' : 'Delivery stopped'"></span>
-                    </span>
-                  </div>
-                  <div class="alerts-account-meta">
-                    <div class="min-w-0">
-                      <div class="alerts-account-meta-label">Last delivery</div>
-                      <div class="alerts-account-meta-value" x-text="telegramStatus.lastDeliveryAt ? formatTimestamp(telegramStatus.lastDeliveryAt) : 'Not sent yet'"></div>
-                    </div>
-                    <div class="min-w-0">
-                      <div class="alerts-account-meta-label">Last route</div>
-                      <div class="alerts-account-meta-value" :title="telegramStatus.lastRoute || telegramDeliveryLabel" x-text="telegramStatus.lastRoute || telegramDeliveryLabel"></div>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <div x-show="telegramStatus.managedByEnvironment || telegramStatus.proxyManagedByEnvironment" class="alerts-managed-banner">
-                <span class="alerts-info-icon">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="1.8" d="M12 11v5m0-9h.01"/><circle cx="12" cy="12" r="9" stroke-width="1.8"/></svg>
-                </span>
-                <span class="min-w-0"><span class="text-[11px] font-semibold text-primary block">Credentials managed by environment</span><span class="text-[9px] text-muted block mt-0.5">Bot and proxy credentials are locked here; notification preferences remain editable.</span></span>
-              </div>
-
-              <div x-show="!telegramStatus.enabled" class="alerts-paused-banner">
-                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M10 9v6m4-6v6M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z"/></svg>
-                <span class="text-[10px] font-medium">No messages will be sent until alerts are resumed.</span>
-                <button type="button" @click="toggleTelegramEnabled()" :disabled="telegramBusy" class="btn ml-auto px-3 py-2 rounded-lg text-[10px] font-semibold">Resume alerts</button>
-              </div>
-
-              <div x-show="telegramStatus.lastError && !telegramError" class="alerts-error-banner">
-                <svg class="w-4 h-4 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v4m0 4h.01M10.3 3.7 2.7 17a2 2 0 0 0 1.73 3h15.14A2 2 0 0 0 21.3 17L13.7 3.7a2 2 0 0 0-3.4 0Z"/></svg>
-                <span class="min-w-0 flex-1"><span class="font-semibold block">Telegram could not be reached through the selected route.</span><span class="break-words opacity-80 block mt-0.5" x-text="telegramStatus.lastError"></span></span>
-                <button type="button" @click="sendTelegramTest()" :disabled="telegramBusy || !telegramStatus.enabled" class="btn flex-shrink-0 px-3 py-2 rounded-lg text-[10px] font-semibold">Try again</button>
-              </div>
-
-              <section class="alerts-panel p-4">
-                <div class="alerts-panel-head">
-                  <div>
-                    <div class="alerts-kicker">Delivery</div>
-                    <h3 class="alerts-section-title mt-1">How alerts reach Telegram</h3>
-                  </div>
-                  <span class="alerts-route-count" x-show="telegramDeliveryMode === 'auto'" x-text="telegramStatus.availableRoutes + ' ready'"></span>
-                </div>
-                <div class="alerts-route-grid">
-                  <template x-for="route in telegramDeliveryOptions" :key="route.key">
-                    <button type="button" @click="telegramDeliveryMode = route.key; telegramSettingsDirty = true" class="alerts-choice alerts-route-option" :class="telegramDeliveryMode === route.key && 'selected'">
-                      <span class="alerts-route-icon" :class="'is-' + route.key">
-                        <svg x-show="route.key === 'auto'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3v5m0 8v5M5.6 6.2l3.5 3.5m5.8 5.8 3.5 3.5M3 12h5m8 0h5M5.6 17.8l3.5-3.5m5.8-5.8 3.5-3.5"/></svg>
-                        <svg x-show="route.key === 'direct'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2" stroke-width="1.8"/><path stroke-linecap="round" stroke-width="1.8" d="M10.5 5h3M11 18.5h2"/></svg>
-                        <svg x-show="route.key === 'custom'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 7h16M4 17h16M8 4v6m8 4v6"/></svg>
-                      </span>
-                      <span class="alerts-route-name" x-text="route.shortLabel"></span>
-                      <span class="alerts-route-hint" x-text="route.key === 'auto' ? 'Recommended' : (route.key === 'direct' ? 'No proxy' : 'Your proxy')"></span>
-                    </button>
-                  </template>
-                </div>
-                <div class="alerts-delivery-note">
-                  <svg class="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
-                  <span x-text="telegramDeliveryDescription"></span>
-                </div>
-                <div x-show="telegramDeliveryMode === 'custom'" class="mt-3">
-                  <label class="alerts-label"><span>Proxy URL</span><span class="font-normal text-muted">Secret</span></label>
-                  <input class="alerts-input" type="password" x-model="telegramCustomProxy" @input="telegramSettingsDirty = true" autocomplete="new-password" spellcheck="false" placeholder="socks5h://user:password@host:1080" :disabled="telegramStatus.proxyManagedByEnvironment" />
-                  <p class="text-[9px] text-muted mt-1.5" x-show="telegramStatus.customProxyConfigured && !telegramCustomProxy">Leave blank to keep the saved proxy.</p>
-                  <p class="text-[9px] text-muted mt-1.5" x-show="telegramStatus.proxyManagedByEnvironment">Managed through TELEGRAM_PROXY_URL.</p>
-                </div>
-              </section>
-
-              <section class="alerts-panel p-4">
-                <div class="alerts-panel-head">
-                  <div>
-                    <div class="alerts-kicker">Notifications</div>
-                    <h3 class="alerts-section-title mt-1">What deserves a message</h3>
-                  </div>
-                </div>
-                <div class="alerts-notifications-list">
-                  <template x-for="option in telegramPreferenceOptions.filter(option => option.key !== 'networkStatus')" :key="option.key">
-                    <button type="button" @click="telegramPreferences[option.key] = !telegramPreferences[option.key]; telegramSettingsDirty = true" class="alerts-notification-row w-full text-left">
-                      <span class="alerts-notification-icon" :class="'is-' + option.key" aria-hidden="true">
-                        <svg x-show="option.key === 'criticalFailures'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4m0 4h.01M10.3 3.7 2.7 17a2 2 0 0 0 1.73 3h15.14A2 2 0 0 0 21.3 17L13.7 3.7a2 2 0 0 0-3.4 0Z"/></svg>
-                        <svg x-show="option.key === 'ipChanges'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M7 7h11l-3-3m2 13H6l3 3M18 7l-3 3M6 17l3-3"/></svg>
-                        <svg x-show="option.key === 'recoveries'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 6 9 17l-5-5"/></svg>
-                        <svg x-show="option.key === 'newIpFailures'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="1.8"/><path stroke-linecap="round" stroke-width="1.8" d="m9 9 6 6m0-6-6 6"/></svg>
-                        <svg x-show="option.key === 'unstable'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 12h3l2-6 4 12 3-9 2 3h4"/></svg>
-                      </span>
-                      <span class="alerts-notification-copy">
-                        <span class="alerts-notification-title" x-text="option.label"></span>
-                        <span class="alerts-notification-description" x-text="option.description"></span>
-                      </span>
-                      <span class="alerts-toggle flex-shrink-0" :class="telegramPreferences[option.key] && 'on'"></span>
-                    </button>
-                  </template>
-                  <button type="button" @click="telegramPreferences.networkStatus = !telegramPreferences.networkStatus; telegramSettingsDirty = true" class="alerts-notification-row alerts-iphone-row w-full text-left">
-                    <span class="alerts-notification-icon is-networkStatus" aria-hidden="true">
-                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2" stroke-width="1.8"/><path stroke-linecap="round" stroke-width="1.8" d="M10.5 5h3M11 18.5h2"/></svg>
-                    </span>
-                    <span class="alerts-notification-copy">
-                      <span class="alerts-notification-title">Measurement network status</span>
-                      <span class="alerts-notification-description">Delivery resumes after the probe reconnects</span>
-                    </span>
-                    <span class="alerts-toggle flex-shrink-0" :class="telegramPreferences.networkStatus && 'on'"></span>
-                  </button>
-                </div>
-              </section>
-
-              <details class="alerts-advanced p-4">
-                <summary class="flex items-center justify-between gap-3 text-[11px] font-semibold text-primary cursor-pointer select-none">
-                  <span class="flex items-center gap-2">
-                    <svg class="w-3.5 h-3.5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5Z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 8.96 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3v-4h.08A1.7 1.7 0 0 0 4.6 8.94a1.7 1.7 0 0 0-.34-1.88L4.2 7l2.83-2.83.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 10 3.02V3h4v.08a1.7 1.7 0 0 0 1.03 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06L19.8 7l-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.56 1.03H21v4h-.08A1.7 1.7 0 0 0 19.4 15Z"/></svg>
-                    Advanced settings
-                  </span>
-                  <svg class="alerts-chevron w-3.5 h-3.5 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 9 6 6 6-6"/></svg>
-                </summary>
-                <div class="grid grid-cols-2 gap-3 mt-4">
-                  <label class="alerts-label !block">Batch window, sec
-                    <input type="number" min="5" max="300" x-model.number="telegramPreferences.batchWindowSec" @input="telegramSettingsDirty = true" class="alerts-input mt-1.5" />
-                  </label>
-                  <label class="alerts-label !block">Repeat unresolved, hours
-                    <input type="number" min="0" max="168" x-model.number="telegramPreferences.repeatHours" @input="telegramSettingsDirty = true" class="alerts-input mt-1.5" />
-                  </label>
-                </div>
-                <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-default">
-                  <button type="button" @click="beginTelegramReplacement()" :disabled="telegramStatus.managedByEnvironment" class="btn px-3 py-2.5 rounded-lg text-[10px] font-semibold">Replace bot token</button>
-                  <button type="button" @click="telegramDisconnectOpen = true" :disabled="telegramBusy || telegramStatus.managedByEnvironment" class="btn px-3 py-2.5 rounded-lg text-[10px] font-semibold alerts-danger-button">Disconnect</button>
-                </div>
-                <p x-show="telegramStatus.managedByEnvironment" class="text-[9px] text-muted mt-3">The token is managed through environment variables.</p>
-              </details>
-
-              <div x-show="telegramTestState === 'sending'" class="alerts-busy-row">
-                <span class="alerts-spinner flex-shrink-0"></span>
-                <span><span class="font-semibold text-primary block">Sending test message…</span><span class="text-[9px] text-muted block mt-0.5" x-text="telegramStatus.lastRoute ? 'Using ' + telegramStatus.lastRoute : telegramDeliveryLabel"></span></span>
-              </div>
-              <div x-show="telegramTestState === 'success'" class="alerts-test-success">
-                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m5 12 4 4L19 6"/></svg>
-                <span><span class="font-semibold block">Test message delivered</span><span class="text-[9px] opacity-80 block mt-0.5">Telegram accepted the message successfully.</span></span>
-              </div>
-
-              <div class="alerts-actions has-meta">
-                <span class="alerts-footer-meta" x-text="telegramStatus.lastDeliveryAt ? 'Last delivery · ' + formatTimestamp(telegramStatus.lastDeliveryAt) : 'No messages sent yet'"></span>
-                <span x-show="telegramSettingsDirty" class="alerts-unsaved">Unsaved changes</span>
-                <button x-show="telegramSettingsDirty" type="button" @click="loadTelegramStatus()" :disabled="telegramBusy" class="btn px-3 py-2.5 rounded-xl text-[11px] font-semibold">Discard</button>
-                <button type="button" @click="sendTelegramTest()" :disabled="telegramBusy || !telegramStatus.enabled" class="btn px-3 py-2.5 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-2">
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m3 11 18-8-8 18-2-8-8-2Z"/></svg>
-                  <span x-text="telegramTestState === 'sending' ? 'Sending…' : 'Send test'"></span>
-                </button>
-                <button type="button" @click="saveTelegramPreferences()" :disabled="telegramBusy || !telegramSettingsDirty" class="alerts-primary px-3 py-2.5 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-2">
-                  <svg x-show="!telegramBusy" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m5 12 4 4L19 6"/></svg>
-                  <span x-text="telegramBusy && telegramTestState !== 'sending' ? 'Saving…' : (telegramSettingsDirty ? 'Save changes' : 'Saved')"></span>
-                </button>
-              </div>
-            </div>
-          </template>
-          </div>
-        </div>
-        <div x-show="telegramDisconnectOpen" x-transition.opacity class="alerts-confirm-backdrop" @click.self="telegramDisconnectOpen = false" style="display:none">
-          <div class="alerts-confirm" role="alertdialog" aria-modal="true" aria-labelledby="telegram-disconnect-title">
-            <span class="alerts-confirm-icon">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M12 7v6m0 4h.01"/></svg>
-            </span>
-            <h3 id="telegram-disconnect-title" class="text-sm font-semibold text-primary">Disconnect Telegram?</h3>
-            <p class="text-[11px] leading-relaxed text-muted mt-2">Alerts will stop and the saved bot token and recipient will be removed.</p>
-            <p class="text-[10px] text-secondary mt-2">Notification preferences will be kept.</p>
-            <div class="alerts-confirm-actions">
-              <button type="button" @click="telegramDisconnectOpen = false" :disabled="telegramBusy" class="btn alerts-action-button">Cancel</button>
-              <button type="button" @click="disconnectTelegram()" :disabled="telegramBusy" class="alerts-danger-button alerts-action-button">
-                <span x-show="telegramBusy" class="alerts-spinner !w-3.5 !h-3.5"></span>
-                <span x-text="telegramBusy ? 'Disconnecting…' : 'Disconnect'"></span>
-              </button>
-            </div>
-          </div>
-        </div>
-        <div x-show="telegramDiscardOpen" x-transition.opacity class="alerts-confirm-backdrop" @click.self="telegramDiscardOpen = false" style="display:none">
-          <div class="alerts-confirm" role="alertdialog" aria-modal="true" aria-labelledby="telegram-discard-title">
-            <span class="alerts-confirm-icon">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="2" d="M12 7v6m0 4h.01"/></svg>
-            </span>
-            <h3 id="telegram-discard-title" class="text-sm font-semibold text-primary">Discard unsaved changes?</h3>
-            <p class="text-[11px] leading-relaxed text-muted mt-2">Your Telegram connection will stay active, but the changes made in this window will be lost.</p>
-            <div class="alerts-confirm-actions">
-              <button type="button" @click="telegramDiscardOpen = false" class="btn alerts-action-button">Keep editing</button>
-              <button type="button" @click="telegramSettingsDirty = false; closeAlerts()" class="alerts-danger-button alerts-action-button">Discard</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
     {{ end }}
 
     <script>
@@ -3334,8 +2155,15 @@
 
       function dashboard() {
         return {
-          activeView: {{ if .IsPublic }}'monitor'{{ else }}localStorage.getItem('activeView') === 'network' ? 'network' : 'monitor'{{ end }},
-          selectedPanel: '',
+          activeView: {{ if .IsPublic }}'monitor'{{ else }}['network', 'alerts'].includes(localStorage.getItem('activeView')) ? localStorage.getItem('activeView') : 'monitor'{{ end }},
+          selectedPanel: {{ if .IsPublic }}''{{ else }}localStorage.getItem('selectedPanel') || ''{{ end }},
+          inspectedProxyId: '',
+          dashboardConnected: true,
+          pendingView: '',
+          alertDialogVisible: false,
+          alertDialogPreviousFocus: null,
+          alertPreviewKind: 'criticalFailures',
+          workspaceFilters: [{id:'all',label:'Все'},{id:'attention',label:'Требуют внимания'},{id:'online',label:'Работают'},{id:'checking',label:'Проверяются'},{id:'changed',label:'Смена IP / конфиг'}],
           networkSources: { enabled: false, activeSourceId: '', epoch: '', profiles: [], interfaces: [], job: { state: 'idle' } },
           networkSourceDraft: {},
           networkSourceSubmitting: false,
@@ -3405,11 +2233,8 @@
 			ip: '', port: 22, method: 'ssh', serverName: '', httpHost: '', path: '/',
 			expectedStatus: '', expectedText: '',
 		  },
-		  alertsModalOpen: false,
 		  alertsLoading: false,
 		  alertsStatusInterval: null,
-		  alertsPopoverStyle: 'right: 1rem; top: 5rem;',
-		  alertsAnchor: null,
 		  telegramBusy: false,
 		  telegramError: '',
 		  telegramSettingsDirty: false,
@@ -3445,9 +2270,9 @@
 			availableRoutes: 0,
 		  },
 		  telegramDeliveryOptions: [
-			{ key: 'auto', shortLabel: 'Auto', label: 'Auto · healthy Xray nodes', description: 'Recommended. Tries up to three different physical nodes without touching the checker queue.' },
-			{ key: 'direct', shortLabel: 'Direct', label: 'Direct mobile connection', description: 'Use the measurement route directly. Telegram may be blocked by the mobile provider.' },
-			{ key: 'custom', shortLabel: 'Custom', label: 'Custom proxy', description: 'Use a separate HTTP, HTTPS, SOCKS5, or SOCKS5H proxy.' },
+			{ key: 'auto', shortLabel: 'Авто', label: 'Авто · рабочие Xray', description: 'До трёх разных рабочих узлов для доставки Telegram, отдельно от очереди проверок.' },
+			{ key: 'direct', shortLabel: 'Напрямую', label: 'Напрямую через сеть проверок', description: 'Без прокси через измерительный маршрут. Доступность Telegram зависит от сети.' },
+			{ key: 'custom', shortLabel: 'Прокси', label: 'Свой прокси', description: 'Отдельный HTTP, HTTPS, SOCKS5 или SOCKS5H прокси для Telegram.' },
 		  ],
 		  telegramPreferences: {
 			criticalFailures: true,
@@ -3460,12 +2285,12 @@
 			repeatHours: 12,
 		  },
 		  telegramPreferenceOptions: [
-			{ key: 'criticalFailures', label: 'Nodes requiring attention', description: 'After repeated failed checks' },
-			{ key: 'ipChanges', label: 'IP address changes', description: 'Verification starts for a replacement IP' },
-			{ key: 'recoveries', label: 'Successful recoveries', description: 'A failed or replaced node works again' },
-			{ key: 'newIpFailures', label: 'New IP verification failed', description: 'The replacement did not pass confirmation' },
-			{ key: 'unstable', label: 'Unstable nodes', description: 'Potentially noisy; disabled by default' },
-			{ key: 'networkStatus', label: 'Measurement network status', description: 'Delivery resumes after the probe reconnects' },
+			{ key: 'criticalFailures', label: 'Подтверждённые ошибки', description: 'После повторных неуспешных проверок, не первого таймаута.' },
+			{ key: 'ipChanges', label: 'Смена IP ноды', description: 'Адрес сервера изменился; новый адрес ещё проверяется.' },
+			{ key: 'recoveries', label: 'Восстановления', description: 'После успешной проверки ранее неработавшей привязки.' },
+			{ key: 'newIpFailures', label: 'Новый IP не заработал', description: 'Замена адреса не прошла повторную проверку.' },
+			{ key: 'unstable', label: 'Нестабильные узлы', description: 'Может быть шумно; по умолчанию выключено.' },
+			{ key: 'networkStatus', label: 'Сеть проверок', description: 'Потеря и восстановление измерительного маршрута.' },
 		  ],
 
           // URL-controlled visibility
@@ -3517,7 +2342,7 @@
 			if (this.sourceActionBusy && this.networkSources.job?.action === 'activate') return label + ' · Switching';
 			if (this.networkRecovery.active) return label + ' · Reconnecting';
             if (this.networkStatus.ready) {
-              return label + ' · ' + (this.networkStatus.publicIp || 'Connected');
+              return label + ' · ' + (this.networkStatus.publicIp || 'Подключено');
             }
             if (this.networkStatus.state === 'recovering') return label + ' · Recovering';
             if (this.networkStatus.state === 'switching') return label + ' · Switching';
@@ -3528,19 +2353,43 @@
           get networkProfiles() { return ['iphone', 'router'].map(id => (this.networkSources.profiles || []).find(p => p.id === id) || { id, interface: '', available: false }); },
           get sourceActionBusy() { return this.networkSourceSubmitting || this.networkRecovery.active || ['queued','running'].includes(this.networkSources.job?.state); },
           get sourceJobLabel() { return {queued:'Действие в очереди',running:'Выполняется',succeeded:'Готово',failed:'Действие завершилось ошибкой'}[this.networkSources.job?.state] || ''; },
-          setActiveView(view) { this.activeView = view; localStorage.setItem('activeView', view); },
-          async openNetworkSources() { this.setActiveView('network'); await this.refreshNetworkSources(); },
+          setActiveView(view) {
+            if (!['monitor', 'network', 'alerts'].includes(view)) return false;
+            if (view !== this.activeView && this.activeView === 'alerts' && (this.telegramSettingsDirty || this.telegramToken || this.telegramReplacing)) {
+              this.pendingView = view; this.telegramDiscardOpen = true; return false;
+            }
+            if (view !== this.activeView) { this.closeDiagnosis(); this.closeAccessCheck(); this.networkSourceConfirm = ''; }
+            this.activeView = view; localStorage.setItem('activeView', view); return true;
+          },
+          handleAlertDialog(visible) {
+            if (visible === this.alertDialogVisible) return;
+            this.alertDialogVisible = visible;
+            if (visible) { this.alertDialogPreviousFocus = document.activeElement; this.$nextTick(() => this.$refs.alertConfirm?.querySelector('button')?.focus()); }
+            else { const previous = this.alertDialogPreviousFocus; this.$nextTick(() => { if (previous?.isConnected && previous.getClientRects().length) previous.focus(); }); }
+          },
+          trapAlertDialog(event) {
+            const buttons = [...this.$refs.alertConfirm.querySelectorAll('button:not(:disabled)')];
+            if (!buttons.length) return;
+            const first = buttons[0], last = buttons[buttons.length - 1];
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+          },
+          async discardAlertNavigation() {
+            const next = this.pendingView || 'monitor'; this.closeAlerts(); this.pendingView = '';
+            this.setActiveView(next); await this.loadTelegramStatus();
+          },
+          async openNetworkSources() { if (this.setActiveView('network')) await this.refreshNetworkSources(); },
           async refreshNetworkSources() {
             try {
               const res = await fetch('./api/v1/network/sources', {cache:'no-store'});
               const json = await res.json();
-              if (!res.ok || !json.success || !json.data) return;
+              if (!res.ok || !json.success || !json.data) throw new Error('Нет свежих данных supervisor');
               const oldJob = this.networkSources.job;
               this.networkSources = json.data;
               for (const p of json.data.profiles || []) if (this.networkSourceDraft[p.id] === undefined) this.networkSourceDraft[p.id] = p.interface;
               if (oldJob?.id && oldJob.id === json.data.job?.id && ['queued','running'].includes(oldJob.state) && ['failed','succeeded'].includes(json.data.job.state)) this.showToast(json.data.job.message);
               if (json.data.job?.id === localStorage.getItem('networkSourceJob') && !['queued','running'].includes(json.data.job.state)) localStorage.removeItem('networkSourceJob');
-            } catch (_) { /* Preserve the pending transition while the VM is offline. */ }
+            } catch (_) { this.networkSources = { ...this.networkSources, enabled: false, message: 'Связь с supervisor потеряна. Ожидаем возвращения панели.' }; }
           },
           async submitSourceAction(action, id) {
             if (this.sourceActionBusy || !this.networkSources.enabled) return;
@@ -3571,19 +2420,19 @@
 		  },
 
 		  get alertsStatusLabel() {
-			if (this.telegramStatus.state === 'error') return 'Delivery error';
-			if (this.telegramStatus.state === 'disabled') return 'Alerts paused';
-			if (this.telegramStatus.connected) return 'Connected';
-			if (this.telegramStatus.configured) return 'Configured';
-			return 'Not configured';
+			if (this.telegramStatus.state === 'error') return 'Ошибка доставки';
+			if (this.telegramStatus.state === 'disabled') return 'Доставка на паузе';
+			if (this.telegramStatus.connected) return 'Подключено';
+			if (this.telegramStatus.configured) return 'Настроено';
+			return 'Не настроено';
 		  },
 
 		  get telegramDeliveryLabel() {
 			return {
-			  auto: 'Auto via healthy Xray nodes',
-			  direct: 'Direct mobile connection',
-			  custom: 'Custom proxy',
-			}[this.telegramDeliveryMode] || 'Auto via healthy Xray nodes';
+			  auto: 'Через рабочие Xray-узлы',
+			  direct: 'Напрямую через сеть проверок',
+			  custom: 'Свой прокси',
+			}[this.telegramDeliveryMode] || 'Через рабочие Xray-узлы';
 		  },
 
 		  get telegramDeliveryDescription() {
@@ -3616,15 +2465,15 @@
 
           stateLabel(state) {
             return {
-              healthy: 'Healthy', unstable: 'Unstable', suspected: 'Suspected',
-              needs_replacement: 'Needs replacement', ip_changed: 'IP changed',
-              config_changed: 'Verifying config',
-              verifying_new_ip: 'Verifying new IP', fixed: 'Fixed',
-              new_ip_failed: 'New IP failed', missing: 'Missing from subscription', unknown: 'Waiting for check',
-            }[state] || 'Waiting for check';
+              healthy: 'Работает', unstable: 'Нестабильно', suspected: 'Подтверждаем ошибку',
+              needs_replacement: 'Нужна замена', ip_changed: 'IP изменился',
+              config_changed: 'Проверяем конфигурацию',
+              verifying_new_ip: 'Проверяем новый IP', fixed: 'Восстановлено',
+              new_ip_failed: 'Новый IP не работает', missing: 'Нет в подписке', unknown: 'Ожидаем проверку',
+            }[state] || 'Ожидаем проверку';
           },
 		  get monitoringModeLabel() {
-			return { normal: 'Monitoring', failure_wave: 'Failure wave', catching_up: 'Catching up', network_waiting: 'Waiting for network' }[this.monitoring?.mode] || 'Monitoring';
+			return { normal: 'Мониторинг', failure_wave: 'Волна ошибок', catching_up: 'Догоняем очередь', network_waiting: 'Ожидание сети' }[this.monitoring?.mode] || 'Мониторинг';
 		  },
 
           stateClass(state) {
@@ -3740,7 +2589,7 @@
 			if (diagnosis.state === 'queued') return 'Queued';
 			if (diagnosis.state === 'running') return 'Diagnosing…';
 			const label = {
-			  healthy: 'Healthy', degraded: 'Degraded',
+			  healthy: 'Работает', degraded: 'Degraded',
 			  net_unreachable: 'Port filtered', handshake_failed: 'Handshake failed',
 			  tunnel_failed: 'Xray tunnel failed', inconclusive: 'Inconclusive',
 			}[diagnosis.verdict] || 'Not diagnosed';
@@ -3850,12 +2699,59 @@
 		  },
 
           formatTimestamp(timestamp) {
-            return timestamp ? new Date(timestamp * 1000).toLocaleString() : '';
+            return timestamp ? new Date(timestamp * 1000).toLocaleString('ru-RU') : '';
           },
 
 		  formatCheckTime(timestamp) {
 			return timestamp ? new Date(timestamp * 1000).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', hour12: false }) : '—';
 		  },
+
+          get sourceMetadataMatches() { return !this.networkStatus.sourceId || (this.networkSources.enabled && this.networkSources.activeSourceId === this.networkStatus.sourceId && this.networkSources.epoch === this.networkStatus.epoch); },
+          get activeSourceLabel() { return this.sourceMetadataMatches && this.networkStatus.label ? this.networkStatus.label : this.sourceName(this.networkSources.activeSourceId); },
+          get measurementsCurrent() { return this.sourceMetadataMatches && this.dashboardConnected && !this.networkRecovery.active && !(this.sourceActionBusy && this.networkSources.job?.action === 'activate') && (!this.networkStatus.managed || this.networkStatus.ready); },
+          get routeTone() { return this.measurementsCurrent ? 'good' : (this.networkStatus.state === 'unknown' ? 'muted' : 'warn'); },
+          get routeStateLabel() {
+            if (!this.dashboardConnected) return 'Нет связи';
+            if (this.sourceActionBusy && this.networkSources.job?.action === 'activate') return 'Переключение';
+            if (!this.networkStatus.managed) return 'Внешний монитор отключён';
+            if (this.networkRecovery.active) return 'Переподключение';
+            if (this.networkStatus.ready && this.sourceMetadataMatches) return 'Маршрут доступен';
+            if (this.networkStatus.ready) return 'Ожидаем сеанс сети';
+            return { switching:'Переключение',recovering:'Восстанавливается',unknown:'Нет свежих данных',waiting:'Ожидаем сеть',disconnected:'Нет подключения' }[this.networkStatus.state] || 'Проверки на паузе';
+          },
+          get activeNetworkProfile() { return this.networkProfiles.find(profile => profile.id === this.networkSources.activeSourceId) || {}; },
+          choosePanel(name) { this.selectedPanel = name; this.filter = 'all'; this.inspectedProxyId = ''; localStorage.setItem('selectedPanel', name); localStorage.setItem('filter', 'all'); },
+          panelTone(panel) { return !this.measurementsCurrent ? 'muted' : panel.offline ? 'error' : panel.unstable ? 'warn' : panel.checking ? 'muted' : 'good'; },
+          panelHealthLabel(panel) { return !this.measurementsCurrent ? 'Измерения на паузе' : panel.offline ? panel.offline + ' с ошибками' : panel.unstable ? 'Нестабильность' : panel.checking ? 'Идут проверки' : 'Без ошибок'; },
+          inspectProxy(proxy) { this.inspectedProxyId = proxy.stableId; },
+          syncInspectorFocus() { const visible = this.filteredProxies; if (!visible.some(proxy => proxy.stableId === this.inspectedProxyId)) this.inspectedProxyId = visible[0]?.stableId || ''; },
+          get focusedProxy() { return this.activeProxies.find(proxy => proxy.stableId === this.inspectedProxyId) || null; },
+          hostTone(proxy) { return !this.measurementsCurrent ? 'muted' : this.isEffectivelyOnline(proxy) ? (proxy.unstable || proxy.monitorState === 'unstable' ? 'warn' : 'good') : this.isChecking(proxy) ? 'muted' : 'error'; },
+          hostStateLabel(proxy) {
+            if (!this.measurementsCurrent) return 'Сохранённый результат';
+            if (proxy.rechecking) return 'Перепроверяем';
+            if (this.isEffectivelyOnline(proxy)) return proxy.unstable || proxy.monitorState === 'unstable' ? 'Нестабильно' : 'Работает';
+            if (this.isChecking(proxy)) return proxy.lastCheck ? 'Подтверждаем' : 'Не проверено';
+            return 'Ошибка';
+          },
+          hostResultText(proxy) {
+            if (!this.measurementsCurrent) return 'Проверки на паузе. Текущая доступность неизвестна.';
+            if (proxy.rechecking) return 'Подписка и доступность привязки перепроверяются.';
+            if (this.isEffectivelyOnline(proxy)) return 'Xray-запрос успешен' + (proxy.latencyMs ? ' · ' + proxy.latencyMs + ' мс' : '') + (proxy.unstable ? ' · есть нестабильность' : '');
+            const diagnosis = this.cardDiagnosis(proxy);
+            if (diagnosis && ['queued', 'running'].includes(diagnosis.state)) return 'Диагностика ' + (diagnosis.state === 'queued' ? 'в очереди.' : 'выполняется.');
+            if (diagnosis?.state === 'completed') return {net_unreachable:'TCP endpoint не отвечает из этой сети.',handshake_failed:'TLS / handshake не проходит.',tunnel_failed:'Xray-туннель не прошёл контрольный запрос.',inconclusive:'Недостаточно данных для вывода.',degraded:'Часть привязок работает; результат неоднороден.'}[diagnosis.verdict] || 'См. подробности диагностики.';
+            if (this.isChecking(proxy)) return proxy.lastCheck ? 'Первичная ошибка; ожидаем подтверждение.' : 'Ещё не проверено в текущем сеансе.';
+            return this.stateLabel(proxy.monitorState) + (proxy.failures ? ' · ошибок подряд: ' + proxy.failures : '');
+          },
+          get alertPreviewTitle() { return this.telegramPreferenceOptions.find(option => option.key === this.alertPreviewKind)?.label || 'Уведомление'; },
+          get alertPreviewBody() {
+            const proxy = this.focusedProxy || this.activeProxies[0];
+            const subject = proxy ? (proxy.subName || 'Панель') + ' · ' + proxy.name : 'Панель · имя привязки';
+            const source = this.networkStatus.label || this.sourceName(this.networkSources.activeSourceId);
+            const bodies = {criticalFailures:'Повторные проверки завершились ошибкой. Причина не установлена; блокировка не доказана.',ipChanges:'Адрес сервера изменился. Новый IP ожидает подтверждения.',recoveries:'Контрольный запрос через Xray снова успешен.',newIpFailures:'Новый адрес не прошёл подтверждение доступности.',unstable:'В повторных проверках чередуются успехи и ошибки.',networkStatus:'Изменилось состояние сети проверок. При потере маршрута измерения приостанавливаются.'};
+            return (this.alertPreviewKind === 'networkStatus' ? 'Сеть проверок' : subject) + '\nИсточник: ' + source + '\n\n' + bodies[this.alertPreviewKind];
+          },
 
           get activeProxies() {
             return this.proxies.filter(p => p.missingPolls === 0);
@@ -3865,9 +2761,11 @@
             const groups = new Map();
             for (const p of this.activeProxies) {
               const name = p.subName || p.groupName || 'Other';
-              if (!groups.has(name)) groups.set(name, {name, online:0,offline:0,checking:0,lastCheck:0});
+              if (!groups.has(name)) groups.set(name, {name, total:0,online:0,offline:0,checking:0,unstable:0,lastCheck:0});
               const panel = groups.get(name);
-              if (this.isEffectivelyOnline(p)) panel.online++;
+              panel.total++;
+              if (this.isEffectivelyOnline(p) && (p.unstable || p.monitorState === 'unstable')) panel.unstable++;
+              else if (this.isEffectivelyOnline(p)) panel.online++;
               else if (this.isConfirmedOffline(p)) panel.offline++;
               else panel.checking++;
               panel.lastCheck = Math.max(panel.lastCheck, p.lastCheck || 0);
@@ -3891,6 +2789,7 @@
 
           get filteredProxies() {
             let r = this.scopedProxies;
+            if (this.filter === 'attention') r = r.filter(p => !this.isEffectivelyOnline(p) || p.unstable || p.monitorState === 'unstable');
             if (this.search) {
               const q = this.search.toLowerCase();
               r = r.filter(p => p.name.toLowerCase().includes(q) || p.subName.toLowerCase().includes(q) || (p.serverInfo && p.serverInfo.toLowerCase().includes(q)));
@@ -3982,13 +2881,16 @@
 
           init() {
             const params = new URLSearchParams(window.location.search);
-
+            {{ if not .IsPublic }}
+            if (!this.panelSummaries.some(panel => panel.name === this.selectedPanel)) this.selectedPanel = this.panelSummaries[0]?.name || '';
+            window.addEventListener('beforeunload', event => { if (this.telegramSettingsDirty || this.telegramToken || this.telegramReplacing) { event.preventDefault(); event.returnValue = ''; } });
+            {{ end }}
             this.refreshNetworkStatus();
 			this.refreshMonitoringStatus();
 			this.refreshNodeDiagnoses();
             this.networkStatusInterval = setInterval(() => this.refreshNetworkStatus(), 3000);
 			{{ if not .IsPublic }}
-			this.loadTelegramStatus(true);
+			this.loadTelegramStatus(this.activeView !== 'alerts');
 			this.alertsStatusInterval = setInterval(() => this.loadTelegramStatus(true), 30000);
 			{{ end }}
 
@@ -4109,7 +3011,8 @@
             try {
               const res = await fetch('./api/v1/network');
               const json = await res.json();
-              if (json.success && json.data) this.networkStatus = json.data;
+              if (!res.ok || !json.success || !json.data) throw new Error('Route status unavailable');
+              this.networkStatus = json.data;
             } catch (e) {
               if (this.networkStatus.managed) {
                 this.networkStatus = {
@@ -4189,7 +3092,9 @@
               const privateDashboard = {{ if .IsPublic }}false{{ else }}true{{ end }};
               const res = await fetch(privateDashboard ? './api/v1/proxies' : './api/v1/public/proxies');
               const json = await res.json();
+              if (!res.ok || !json.success || !Array.isArray(json.data)) throw new Error('Invalid monitoring response');
               if (json.success && json.data) {
+                this.dashboardConnected = true;
                 if (privateDashboard) {
 				  const activeRechecks = new Set(this.proxies.filter(p => p.rechecking).map(p => p.stableId));
                   this.proxies = json.data.map(updated => ({
@@ -4236,6 +3141,7 @@
 			  await this.refreshMonitoringStatus();
 			  await this.refreshNodeDiagnoses();
             } catch (e) {
+              this.dashboardConnected = false;
               console.error('Failed to refresh:', e);
 			} finally {
 			  this.countdown = this.refreshSeconds;
@@ -4602,31 +3508,15 @@
 			this.diagnosisAnchor = null;
 		  },
 
-		  async openAlerts(event = null) {
-			this.closeDiagnosis();
-			this.closeAccessCheck();
-			const button = event && event.currentTarget;
-			if (button) {
-			  const rect = button.getBoundingClientRect();
-			  this.alertsAnchor = { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width };
-			}
-			this.alertsModalOpen = true;
-			this.telegramError = '';
-			this.scheduleAlertsReposition();
-			await this.loadTelegramStatus();
-		  },
-
-		  requestCloseAlerts() {
-			if (this.telegramSettingsDirty && this.telegramStatus.configured && !this.telegramReplacing) {
-			  this.telegramDiscardOpen = true;
-			  return;
-			}
-			this.closeAlerts();
-		  },
+          async openAlerts() {
+            if (this.activeView === 'alerts') return;
+            if (!this.setActiveView('alerts')) return;
+            this.telegramError = '';
+            await this.loadTelegramStatus();
+          },
 
 		  closeAlerts() {
-			this.alertsModalOpen = false;
-			this.alertsAnchor = null;
+            if (this.activeView === 'alerts') { this.activeView = 'monitor'; localStorage.setItem('activeView', 'monitor'); }
 			this.telegramError = '';
 			this.telegramSettingsDirty = false;
 			this.telegramTestState = 'idle';
@@ -4641,24 +3531,6 @@
 			this.telegramSelectedChatLabel = '';
 			this.telegramReplacing = false;
 			this.telegramRouteExpanded = false;
-		  },
-
-		  scheduleAlertsReposition() {
-			requestAnimationFrame(() => requestAnimationFrame(() => this.refreshAlertsPopoverPosition()));
-		  },
-
-		  refreshAlertsPopoverPosition() {
-			if (!this.alertsModalOpen || window.innerWidth <= 640) return;
-			const rect = this.alertsAnchor;
-			const card = this.$refs.alertsPopover;
-			if (!rect || !card) return;
-			const margin = 12, gap = 11;
-			const width = card.offsetWidth || Math.min(464, window.innerWidth - margin * 2);
-			let left = rect.right - width;
-			left = Math.min(window.innerWidth - width - margin, Math.max(margin, left));
-			const top = Math.min(window.innerHeight - 120, Math.max(margin, rect.bottom + gap));
-			const arrowLeft = Math.min(width - 24, Math.max(24, rect.left + rect.width / 2 - left));
-			this.alertsPopoverStyle = 'left:' + Math.round(left) + 'px;top:' + Math.round(top) + 'px;--diagnosis-arrow-left:' + Math.round(arrowLeft) + 'px;';
 		  },
 
 		  async loadTelegramStatus(quiet = false) {
@@ -4680,7 +3552,6 @@
 			} finally {
 			  if (!quiet) {
 				this.alertsLoading = false;
-				this.scheduleAlertsReposition();
 			  }
 			}
 		  },
@@ -4707,7 +3578,6 @@
 				}),
 			  });
 			  this.showToast('Telegram bot connected');
-			  this.scheduleAlertsReposition();
 			} catch (e) {
 			  this.telegramBot = null;
 			  this.telegramError = e.message || 'Token verification failed';
@@ -4731,7 +3601,6 @@
 			  }) || [];
 			  this.telegramChatsSearched = true;
 			  if (this.telegramChats.length === 1) this.selectTelegramChat(this.telegramChats[0]);
-			  this.scheduleAlertsReposition();
 			} catch (e) {
 			  this.telegramError = e.message || 'Could not discover Telegram chats';
 			} finally {
@@ -4787,12 +3656,11 @@
 			  return false;
 			} finally {
 			  this.telegramBusy = false;
-			  this.scheduleAlertsReposition();
 			}
 		  },
 
 		  async saveTelegramSettings() {
-			const saved = await this.persistTelegramSettings(this.telegramSettingsPayload(), 'Telegram alerts enabled');
+			const saved = await this.persistTelegramSettings(this.telegramSettingsPayload(), 'Telegram-алерты включены');
 			if (!saved) return;
 			this.telegramToken = '';
 			this.telegramTokenVisible = false;
@@ -4806,14 +3674,14 @@
 		  async saveTelegramPreferences() {
 			await this.persistTelegramSettings(this.telegramSettingsPayload({
 			  token: '', chatId: 0, chatLabel: '', enabled: this.telegramStatus.enabled,
-			}), 'Notification settings saved');
+			}), 'Настройки уведомлений сохранены');
 		  },
 
 		  async toggleTelegramEnabled() {
 			const enable = !this.telegramStatus.enabled;
 			await this.persistTelegramSettings(this.telegramSettingsPayload({
 			  token: '', chatId: 0, chatLabel: '', enabled: enable,
-			}), enable ? 'Telegram alerts enabled' : 'Telegram alerts paused');
+			}), enable ? 'Telegram-алерты включены' : 'Telegram-алерты приостановлены');
 		  },
 
 		  async sendTelegramTest() {
@@ -4826,7 +3694,7 @@
 			  });
 			  this.telegramStatus = { ...this.telegramStatus, ...(status || {}) };
 			  this.telegramTestState = 'success';
-			  this.showToast('Test message sent');
+			  this.showToast('Тестовое сообщение отправлено');
 			} catch (e) {
 			  this.telegramTestState = 'error';
 			  this.telegramError = e.message || 'Could not send the test message';
@@ -4845,7 +3713,6 @@
 			this.telegramSelectedChatLabel = '';
 			this.telegramSettingsDirty = false;
 			this.telegramTestState = 'idle';
-			this.scheduleAlertsReposition();
 		  },
 
 		  cancelTelegramReplacement() {
@@ -4987,6 +3854,7 @@
           showToast(msg) {
             const t = { id: ++this.toastSequence, message: msg, visible: true };
             this.toasts.push(t);
+            if (this.toasts.length > 3) this.toasts = this.toasts.slice(-3);
             setTimeout(() => { t.visible = false; setTimeout(() => this.toasts = this.toasts.filter(x => x.id !== t.id), 200); }, 2000);
           }
         };

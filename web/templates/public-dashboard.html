@@ -1,0 +1,490 @@
+{{ define "public-dashboard" }}
+    <div x-show="!badgeMode" class="max-w-screen-2xl mx-auto px-4 lg:px-6 py-6">
+      <!-- Header -->
+      <header
+        x-show="showHeader"
+        class="flex flex-wrap gap-3 items-center justify-between mb-6"
+      >
+        <div class="flex items-center gap-3">
+          <div
+            class="w-9 h-9 rounded-lg card-flat flex items-center justify-center overflow-hidden"
+          >
+            <img
+              x-show="darkMode"
+              src="./static/logo-dark.svg"
+              alt="Logo"
+              class="w-7 h-7"
+            />
+            <img
+              x-show="!darkMode"
+              src="./static/logo-light.svg"
+              alt="Logo"
+              class="w-7 h-7"
+            />
+          </div>
+          <div>
+            <h1 class="text-base font-semibold text-primary">
+              {{ if and .IsPublic .SubscriptionName }}{{ .SubscriptionName }}{{
+              else }}Xray Checker{{ end }}
+            </h1>
+            {{ if .ShowServerDetails }}
+            <p class="text-xs text-muted">
+              {{.Host}}:{{.Port}}{{ if .Instance }} · {{.Instance}}{{ end }}
+            </p>
+            {{ end }}
+          </div>
+        </div>
+
+        <div class="source-header-controls">
+          <div
+            x-show="networkStatus.managed"
+			class="connection-control h-9 card-flat"
+			:class="networkStatusClass"
+          >
+			<div
+			  class="connection-pill connection-status-segment px-3 text-xs flex items-center gap-2"
+			  :title="networkStatus.message || networkStatusLabel"
+			>
+			  <span class="connection-dot" :class="networkStatus.ready && !networkRecovery.active && 'pulse'"></span>
+			  <span class="truncate" x-text="networkStatusLabel"></span>
+			</div>
+
+          </div>
+
+		  {{ if and (not .IsPublic) .Version }}
+          <span
+            class="h-9 px-3 text-xs rounded-lg card-flat text-muted flex items-center"
+            >{{.Version}}</span
+          >
+          {{ end }}
+
+          <button
+            @click="toggleAutoRefresh()"
+            class="btn h-9 px-3 rounded-lg text-xs font-medium flex items-center gap-1.5"
+            :class="autoRefresh && 'btn-active'"
+          >
+            <svg
+              class="w-3.5 h-3.5"
+              :class="autoRefresh && 'animate-spin'"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+            <span
+              class="inline-block min-w-[2.5rem] text-right tabular-nums"
+              x-text="autoRefresh ? countdown + 's' : 'Auto'"
+            ></span>
+          </button>
+
+
+
+          <button
+            @click="toggleDarkMode()"
+            class="btn h-9 w-9 rounded-lg flex items-center justify-center"
+          >
+            <svg
+              x-show="darkMode"
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+              />
+            </svg>
+            <svg
+              x-show="!darkMode"
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+              />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+
+
+      <section x-show="activeView === 'monitor'">
+
+      <!-- Stats -->
+      <div x-show="showStats" class="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 mb-6">
+        <div class="card rounded-lg p-2 sm:p-4 text-center">
+          <div
+            class="text-base sm:text-xl font-semibold text-primary"
+            x-text="stats.total"
+          >
+            0
+          </div>
+          <div class="text-xs text-muted mt-0.5">Hosts</div>
+        </div>
+        <div class="card rounded-lg p-2 sm:p-4 text-center">
+          <div
+            class="text-base sm:text-xl font-semibold text-online"
+            x-text="stats.online"
+          >
+            0
+          </div>
+          <div class="text-xs text-muted mt-0.5">Online</div>
+        </div>
+        <div class="card rounded-lg p-2 sm:p-4 text-center">
+          <div
+            class="text-base sm:text-xl font-semibold text-offline"
+            x-text="stats.offline"
+          >
+            0
+          </div>
+          <div class="text-xs text-muted mt-0.5">Offline</div>
+        </div>
+        <div class="card rounded-lg p-2 sm:p-4 text-center">
+          <div
+            class="text-base sm:text-xl font-semibold text-unstable"
+            x-text="stats.checking"
+          >
+            0
+          </div>
+          <div class="text-xs text-muted mt-0.5">Checking</div>
+        </div>
+        <div class="card rounded-lg p-2 sm:p-4 text-center">
+          <div class="text-base sm:text-xl font-semibold text-primary">
+            <span x-text="stats.avgLatency">0</span
+            ><span class="text-xs sm:text-sm text-muted ml-0.5">ms</span>
+          </div>
+          <div class="text-xs text-muted mt-0.5">Avg Latency</div>
+        </div>
+      </div>
+
+      <!-- Servers header -->
+      <div
+        x-show="showServersHeader"
+        class="flex flex-wrap items-center justify-between gap-3 mb-4"
+      >
+        <h2 class="text-base font-semibold text-primary">Hosts</h2>
+
+      </div>
+
+      {{ if .Endpoints }}
+      <!-- Controls -->
+      <div x-show="showControls" class="flex flex-col gap-2 mb-4">
+        <!-- Mobile expanded search (separate row) -->
+        <div
+          x-show="searchOpen"
+          x-transition
+          class="sm:hidden relative"
+          @click.outside="if (!search) searchOpen = false"
+        >
+          <svg
+            class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
+          <input
+            type="text"
+            x-ref="searchInput"
+            x-model="search"
+            placeholder="Search..."
+            class="w-full pl-9 pr-4 py-2 rounded-lg text-sm"
+            @keydown.escape="search = ''; searchOpen = false"
+          />
+        </div>
+
+        <!-- Main controls row -->
+        <div class="flex items-center gap-2 sm:gap-3">
+          <!-- Mobile search icon button -->
+          <button
+            x-show="!searchOpen"
+            @click="searchOpen = true; $nextTick(() => $refs.searchInput.focus())"
+            class="sm:hidden btn h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0"
+          >
+            <svg
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          </button>
+
+          <!-- Desktop search (always visible) -->
+          <div class="hidden sm:block relative flex-1">
+            <svg
+              class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+            <input
+              type="text"
+              x-model="search"
+              placeholder="Search..."
+              class="w-full pl-9 pr-4 py-2 rounded-lg text-sm"
+            />
+          </div>
+
+          <div class="flex gap-2 sm:gap-3 flex-1 sm:flex-none justify-end">
+            <div class="flex gap-1 p-1 rounded-lg card-flat">
+              <button
+                @click="setFilter('all')"
+                :class="filter === 'all' ? 'filter-all' : 'text-muted hover:text-secondary'"
+                class="px-3 py-1 rounded text-xs font-medium"
+              >
+                All
+              </button>
+              <button
+                @click="setFilter('online')"
+                :class="filter === 'online' ? 'filter-online' : 'text-muted hover:text-secondary'"
+                class="px-3 py-1 rounded text-xs font-medium"
+              >
+                Online
+              </button>
+              <button
+                @click="setFilter('offline')"
+                :class="filter === 'offline' ? 'filter-offline' : 'text-muted hover:text-secondary'"
+                class="px-3 py-1 rounded text-xs font-medium"
+              >
+                Offline
+              </button>
+              <button
+                @click="setFilter('checking')"
+                :class="filter === 'checking' ? 'filter-all' : 'text-muted hover:text-secondary'"
+                class="hidden md:block px-3 py-1 rounded text-xs font-medium"
+              >
+                Checking
+              </button>
+              <button
+                @click="setFilter('repair')"
+                :class="filter === 'repair' ? 'filter-offline' : 'text-muted hover:text-secondary'"
+                class="hidden md:block px-3 py-1 rounded text-xs font-medium"
+              >Repair</button>
+              <button
+                @click="setFilter('changed')"
+                :class="filter === 'changed' ? 'filter-all' : 'text-muted hover:text-secondary'"
+                class="hidden lg:block px-3 py-1 rounded text-xs font-medium"
+              >Changed</button>
+              <button
+                @click="setFilter('unstable')"
+                :class="filter === 'unstable' ? 'filter-all' : 'text-muted hover:text-secondary'"
+                class="hidden xl:block px-3 py-1 rounded text-xs font-medium"
+              >Unstable</button>
+            </div>
+
+            <select
+              x-model="sort"
+              @change="saveSort()"
+              class="pl-3 pr-8 py-2 rounded-lg text-xs cursor-pointer min-w-[110px]"
+            >
+              <option value="default">Default</option>
+              <option value="name">Name</option>
+              <option value="latency-asc">Latency ↑</option>
+              <option value="latency-desc">Latency ↓</option>
+              <option value="status">Status</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Proxy Grid -->
+
+      <div
+        x-show="showProxies"
+        class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 mb-4"
+      >
+        <template x-for="item in displayItems" :key="item.key">
+          <div :style="item.type === 'header' ? 'grid-column: 1 / -1' : ''">
+            <!-- Group header (balancer groups) -->
+            <template x-if="item.type === 'header'">
+			  <div class="group-header card-flat w-full flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors">
+				<button @click="toggleGroup(item.block.key)" class="flex items-center gap-2 text-left flex-1 min-w-0">
+				  <svg
+					class="w-3.5 h-3.5 text-muted transition-transform flex-shrink-0"
+					:class="collapsedGroups[item.block.key] && '-rotate-90'"
+					fill="none" stroke="currentColor" viewBox="0 0 24 24"
+				  >
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+				  </svg>
+				  <span class="text-sm font-medium text-primary truncate flex-1" x-text="item.block.group"></span>
+				  <span class="text-xs text-muted tabular-nums flex-shrink-0"
+					><span
+					  :class="item.block.online === item.block.total ? 'latency-good' : (item.block.online === 0 ? 'latency-bad' : '')"
+					  x-text="item.block.online"
+				  ></span>/<span x-text="item.block.total"></span
+				  ></span>
+				</button>
+
+			  </div>
+            </template>
+
+            <!-- Proxy card -->
+			<template x-if="item.type === 'proxy'">
+			  <div
+				class="proxy-card group card rounded-lg px-3 py-2.5 transition-all duration-150"
+				:class="initialLoad && 'animate'"
+			  >
+				<div class="proxy-card-heading">
+                  {{ if .IsPublic }}
+                  <span
+                    class="proxy-card-title text-sm text-primary truncate"
+                    x-text="item.proxy.name"
+                  ></span>
+                  {{ else }}
+                  <button
+                    type="button"
+                    @click.stop="copyHostName(item.proxy)"
+                    class="proxy-card-title text-sm text-primary link-hover truncate transition-colors text-left"
+                    :title="'Copy host name: ' + item.proxy.name"
+                    x-text="item.proxy.name"
+                  ></button>
+                  {{ end }}
+                  <span
+                    x-show="item.proxy.protocol"
+                    class="proto-badge"
+                    :class="'proto-' + item.proxy.protocol"
+                    x-text="protoLabel(item.proxy.protocol)"
+                  ></span>
+				</div>
+				<div class="proxy-card-main">
+				<!-- Status dot -->
+                <div class="relative flex-shrink-0">
+                  <div
+                    class="w-2 h-2 rounded-full"
+                    :class="cardDotClass(item.proxy)"
+                  ></div>
+                </div>
+
+                <!-- Info -->
+                <div class="flex-1 min-w-0">
+                  {{ if .ShowServerDetails }}
+                  <span class="text-xs text-muted truncate block" x-text="item.proxy.serverInfo"></span>
+                  {{ end }}
+                  <div class="flex items-center gap-1.5 mt-0.5 min-w-0">
+                    <button
+                      type="button"
+                      class="state-badge proxy-card-cause"
+					  :class="cardStatusClass(item.proxy)"
+					  :title="cardStatusDescription(item.proxy)"
+					  @click.stop="cardDiagnosis(item.proxy) && openDiagnosis(item.proxy.nodeId, false, $event)"
+					  x-text="cardStatusLabel(item.proxy)"
+                    ></button>
+                  </div>
+				</div>
+
+                {{ if .IsPublic }}
+                <div class="flex flex-col items-center gap-1 flex-shrink-0">
+                  <span class="text-xs tabular-nums" :class="cardLatencyClass(item.proxy)" x-text="item.proxy.latency"></span>
+                </div>
+                {{ end }}
+
+				</div>
+				{{ if .ShowServerDetails }}
+				<div
+				  x-show="item.proxy.previousAddress && item.proxy.addressChangedAt"
+				  class="address-change-row"
+				  :title="'Changed ' + formatTimestamp(item.proxy.addressChangedAt)"
+				>
+				  <span class="address-change-label">IP changed</span>
+				  <span class="address-change-value">
+					<span class="address-change-address" x-text="item.proxy.previousAddress"></span>
+					<span aria-hidden="true">→</span>
+					<span class="address-change-address" x-text="item.proxy.currentResolved || item.proxy.serverInfo"></span>
+				  </span>
+				</div>
+				{{ end }}
+			  </div>
+            </template>
+          </div>
+        </template>
+      </div>
+
+      <div
+        x-show="showProxies && filteredProxies.length === 0"
+        class="text-center py-12 text-muted"
+      >
+        No proxies match your criteria
+      </div>
+
+       {{ end }}
+      </section>
+
+      <footer
+        x-show="showFooter"
+        class="mt-8 pt-4 border-t border-default text-center text-xs text-muted"
+      >
+        {{ if .IsPublic }}
+        <div>
+          Powered by
+          <a
+            href="https://github.com/kutovoys/xray-checker"
+            target="_blank"
+            class="hover:text-secondary"
+            >Xray Checker</a
+          >
+        </div>
+        {{ else }}
+        <div>
+          <a
+            href="https://github.com/kutovoys/xray-checker"
+            target="_blank"
+            class="hover:text-secondary"
+            >GitHub</a
+          >
+          <span class="mx-2">·</span>
+          <a
+            href="https://t.me/+Ux5gQhAY8KA2OTdi"
+            target="_blank"
+            class="hover:text-secondary"
+            >Telegram Chat</a
+          >
+        </div>
+        <div class="mt-2">
+          Made with ❤️ by
+          <a
+            href="https://github.com/kutovoys"
+            target="_blank"
+            class="hover:text-secondary"
+            >kutovoys</a
+          >
+        </div>
+        {{ end }}
+      </footer>
+    </div>
+
+{{ end }}

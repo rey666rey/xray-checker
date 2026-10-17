@@ -1,0 +1,167 @@
+{{ define "telegram-setup" }}
+          <template x-if="!alertsLoading && (!telegramStatus.configured || telegramReplacing)">
+            <div class="alerts-setup-layout">
+              <div x-show="!telegramBot" class="alerts-setup-hero">
+                <div class="relative z-10 flex items-start justify-between gap-4">
+                  <div>
+                    <div class="alerts-kicker">Подключение</div>
+                    <h3 class="text-sm font-semibold text-primary mt-1">Подключите уведомления</h3>
+                    <p class="alerts-section-copy mt-1 max-w-[20rem]">Сообщения о значимых изменениях. Повторные ошибки объединяются в сводку.</p>
+                  </div>
+                  <span class="alerts-route-count">~2 мин</span>
+                </div>
+                <div class="relative z-10 flex items-center gap-2 mt-3 text-[10px] text-muted">
+                  <svg class="w-3.5 h-3.5 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="m9 12 2 2 4-4"/></svg>
+                  <span>Токен и параметры прокси хранятся на этом Mac</span>
+                </div>
+              </div>
+
+              <section x-show="!telegramBot" class="alerts-step">
+                <div class="flex items-start gap-3">
+                  <span class="alerts-step-index">1</span>
+                  <div class="min-w-0 flex-1 flex items-center justify-between gap-3">
+                    <div>
+                      <h3 class="alerts-section-title">Создайте бота</h3>
+                      <p class="alerts-section-copy mt-0.5">В BotFather выполните <span class="text-primary">/newbot</span> и скопируйте токен.</p>
+                    </div>
+                    <a href="https://t.me/BotFather" target="_blank" rel="noreferrer" class="btn flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-[10px] font-semibold">
+                      BotFather
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17 17 7M7 7h10v10"/></svg>
+                    </a>
+                  </div>
+                </div>
+              </section>
+
+              <section class="alerts-step active">
+                <div class="flex items-start gap-3">
+                  <span class="alerts-step-index" :class="telegramBot && 'complete'" x-text="telegramBot ? '✓' : '2'"></span>
+                  <div class="min-w-0 flex-1">
+                    <h3 class="alerts-section-title" x-text="telegramBot ? 'Бот проверен' : 'Подключите бота'"></h3>
+                    <p class="alerts-section-copy mt-0.5" x-text="telegramBot ? 'Токен проверен; можно выбрать получателя.' : 'Сначала проверяем токен, затем сохраняем настройки.'"></p>
+
+                    <label x-show="!telegramBot" class="block mt-3">
+                      <span class="alerts-label"><span>Токен Bot API</span><span class="font-normal text-muted">Скрытое поле</span></span>
+                      <span class="alerts-field block">
+                        <svg class="alerts-field-icon w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 7a4 4 0 1 1-7.9 1H2v3h3v3h3v3h3l1.4-1.4"/></svg>
+                        <input class="alerts-input with-icon pr-10" :class="telegramError && !telegramBot && 'invalid'" :type="telegramTokenVisible ? 'text' : 'password'" x-model="telegramToken" autocomplete="new-password" spellcheck="false" placeholder="123456789:AA…" :disabled="telegramStatus.managedByEnvironment" />
+                        <button type="button" @click="telegramTokenVisible = !telegramTokenVisible" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-secondary p-1" title="Показать или скрыть токен" aria-label="Показать или скрыть токен">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg>
+                        </button>
+                      </span>
+                      <span x-show="telegramError && !telegramBot" class="alerts-field-error">
+                        <svg class="w-3.5 h-3.5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-width="1.8" d="M12 9v4m0 4h.01"/><circle cx="12" cy="12" r="9" stroke-width="1.8"/></svg>
+                        <span x-text="telegramError"></span>
+                      </span>
+                    </label>
+
+                    <div x-show="!telegramBot" class="alerts-route-summary mt-3">
+                      <span class="alerts-route-icon flex-shrink-0 !mb-0">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M5 12h14M12 5l7 7-7 7"/></svg>
+                      </span>
+                      <div class="min-w-0 flex-1">
+                        <div class="text-[10px] font-semibold text-primary truncate" x-text="telegramDeliveryLabel"></div>
+                        <div class="text-[9px] text-muted mt-0.5" x-text="telegramDeliveryMode === 'auto' ? telegramStatus.availableRoutes + ' рабочих маршрутов доступно' : telegramDeliveryDescription"></div>
+                      </div>
+                      <button type="button" @click="telegramRouteExpanded = !telegramRouteExpanded" class="text-[10px] font-semibold text-secondary hover:text-primary" x-text="telegramRouteExpanded ? 'Готово' : 'Изменить'"></button>
+                    </div>
+
+					<div x-show="!telegramBot && telegramRouteExpanded" x-transition.opacity class="mt-3">
+                      <div class="alerts-route-grid">
+                        <template x-for="route in telegramDeliveryOptions" :key="route.key">
+                          <button type="button" @click="telegramDeliveryMode = route.key; telegramSettingsDirty = telegramStatus.configured" class="alerts-choice alerts-route-option" :class="telegramDeliveryMode === route.key && 'selected'">
+                            <span class="alerts-route-icon" :class="'is-' + route.key">
+                              <svg x-show="route.key === 'auto'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3v5m0 8v5M5.6 6.2l3.5 3.5m5.8 5.8 3.5 3.5M3 12h5m8 0h5M5.6 17.8l3.5-3.5m5.8-5.8 3.5-3.5"/></svg>
+                              <svg x-show="route.key === 'direct'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2" stroke-width="1.8"/><path stroke-linecap="round" stroke-width="1.8" d="M10.5 5h3M11 18.5h2"/></svg>
+                              <svg x-show="route.key === 'custom'" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 7h16M4 17h16M8 4v6m8 4v6"/></svg>
+                            </span>
+                            <span class="text-[10px] font-semibold text-primary block" x-text="route.shortLabel"></span>
+                            <span class="text-[8px] text-muted block mt-0.5" x-text="route.key === 'auto' ? 'Рекомендуется' : (route.key === 'direct' ? 'Без прокси' : 'Свой прокси')"></span>
+                          </button>
+                        </template>
+                      </div>
+                      <p class="alerts-section-copy mt-2" x-text="telegramDeliveryDescription"></p>
+                      <div x-show="telegramDeliveryMode === 'custom'" class="mt-2">
+                        <input class="alerts-input" type="password" x-model="telegramCustomProxy" autocomplete="new-password" spellcheck="false" placeholder="socks5h://user:password@host:1080" :disabled="telegramStatus.proxyManagedByEnvironment" />
+                        <p class="text-[9px] text-muted mt-1.5" x-show="telegramStatus.customProxyConfigured && !telegramCustomProxy">Ранее сохранённый прокси останется.</p>
+                        <p class="text-[9px] text-muted mt-1.5" x-show="telegramStatus.proxyManagedByEnvironment">Прокси задан через TELEGRAM_PROXY_URL.</p>
+                      </div>
+                    </div>
+
+                    <button x-show="!telegramBot" type="button" @click="verifyTelegramToken()" :disabled="telegramBusy || (!telegramToken && !telegramStatus.managedByEnvironment)" class="alerts-primary w-full mt-3 px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2">
+                      <span x-show="telegramBusy" class="alerts-spinner !w-3.5 !h-3.5 !border-white/30 !border-t-white"></span>
+                      <span x-text="telegramBusy ? 'Проверяем…' : 'Проверить и продолжить'"></span>
+                      <svg x-show="!telegramBusy" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m9 18 6-6-6-6"/></svg>
+                    </button>
+
+                    <div x-show="telegramBot" class="mt-3 alerts-success-strip">
+                      <span class="w-8 h-8 rounded-xl grid place-items-center flex-shrink-0 text-white" style="background:linear-gradient(145deg,#39b8ef,#168dcc)">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m5 12 4 4L19 6"/></svg>
+                      </span>
+                      <div class="min-w-0 flex-1">
+                        <div class="text-[9px] uppercase tracking-wide latency-good">Бот проверен</div>
+                        <div class="text-xs font-semibold text-primary truncate" x-text="telegramBot ? '@' + telegramBot.username : ''"></div>
+                      </div>
+                      <a :href="telegramBot ? 'https://t.me/' + telegramBot.username : '#'" target="_blank" rel="noreferrer" class="text-[10px] font-semibold text-secondary ml-auto">Открыть бота ↗</a>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section x-show="telegramBot" x-transition class="alerts-step active">
+                <div class="flex items-start gap-3">
+                  <span class="alerts-step-index" :class="telegramSelectedChatId && 'complete'" x-text="telegramSelectedChatId ? '✓' : '3'"></span>
+                  <div class="min-w-0 flex-1">
+                    <h3 class="alerts-section-title">Выберите получателя</h3>
+                    <p class="alerts-section-copy mt-0.5">Откройте бота, нажмите Start и вернитесь сюда.</p>
+                    <button type="button" @click="discoverTelegramChats()" :disabled="telegramBusy" class="btn w-full mt-3 px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 11a8 8 0 1 1-2.35-5.65M20 4v7h-7"/></svg>
+                      <span x-text="telegramBusy ? 'Ищем чат…' : 'Я отправила /start · найти чат'"></span>
+                    </button>
+
+                    <div x-show="telegramChats.length" class="space-y-2 mt-3">
+                      <template x-for="chat in telegramChats" :key="chat.id">
+                        <button type="button" @click="selectTelegramChat(chat)" class="alerts-choice w-full p-3 text-left flex items-center gap-3" :class="String(telegramSelectedChatId) === String(chat.id) && 'selected'">
+                          <span class="w-8 h-8 rounded-xl grid place-items-center flex-shrink-0 bg-tertiary text-muted">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z"/></svg>
+                          </span>
+                          <span class="min-w-0 flex-1">
+                            <span class="text-xs font-semibold text-primary block truncate" x-text="chat.label"></span>
+                            <span class="text-[9px] text-muted uppercase tracking-wide" x-text="chat.type"></span>
+                          </span>
+                          <span class="w-4 h-4 rounded-full border flex-shrink-0 flex items-center justify-center" :style="String(telegramSelectedChatId) === String(chat.id) ? 'border-color:#2aabee' : ''">
+                            <span x-show="String(telegramSelectedChatId) === String(chat.id)" class="w-2 h-2 rounded-full" style="background:#2aabee"></span>
+                          </span>
+                        </button>
+                      </template>
+                    </div>
+                    <div x-show="telegramChatsSearched && !telegramChats.length" class="alerts-empty mt-3">
+                      <div class="alerts-icon !w-9 !h-9 !rounded-full mx-auto">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="m9.78 18.65.33-4.74 8.62-7.78c.38-.34-.08-.5-.58-.2L7.5 12.65 2.9 11.2c-.99-.3-1-1 .21-1.48L21.03 2.8c.82-.3 1.54.2 1.27 1.48l-3.05 14.37c-.21 1.02-.82 1.27-1.67.8l-4.65-3.43-2.24 2.16c-.25.25-.46.46-.91.46Z"/></svg>
+                      </div>
+                      <div class="text-xs font-semibold text-primary mt-2">Чаты не найдены</div>
+                      <p class="text-[10px] text-muted mt-1">Отправьте боту /start и повторите поиск.</p>
+                      <div class="flex justify-center gap-2 mt-3">
+                        <a :href="telegramBot ? 'https://t.me/' + telegramBot.username : '#'" target="_blank" rel="noreferrer" class="btn px-3 py-2 rounded-lg text-[10px] font-semibold">Открыть бота ↗</a>
+                        <button type="button" @click="discoverTelegramChats()" :disabled="telegramBusy" class="btn px-3 py-2 rounded-lg text-[10px] font-semibold">Искать снова</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <button x-show="telegramBot" type="button" @click="backToTelegramToken()" :disabled="telegramBusy" class="btn px-4 py-2.5 rounded-xl text-xs">Вернуться к токену</button>
+              <button
+                x-show="telegramSelectedChatId"
+                type="button"
+                @click="saveTelegramSettings()"
+                :disabled="telegramBusy"
+                class="alerts-primary w-full px-4 py-3 rounded-xl text-sm font-semibold"
+              >
+                <span x-text="telegramBusy ? 'Сохраняем…' : 'Включить Telegram-алерты'"></span>
+              </button>
+              <button x-show="telegramReplacing && telegramStatus.configured" type="button" @click="cancelTelegramReplacement()" class="btn w-full px-4 py-2.5 rounded-xl text-xs">Оставить текущего бота</button>
+            </div>
+          </template>
+
+
+{{ end }}
